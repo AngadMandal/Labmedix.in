@@ -55,6 +55,8 @@ import {
   Megaphone,
   CreditCard,
   Eye,
+  EyeOff,
+  Copy,
   Check,
   X,
   Printer,
@@ -160,6 +162,8 @@ export const UserListPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [workPhone, setWorkPhone] = useState('');
   const [department, setDepartment] = useState('Front Desk Operations');
@@ -178,10 +182,73 @@ export const UserListPage: React.FC = () => {
   const [role, setRole] = useState<Role>('reception');
   const [pinCode, setPinCode] = useState('1234');
 
+  // Super Admin Password Self-Update Modal State
+  const [isSuperAdminPasswordModalOpen, setIsSuperAdminPasswordModalOpen] = useState(false);
+  const [superAdminNewPassword, setSuperAdminNewPassword] = useState('');
+  const [superAdminConfirmPassword, setSuperAdminConfirmPassword] = useState('');
+  const [superAdminNewPin, setSuperAdminNewPin] = useState('');
+  const [showSuperAdminPassword, setShowSuperAdminPassword] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshList = () => {
     setUsers(UserService.getAll());
+  };
+
+  // Copy Staff Login Credentials
+  const handleCopyStaffCredentials = (u: User) => {
+    const staffPass = u.password || 'Lmdx@2026!';
+    const staffPin = u.pinCode || '1234';
+    const loginUrl = `${window.location.origin}/#/login`;
+    const text = `🏥 LABMEDIX HEALTHCARE STAFF CREDENTIALS
+--------------------------------------------
+Staff ID: ${u.staffId || u.id}
+Staff Name: ${u.fullName}
+Role: ${u.role.toUpperCase()}
+Username: ${u.username}
+User Email ID: ${u.email}
+Password: ${staffPass}
+Security PIN: ${staffPin}
+Portal Login: ${loginUrl}
+--------------------------------------------
+Note: Keep these credentials confidential.`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      triggerCelebrationFireworks();
+      showToast('success', 'Credentials Copied!', `Copied login credentials for ${u.fullName} to clipboard.`);
+    }).catch(() => {
+      showToast('error', 'Copy Failed', 'Unable to copy credentials to clipboard.');
+    });
+  };
+
+  // Super Admin Password Self-Update Handler
+  const handleUpdateSuperAdminPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperAdmin || !currentUser) {
+      showToast('error', 'Access Restricted', 'Only Super Admin can update Super Admin portal password.');
+      return;
+    }
+
+    if (superAdminNewPassword !== superAdminConfirmPassword) {
+      showToast('error', 'Password Mismatch', 'New password and confirm password do not match.');
+      return;
+    }
+
+    const res = UserService.updateSuperAdminPassword(
+      currentUser.id,
+      superAdminNewPassword
+    );
+
+    if (!res.success) {
+      showToast('error', 'Update Failed', res.error || 'Failed to update password.');
+    } else {
+      triggerCelebrationFireworks();
+      showToast('success', 'Super Admin Password Updated!', 'Your sovereign portal strong password has been updated securely.');
+      setIsSuperAdminPasswordModalOpen(false);
+      setSuperAdminNewPassword('');
+      setSuperAdminConfirmPassword('');
+      refreshList();
+    }
   };
 
   // Handle Photo File Upload
@@ -251,6 +318,7 @@ export const UserListPage: React.FC = () => {
       username,
       fullName,
       email,
+      password: password.trim() || undefined,
       phone,
       workPhone,
       department,
@@ -274,7 +342,7 @@ export const UserListPage: React.FC = () => {
       showToast('error', 'Creation Failed', res.error);
     } else {
       triggerCelebrationFireworks();
-      showToast('success', 'Staff Created', `${res.user.fullName} registered with ID ${res.user.staffId}.`);
+      showToast('success', 'Staff Created', `${res.user.fullName} registered with ID ${res.user.staffId}. Password assigned.`);
       setIsAddModalOpen(false);
       resetForm();
       refreshList();
@@ -285,6 +353,8 @@ export const UserListPage: React.FC = () => {
     setUsername('');
     setFullName('');
     setEmail('');
+    setPassword('');
+    setShowPassword(false);
     setPhone('');
     setWorkPhone('');
     setPhotoUrl('');
@@ -302,8 +372,10 @@ export const UserListPage: React.FC = () => {
     if (!editingUser) return;
 
     UserService.updateUser(editingUser.id, {
-      fullName,
-      email,
+      username: username.trim(),
+      fullName: fullName.trim(),
+      email: email.trim(),
+      ...(password.trim() ? { password: password.trim() } : {}),
       phone,
       workPhone,
       department,
@@ -325,6 +397,7 @@ export const UserListPage: React.FC = () => {
     triggerCelebrationFireworks();
     showToast('success', 'Staff Updated', `Changes to ${fullName} saved.`);
     setEditingUser(null);
+    setPassword('');
     refreshList();
   };
 
@@ -527,7 +600,10 @@ export const UserListPage: React.FC = () => {
   const openEditModal = (u: User) => {
     setEditingUser(u);
     setFullName(u.fullName);
+    setUsername(u.username);
     setEmail(u.email);
+    setPassword(u.password || '');
+    setShowPassword(false);
     setPhone(u.phone || '');
     setWorkPhone(u.workPhone || '');
     setDepartment(u.department || 'Operations');
@@ -674,7 +750,7 @@ export const UserListPage: React.FC = () => {
       }
     },
     {
-      header: '1D Barcode & Security PIN',
+      header: '1D Barcode & Credentials',
       accessor: (u) => {
         const isRevealed = revealedPins[u.id];
         return (
@@ -691,15 +767,17 @@ export const UserListPage: React.FC = () => {
                   type="button"
                   onClick={() => toggleRevealPin(u.id)}
                   className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-0.5 rounded font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 transition-colors"
-                  title="Click to Reveal/Hide Security PIN (Super Admin Exclusive)"
+                  title="Click to Reveal/Hide Staff Password & Security PIN (Super Admin Exclusive)"
                 >
                   <KeyRound className="w-3 h-3 text-amber-500" />
+                  <span>Pass: {isRevealed ? (u.password || 'Lmdx@2026!') : '••••'}</span>
+                  <span className="opacity-40">|</span>
                   <span>PIN: {isRevealed ? (u.pinCode || '1234') : '••••'}</span>
                 </button>
               ) : (
                 <span
                   className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded flex items-center gap-1"
-                  title="Protected PIN: Only Super Admin has authority to inspect staff security credentials."
+                  title="Protected Credentials: Only Super Admin has authority to inspect staff credentials."
                 >
                   <Lock className="w-3 h-3 text-slate-400" />
                   <span>•••• (Locked)</span>
@@ -715,6 +793,18 @@ export const UserListPage: React.FC = () => {
       className: 'text-right',
       accessor: (u) => (
         <div className="flex items-center justify-end gap-1.5">
+          {/* Copy Staff Credentials (Super Admin Exclusive) */}
+          {isSuperAdmin && (
+            <Button
+              size="sm"
+              variant="ghost"
+              title="Copy Complete Staff Login Credentials (Username, Email, Password, PIN)"
+              onClick={() => handleCopyStaffCredentials(u)}
+            >
+              <Copy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </Button>
+          )}
+
           {/* View Official Staff ID Card (All Staff) */}
           <Button
             size="sm"
@@ -878,6 +968,23 @@ export const UserListPage: React.FC = () => {
           >
             Export CSV
           </Button>
+
+          {/* Change Super Admin Password Button - Super Admin Exclusive */}
+          {isSuperAdmin && (
+            <Button
+              variant="outline"
+              className="border-amber-500/50 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-bold"
+              leftIcon={<KeyRound className="w-4 h-4 text-amber-500" />}
+              onClick={() => {
+                setSuperAdminNewPassword('');
+                setSuperAdminConfirmPassword('');
+                setSuperAdminNewPin('');
+                setIsSuperAdminPasswordModalOpen(true);
+              }}
+            >
+              Change Super Admin Password
+            </Button>
+          )}
 
           {/* Add Staff Member Button - Super Admin Exclusive */}
           {isSuperAdmin ? (
@@ -1568,7 +1675,46 @@ export const UserListPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-slate-100 dark:border-slate-800">
             <Input label="Full Name" placeholder="e.g. Dr. Debashis Roy" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
             <Input label="Staff Username" placeholder="e.g. debashis.roy" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            <Input label="Official Email" type="email" placeholder="debashis@labmedix.org" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label="Official Email ID" type="email" placeholder="debashis@labmedix.org" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
+            {/* Staff Login Password Input with Auto-Generate & Visibility Toggle */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Staff Login Password <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const generated = UserService.generateSecurePassword();
+                    setPassword(generated);
+                    setShowPassword(true);
+                    showToast('info', 'Password Generated', `Generated: ${generated}`);
+                  }}
+                  className="text-[10px] text-teal-600 dark:text-teal-400 font-bold hover:underline flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" /> Auto-Generate Strong
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter staff password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white pr-9 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
             <Input label="Contact Phone" placeholder="+91 98300 00000" value={phone} onChange={(e) => setPhone(e.target.value)} />
             <Input label="Work Ext / Desk Phone" placeholder="EXT-104" value={workPhone} onChange={(e) => setWorkPhone(e.target.value)} />
             <Input label="Department" placeholder="e.g. Outpatient Care, Pathology" value={department} onChange={(e) => setDepartment(e.target.value)} />
@@ -1695,7 +1841,46 @@ export const UserListPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <Input label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-              <Input label="Official Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input label="Staff Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <Input label="Official Email ID" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
+              {/* Staff Password with Auto-Generate & Show/Hide */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    Update Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const generated = UserService.generateSecurePassword();
+                      setPassword(generated);
+                      setShowPassword(true);
+                      showToast('info', 'Password Generated', `Generated: ${generated}`);
+                    }}
+                    className="text-[10px] text-teal-600 dark:text-teal-400 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" /> Auto-Generate
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter new password (or keep current)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white pr-9 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
               <Input label="Contact Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
               <Input label="Work Ext / Desk Phone" value={workPhone} onChange={(e) => setWorkPhone(e.target.value)} />
               <Input label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} />
@@ -2007,6 +2192,102 @@ export const UserListPage: React.FC = () => {
                   Save Module Permissions
                 </Button>
               </div>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* SUPER ADMIN PASSWORD SELF-UPDATE DEDICATED MODAL */}
+      {isSuperAdminPasswordModalOpen && (
+        <Modal
+          isOpen={isSuperAdminPasswordModalOpen}
+          onClose={() => setIsSuperAdminPasswordModalOpen(false)}
+          title="👑 Super Admin Strong Password Management"
+          maxWidth="md"
+        >
+          <form onSubmit={handleUpdateSuperAdminPasswordSubmit} className="space-y-4 text-xs">
+            <div className="p-3.5 bg-gradient-to-r from-purple-950/30 to-slate-900/40 rounded-2xl border border-purple-500/30 text-purple-900 dark:text-purple-200 space-y-1">
+              <strong className="block text-sm font-bold flex items-center gap-1.5">
+                <Crown className="w-4 h-4 text-amber-400" /> Super Admin Portal Password Security
+              </strong>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                You can create or update your Super Admin strong password directly here. Password must be at least 8 characters with uppercase, lowercase, and numbers/symbols.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Super Admin Account Username
+              </label>
+              <input
+                type="text"
+                disabled
+                value={currentUser?.username || 'superadmin'}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono cursor-not-allowed"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  New Strong Password <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const generated = `SuperAdmin@${Math.floor(1000 + Math.random() * 9000)}#Sec`;
+                    setSuperAdminNewPassword(generated);
+                    setSuperAdminConfirmPassword(generated);
+                    setShowSuperAdminPassword(true);
+                    showToast('info', 'Strong Password Generated', `Generated: ${generated}`);
+                  }}
+                  className="text-[10px] text-amber-600 dark:text-amber-400 font-bold hover:underline flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" /> Auto-Generate Strong Password
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showSuperAdminPassword ? 'text' : 'password'}
+                  placeholder="Enter new strong password (e.g. LabMedix@2026#Secure)"
+                  value={superAdminNewPassword}
+                  onChange={(e) => setSuperAdminNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white pr-9 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSuperAdminPassword(!showSuperAdminPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  {showSuperAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Confirm New Strong Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Re-enter new Super Admin password"
+                value={superAdminConfirmPassword}
+                onChange={(e) => setSuperAdminConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button type="button" variant="outline" onClick={() => setIsSuperAdminPasswordModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" className="bg-amber-600 hover:bg-amber-700 text-white font-bold">
+                Save Super Admin Password
+              </Button>
             </div>
           </form>
         </Modal>

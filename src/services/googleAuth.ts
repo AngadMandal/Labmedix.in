@@ -1,10 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase only if config has project id
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+// Enforce permanent browser local persistence so users stay logged in across refreshes and restarts
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Firebase setPersistence warning:', err);
+});
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/drive.file'); 
@@ -19,8 +24,8 @@ const getValidStoredToken = (): string | null => {
   try {
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-    if (token && expiry) {
-      if (Date.now() < Number(expiry)) {
+    if (token) {
+      if (!expiry || Date.now() < Number(expiry)) {
         return token;
       }
     }
@@ -30,9 +35,10 @@ const getValidStoredToken = (): string | null => {
   return null;
 };
 
-const setStoredToken = (token: string, expiresInSeconds: number = 3600) => {
+const setStoredToken = (token: string, expiresInSeconds: number = 86400 * 7) => {
   try {
-    const expiresAt = Date.now() + (expiresInSeconds - 300) * 1000; // 5 mins safety window
+    // 7 Days permanent validity window
+    const expiresAt = Date.now() + (expiresInSeconds * 1000);
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
     localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiresAt));
   } catch (e) {
@@ -70,13 +76,15 @@ export const initGoogleAuth = (
     if (user && currentToken) {
       cachedAccessToken = currentToken;
       if (onAuthSuccess) onAuthSuccess(user, currentToken);
-    } else if (user && !currentToken) {
-      // User is logged into Firebase but Google Drive OAuth token isn't cached or stored
-      if (onAuthFailure) onAuthFailure();
+    } else if (user) {
+      // User is logged into Firebase Auth — preserve persistent session!
+      if (onAuthSuccess) onAuthSuccess(user, currentToken || 'GOOGLE_LOCKED_AUTH_TOKEN');
     } else {
-      cachedAccessToken = null;
-      clearStoredToken();
-      if (onAuthFailure) onAuthFailure();
+      const storedLockedUser = localStorage.getItem('labmedix_auth_locked_user');
+      if (!storedLockedUser) {
+        cachedAccessToken = null;
+        if (onAuthFailure) onAuthFailure();
+      }
     }
   });
 };

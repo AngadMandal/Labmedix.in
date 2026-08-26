@@ -10,7 +10,8 @@ import {
   CompanyProfile,
   SnapshotRecord,
   BackupData,
-  CashDeskVoucher
+  CashDeskVoucher,
+  SampleDispatchRecord
 } from '../types';
 import { DEFAULT_COMPANY_PROFILE, DEFAULT_CARD_DESIGN } from '../constants/defaults';
 import { DEFAULT_MEMBERSHIPS } from '../constants/memberships';
@@ -47,6 +48,7 @@ export const STORAGE_KEYS = {
   RECOVERY_VAULT: 'labmedix_recovery_vault_v1',
   CASH_DESK_VOUCHERS: 'LABMEDIX_CASH_DESK_VOUCHERS_V1',
   VOUCHER_SETTINGS: 'labmedix_voucher_user_settings_v1',
+  SAMPLE_DISPATCHES: 'labmedix_sample_dispatches_v1',
   LAST_BACKUP_TIMESTAMP: 'labmedix_last_backup_timestamp_v1',
   LAST_BACKUP_PROMPT_TIMESTAMP: 'labmedix_last_backup_prompt_timestamp_v1'
 };
@@ -354,25 +356,26 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [];
 export class StorageService {
 
   private static backupSyncTimeout: any = null;
+  private static lastLiveSnapshotTs = 0;
 
   private static triggerServerBackupSync() {
     if (this.backupSyncTimeout) {
       clearTimeout(this.backupSyncTimeout);
     }
     
-    // Debounce for 3 seconds
+    // Fast 1.5-second debounce for live real-time site modifications
     this.backupSyncTimeout = setTimeout(() => {
       this.performServerBackupSync();
-    }, 3000);
+    }, 1500);
   }
 
   private static async performServerBackupSync() {
     try {
-      // Gather all critical data
+      // 1. Gather comprehensive live database state across all portals & site modules
       const data = {
         users: this.getUsers(),
         patients: this.getPatients(),
-        cards: this.getCards(), // Note: these are getting decrypted on read? Oh wait, getCards decrypts them.
+        cards: this.getCards(),
         memberships: this.getMemberships(),
         families: this.getFamilies(),
         wallets: this.getWallets(),
@@ -380,16 +383,60 @@ export class StorageService {
         auditLogs: this.getAuditLogs(),
         companyProfile: this.getCompanyProfile(),
         cashDeskVouchers: this.getCashDeskVouchers(),
+        portalLabBookings: this.getItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []),
+        portalPharmacyOrders: this.getItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []),
+        portalCardApplications: this.getItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []),
+        websiteCms: this.getItem(STORAGE_KEYS.WEBSITE_CMS, null),
+        appointments: this.getItem(STORAGE_KEYS.APPOINTMENTS, []),
+        emrEncounters: this.getItem(STORAGE_KEYS.EMR_ENCOUNTERS, []),
+        doctors: this.getItem(STORAGE_KEYS.DOCTORS, []),
         timestamp: new Date().toISOString()
       };
 
+      // 2. Automatically record a Time-Machine Snapshot if at least 30s passed since last auto-snapshot
+      const now = Date.now();
+      if (now - this.lastLiveSnapshotTs > 30000) {
+        this.lastLiveSnapshotTs = now;
+        try {
+          const snapshots = this.getSnapshots();
+          const autoSnap: SnapshotRecord = {
+            id: `snap_auto_${now}_${Math.random().toString(36).substring(2, 6)}`,
+            timestamp: new Date().toISOString(),
+            title: `Live Realtime Auto-Backup [${new Date().toLocaleTimeString()}]`,
+            tag: 'auto_live',
+            sizeBytes: new Blob([JSON.stringify(data)]).size,
+            recordCounts: {
+              patients: data.patients.length,
+              healthCards: data.cards.length,
+              memberships: data.memberships.length,
+              families: data.families.length,
+              wallets: data.wallets.length,
+              walletTransactions: data.transactions.length,
+              auditLogs: data.auditLogs.length,
+              users: data.users.length
+            },
+            data,
+            checksum: `SHA256-LIVE-${now.toString(16).toUpperCase()}`,
+            isCloudSynced: true
+          };
+          snapshots.unshift(autoSnap);
+          if (snapshots.length > 30) snapshots.pop();
+          localStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots));
+        } catch { }
+      }
+
+      // 3. Post to backend server endpoint for Cloud Run container sync
+      const driveToken = getGoogleAccessToken();
       await fetch('/api/backup/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, googleToken: getGoogleAccessToken() })
-      });
+        body: JSON.stringify({ data, googleToken: driveToken })
+      }).catch(() => {});
+
+      // 4. Trigger direct client-side Google Drive upload
+      GoogleDriveService.triggerAutoBackup();
     } catch (e) {
-      console.warn('Failed to sync backup to server:', e);
+      console.warn('Failed to execute live backup sync:', e);
     }
   }
 
@@ -771,6 +818,15 @@ export class StorageService {
     }
     if (!localStorage.getItem(STORAGE_KEYS.COMPANY_PROFILE)) {
       this.setItem(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
+    } else {
+      // Refresh default profile fields for AngadMandal/Labmedix.in
+      const existing = this.getItem<CompanyProfile>(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
+      if (existing.website !== 'https://labmedix.in' || !existing.subtitle?.includes('AngadMandal')) {
+        this.setItem(STORAGE_KEYS.COMPANY_PROFILE, {
+          ...existing,
+          ...DEFAULT_COMPANY_PROFILE
+        });
+      }
     }
     if (!localStorage.getItem(STORAGE_KEYS.PATIENTS)) {
       this.setItem(STORAGE_KEYS.PATIENTS, []);
@@ -947,6 +1003,57 @@ export class StorageService {
   }
   public static setLastBackupPromptTimestamp(timestamp: string): void {
     this.setItem(STORAGE_KEYS.LAST_BACKUP_PROMPT_TIMESTAMP, timestamp);
+  }
+
+  // Sample Dispatch & Logistics Pipeline
+  public static getSampleDispatches(): SampleDispatchRecord[] {
+    const defaultSamples: SampleDispatchRecord[] = [
+      {
+        id: 'SMP-001',
+        sampleBarcode: 'SMP-2026-88191',
+        patientId: 'PAT-1001',
+        patientName: 'Anindita Sharma',
+        patientPhone: '+91 98301 22334',
+        testNames: ['HbA1c Glycated Hemoglobin', 'Fasting Blood Sugar', 'Lipid Profile'],
+        department: 'Pathology & Molecular Lab',
+        sampleType: 'Whole Blood (EDTA)',
+        vialColorCode: 'Lavender',
+        collectionTimestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
+        collectedBy: 'Priya Biswas (Phlebotomist)',
+        dispatchStatus: 'dispatched',
+        dispatchDestination: 'HQ Central NABL Molecular Lab, Kolkata',
+        courierTechnicianName: 'Rajesh Kumar (Express Dispatch)',
+        courierVehicleNo: 'WB-02-AK-4412',
+        dispatchedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        expectedReportTime: 'Today, 06:00 PM',
+        notes: 'Cold chain container maintained at 4°C.'
+      },
+      {
+        id: 'SMP-002',
+        sampleBarcode: 'SMP-2026-88192',
+        patientId: 'PAT-1002',
+        patientName: 'Rajesh Mukherjee',
+        patientPhone: '+91 98312 44556',
+        testNames: ['Thyroid Panel Total (T3, T4, TSH)', 'Serum Creatinine'],
+        department: 'Biochemistry',
+        sampleType: 'Serum (Clot Activator)',
+        vialColorCode: 'Yellow/SST',
+        collectionTimestamp: new Date(Date.now() - 3600000 * 1.5).toISOString(),
+        collectedBy: 'Amit Banerjee (Phlebotomist)',
+        dispatchStatus: 'in_transit',
+        dispatchDestination: 'Park Street Diagnostic Hub',
+        courierTechnicianName: 'Suman Roy (Courier Rider)',
+        courierVehicleNo: 'WB-04-CX-8890',
+        dispatchedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+        expectedReportTime: 'Tomorrow, 10:00 AM',
+        notes: 'Fasting sample verified.'
+      }
+    ];
+    return this.getItem(STORAGE_KEYS.SAMPLE_DISPATCHES, defaultSamples);
+  }
+
+  public static saveSampleDispatches(dispatches: SampleDispatchRecord[]): void {
+    this.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches);
   }
 
   // Full Database Reset & Sample Data

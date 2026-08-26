@@ -1,6 +1,7 @@
 import { BackupData } from '../types';
 import { BackupService } from './backupService';
 import { AuditService } from './auditService';
+import { getGoogleAccessToken } from './googleAuth';
 
 export interface DriveFileItem {
   id: string;
@@ -24,22 +25,24 @@ export class GoogleDriveService {
   }
 
   public static triggerAutoBackup() {
-    if (!this.cachedAccessToken) return;
+    const token = this.cachedAccessToken || getGoogleAccessToken();
+    if (!token) return;
     
-    // Debounce live backup (wait 30 seconds after last update)
+    // Fast 2-second debounce for live real-time site modifications
     if (this.autoBackupTimeout) clearTimeout(this.autoBackupTimeout);
     
     this.autoBackupTimeout = setTimeout(async () => {
       try {
-        if (this.cachedAccessToken) {
-          console.info('[LABMEDIX] Live Update detected: Triggering auto Google Drive backup...');
-          await this.uploadBackupToDrive(this.cachedAccessToken);
-          console.info('[LABMEDIX] Auto Google Drive backup completed successfully.');
+        const activeToken = this.cachedAccessToken || getGoogleAccessToken();
+        if (activeToken) {
+          console.info('[LABMEDIX LIVE SYNC] Live site data updated: Performing automated Google Drive backup...');
+          await this.uploadBackupToDrive(activeToken);
+          console.info('[LABMEDIX LIVE SYNC] Google Drive live cloud backup completed successfully.');
         }
       } catch (err) {
-        console.error('[LABMEDIX] Auto Google Drive backup failed:', err);
+        console.warn('[LABMEDIX LIVE SYNC] Auto Google Drive backup notification:', err);
       }
-    }, 30000); // 30 second debounce
+    }, 2000); // 2 second fast debounce
   }
 
   /** Find or create the LABMEDIX backup folder in Google Drive */

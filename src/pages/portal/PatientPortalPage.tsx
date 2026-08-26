@@ -999,24 +999,23 @@ export const PatientPortalPage: React.FC = () => {
             </div>
           </div>
 
-          {/* STRICT CARDHOLDER ACCESS CENTER LOGIN: Card Number + CVV + Anti-Bot Captcha */}
+          {/* STRICT CARDHOLDER ACCESS CENTER LOGIN */}
           <div className="space-y-4">
             <div className="p-3.5 rounded-2xl flex items-center gap-3" style={{background:'rgba(30,58,138,0.15)',border:'1px solid rgba(30,58,138,0.40)'}}>
               <ShieldCheck className="w-5 h-5 shrink-0" style={{color:'#4ade80'}} />
               <div className="text-[11px] leading-relaxed" style={{color:'#93c5fd'}}>
-                Official Access: Enter your <strong style={{color:"#fff"}}>Email / Mobile / Staff ID</strong> and your <strong style={{color:"#fff"}}>Portal Password</strong> provided by Super Admin.
+                Official Access: Enter your <strong style={{color:"#fff"}}>Mobile No / Health Card No / Email</strong> and your <strong style={{color:"#fff"}}>Portal Password</strong>.
               </div>
             </div>
 
             <form onSubmit={handleCardholderLogin} className="space-y-4">
-              {/* Field 1: Health Card Number */}
+              {/* Field 1: Mobile / Card No / Email */}
               <div className="space-y-1">
                 <label className="text-xs font-bold flex items-center justify-between" style={{color:'#cbd5e1'}}>
-                  <span>1. Email / Mobile / Staff ID:</span>
-                  <span className="text-[10px] font-mono" style={{color:'#60a5fa'}}>e.g. staff@labmedix.com</span>
+                  <span>1. Mobile No / Card No / Email:</span>
                 </label>
                 <Input
-                  placeholder="e.g. staff@labmedix.com"
+                  placeholder="Enter Mobile No, Card No or Email"
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
                   leftIcon={<CreditCard className="w-4 h-4" style={{color:'#60a5fa'}} />}
@@ -1025,16 +1024,14 @@ export const PatientPortalPage: React.FC = () => {
                 />
               </div>
 
-              {/* Field 2: 3-Digit Card CVV Security Code */}
+              {/* Field 2: Portal Password */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
                   <span>2. Portal Password:</span>
-                  <span className="text-[10px] text-amber-300 font-mono">Provided by Super Admin</span>
                 </label>
                 <Input
                   type="password"
-                  
-                  placeholder="Enter password"
+                  placeholder="Enter your portal password"
                   value={portalPassword}
                   onChange={(e) => {
                     setPortalPassword(e.target.value);

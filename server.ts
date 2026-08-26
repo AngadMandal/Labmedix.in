@@ -179,13 +179,26 @@ app.post('/api/backup/sync', (req, res) => {
   
   if (data && Object.keys(data).length > 0) {
     backupQueue = data;
-    if (activeGoogleToken && !nextScheduledBackup) {
-      nextScheduledBackup = new Date(Date.now() + 5000).toISOString();
-      setTimeout(processBackupQueue, 5000);
+    
+    // Save live backup to container disk
+    try {
+      const backupDir = path.join(process.cwd(), 'data');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(backupDir, 'labmedix_live_backup.json'), JSON.stringify(data, null, 2), 'utf-8');
+      lastSuccessfulBackup = new Date().toISOString();
+    } catch (e: any) {
+      console.warn('Server disk backup mirror warning:', e?.message || e);
+    }
+
+    if (activeGoogleToken) {
+      nextScheduledBackup = new Date(Date.now() + 1000).toISOString();
+      setTimeout(processBackupQueue, 1000);
     }
   }
   
-  res.json({ success: true, message: 'Backup state updated' });
+  res.json({ success: true, message: 'Backup state updated and synced to server' });
 });
 
 app.get('/api/backup/status', (req, res) => {

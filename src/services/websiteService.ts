@@ -63,15 +63,15 @@ export interface WebsiteCMSConfig {
 const WEBSITE_CMS_STORAGE_KEY = 'LABMEDIX_WEBSITE_CMS_CONFIG';
 
 export const DEFAULT_WEBSITE_CMS_CONFIG: WebsiteCMSConfig = {
-  announcementTicker: '🎉 LABMEDIX ANNUAL MEGA HEALTH FESTIVAL 2026 • UP TO 60% DISCOUNT ON ALL NABL HEALTH PACKAGES & DUAL-CHIP CR80 HEALTH CARDS • 24/7 FREE HOME SAMPLE COLLECTION AVAILABLE!',
-  heroBadge: 'NABL & ISO 9001 ACCREDITED • NEXT-GEN AUTOMATED DIAGNOSTIC NETWORK',
+  announcementTicker: '🎉 LABMEDIX.IN ANNUAL MEGA HEALTH FESTIVAL 2026 • OFFICIAL REPO: AngadMandal/Labmedix.in • UP TO 60% DISCOUNT ON ALL NABL HEALTH PACKAGES & DUAL-CHIP CR80 HEALTH CARDS • 24/7 FREE HOME SAMPLE COLLECTION AVAILABLE!',
+  heroBadge: 'NABL & ISO 9001 ACCREDITED • AngadMandal/Labmedix.in DIAGNOSTIC NETWORK',
   heroTitle: 'Universal Digital Health Card & Smart Diagnostic Ecosystem',
   heroSubtitle: 'Empowering 500,000+ families with Cashless Automated Health Cards, Instant Doctor Consultations, 350+ NABL Lab Tests, and 30-Minute Emergency Ambulance Dispatch.',
   heroCtaPrimaryText: 'Apply for Health Card',
   heroCtaSecondaryText: 'Explore Diagnostic Packages',
-  emergencyHotline: '+880 1700-000000',
-  ambulanceHelpline: '10666 / 999',
-  supportEmail: 'care@labmedix.health',
+  emergencyHotline: '+91 98765 43210',
+  ambulanceHelpline: '1800 123 4567',
+  supportEmail: 'care@labmedix.in',
   stats: {
     happyCardholders: '520,000+',
     labTestsProcessed: '3,450,000+',

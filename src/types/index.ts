@@ -56,6 +56,7 @@ export interface User {
   bloodGroup?: string;
   status: 'active' | 'inactive';
   pinCode?: string;
+  password?: string;
   createdAt: string;
   lastLoginAt?: string;
   phone?: string;
@@ -281,6 +282,31 @@ export interface WalletTransaction {
   gatewaySignature?: string;
   paymentChannel?: string;
   verifiedAt?: string;
+  department?: string;
+  recommendingDoctorId?: string;
+  recommendingDoctorName?: string;
+  lineItems?: any[];
+}
+
+export interface SampleDispatchRecord {
+  id: string;
+  sampleBarcode: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  testNames: string[];
+  department: string;
+  sampleType: 'Whole Blood (EDTA)' | 'Serum (Clot Activator)' | 'Urine' | 'Plasma (Fluoride)' | 'Swab/Culture' | 'Biopsy Tissue';
+  vialColorCode: 'Lavender' | 'Red' | 'Yellow/SST' | 'Grey' | 'Blue' | 'Green';
+  collectionTimestamp: string;
+  collectedBy: string;
+  dispatchStatus: 'pending_collection' | 'collected' | 'dispatched' | 'in_transit' | 'received_at_lab' | 'testing' | 'report_ready' | 'delivered';
+  dispatchDestination: string;
+  courierTechnicianName: string;
+  courierVehicleNo: string;
+  dispatchedAt?: string;
+  expectedReportTime?: string;
+  notes?: string;
 }
 
 export interface Wallet {
@@ -452,10 +478,10 @@ export interface SnapshotRecord {
   id: string;
   timestamp: string;
   title: string;
-  tag?: 'manual' | 'pre-restore' | 'eod' | 'system' | 'cloud_sync';
+  tag?: 'manual' | 'pre-restore' | 'eod' | 'system' | 'cloud_sync' | 'auto_live';
   sizeBytes?: number;
   recordCounts: Record<string, number>;
-  data: BackupData;
+  data: BackupData | any;
   isCloudSynced?: boolean;
   cloudSyncTimestamp?: string;
   checksum?: string;

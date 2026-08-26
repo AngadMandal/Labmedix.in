@@ -52,7 +52,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     StorageService.initializeDatabase();
-    const user = StorageService.getCurrentUser();
+    let user = StorageService.getCurrentUser();
+    if (!user) {
+      try {
+        const storedLocked = localStorage.getItem('labmedix_auth_locked_user');
+        if (storedLocked) {
+          user = JSON.parse(storedLocked);
+          if (user) StorageService.setCurrentUser(user);
+        }
+      } catch {}
+    }
     if (user) {
       setCurrentUser(user);
       recordActivity();
@@ -109,20 +118,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const elapsed = now - effectiveLastActivity;
 
       if (elapsed >= IDLE_TIMEOUT_MS) {
-        // Timeout triggered: Perform secure automatic logout
+        // Inactivity limit reached: Lock screen to preserve permanent login session while protecting data
         clearInterval(idleCheckIntervalRef.current);
         AuditService.log(
-          'SECURE_SESSION_TIMEOUT_IDLE',
+          'SECURE_SESSION_LOCKED_IDLE',
           'security',
-          `Automated secure logout executed: User ${currentUser.username} (${currentUser.fullName}) was inactive for 15 minutes.`,
+          `Automated Screen Lock activated: User ${currentUser.username} (${currentUser.fullName}) was inactive for 15 minutes. Session protected behind Screen Lock.`,
           currentUser.id
         );
-        AuthService.logout();
-        setCurrentUser(null);
+        setIsLocked(true);
+        StorageService.setScreenLocked(true);
         setIsIdleWarningOpen(false);
-        try {
-          localStorage.removeItem(LAST_ACTIVITY_KEY);
-        } catch {}
       } else if (elapsed >= IDLE_WARNING_MS) {
         // 60-second warning state
         const remainingSeconds = Math.max(0, Math.ceil((IDLE_TIMEOUT_MS - elapsed) / 1000));
@@ -176,11 +182,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ─────────────────────────────────────────────────────────────
   const logout = async () => {
     AuthService.logout(); // clears localStorage session + audit log
-    setCurrentUser(null);
-    setIsIdleWarningOpen(false);
     try {
+      localStorage.removeItem('labmedix_auth_locked_user');
+      localStorage.removeItem('labmedix_google_auth_locked');
       localStorage.removeItem(LAST_ACTIVITY_KEY);
     } catch {}
+    setCurrentUser(null);
+    setIsIdleWarningOpen(false);
   };
 
   // ─────────────────────────────────────────────────────────────

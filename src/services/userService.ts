@@ -18,10 +18,20 @@ export class UserService {
     return `LMDX-STF-${String(count).padStart(3, '0')}`;
   }
 
+  public static generateSecurePassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    let pass = 'Lmdx@';
+    for (let i = 0; i < 5; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  }
+
   public static createUser(userData: {
     username: string;
     fullName: string;
     email: string;
+    password?: string;
     role: Role;
     designation?: string;
     photoUrl?: string;
@@ -58,6 +68,7 @@ export class UserService {
       username: userData.username.trim().toLowerCase(),
       fullName: userData.fullName.trim(),
       email: userData.email.trim(),
+      password: userData.password?.trim() || this.generateSecurePassword(),
       role: userData.role,
       designation: userData.designation?.trim() || 'Staff Officer',
       photoUrl: userData.photoUrl?.trim() || undefined,
@@ -97,8 +108,61 @@ export class UserService {
     };
     StorageService.saveUsers(users);
 
+    // If active user updated their own info, reflect in current user
+    const current = StorageService.getCurrentUser();
+    if (current && current.id === id) {
+      StorageService.setCurrentUser(users[index]);
+    }
+
     AuditService.log('USER_UPDATED', 'users', `Updated staff account for ${users[index].fullName}`, id);
     return users[index];
+  }
+
+  public static resetPassword(id: string, newPassword: string, newPin?: string): boolean {
+    const users = StorageService.getUsers();
+    const user = users.find(u => u.id === id);
+    if (!user) return false;
+
+    user.password = newPassword.trim();
+    if (newPin) user.pinCode = newPin.trim();
+    StorageService.saveUsers(users);
+
+    AuditService.log('USER_PASSWORD_RESET', 'users', `Super Admin reset credentials for ${user.fullName}`, id);
+    return true;
+  }
+
+  public static updateSuperAdminPassword(superAdminId: string, newPassword: string): { success: boolean; error?: string } {
+    const trimmed = (newPassword || '').trim();
+    if (!trimmed || trimmed.length < 8) {
+      return { success: false, error: 'Super Admin password must be a strong password of at least 8 characters.' };
+    }
+
+    const hasUpper = /[A-Z]/.test(trimmed);
+    const hasLower = /[a-z]/.test(trimmed);
+    const hasDigitOrSpecial = /[\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(trimmed);
+
+    if (!hasUpper || !hasLower || !hasDigitOrSpecial) {
+      return { success: false, error: 'Strong password required: Include uppercase, lowercase, and numbers/symbols (e.g. LabMedix@2026#Secure).' };
+    }
+
+    const users = StorageService.getUsers();
+    const superAdmin = users.find(u => u.id === superAdminId || u.role === 'super_admin');
+    if (!superAdmin) {
+      return { success: false, error: 'Super Admin account record not found.' };
+    }
+
+    superAdmin.password = trimmed;
+    StorageService.saveUsers(users);
+
+    // Update active current user session
+    const current = StorageService.getCurrentUser();
+    if (current) {
+      const updatedCurrent = { ...current, password: trimmed };
+      StorageService.setCurrentUser(updatedCurrent);
+    }
+
+    AuditService.log('SUPER_ADMIN_PASSWORD_UPDATED', 'auth', `Super Admin (${superAdmin.fullName}) updated their sovereign portal password successfully.`, superAdmin.id);
+    return { success: true };
   }
 
   public static resetPin(id: string, newPin: string): boolean {

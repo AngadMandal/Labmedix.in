@@ -2266,36 +2266,7 @@ export const PatientCardApplicationModal: React.FC<PatientCardApplicationModalPr
                   </div>
 
                   {/* Verify Voucher Action */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800">
-                    {/* Quick Active Voucher Sample Chips for Testing */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] text-slate-400">Quick Test Vouchers:</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVoucherCodeInput('LMDX-CSH-2026-00001');
-                          setVoucherPinInput('839215');
-                          setVerifiedVoucher(null);
-                          setVoucherError('');
-                        }}
-                        className="px-2 py-0.5 rounded bg-slate-800 text-amber-300 hover:bg-slate-700 font-mono text-[10px]"
-                      >
-                        LMDX-00001 (₹2000)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVoucherCodeInput('LMDX-CSH-2026-00002');
-                          setVoucherPinInput('491827');
-                          setVerifiedVoucher(null);
-                          setVoucherError('');
-                        }}
-                        className="px-2 py-0.5 rounded bg-slate-800 text-amber-300 hover:bg-slate-700 font-mono text-[10px]"
-                      >
-                        LMDX-00002 (₹1500)
-                      </button>
-                    </div>
-
+                  <div className="flex items-center justify-end pt-1 border-t border-slate-800">
                     <Button
                       type="button"
                       variant="outline"

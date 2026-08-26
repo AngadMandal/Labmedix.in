@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StorageService } from '../../services/storage';
+import { DoctorMasterService, DoctorMasterItem, DoctorCommissionPayoutRecord } from '../../services/doctorMasterService';
 import { formatCurrency, formatDate, formatDateTime } from '../../utils/formatters';
 import { triggerCelebrationFireworks } from '../../utils/confetti';
 import { useToast } from '../../context/ToastContext';
@@ -7,6 +8,7 @@ import { LabMedixLogo } from '../../components/common/LabMedixLogo';
 import { RoleBadge } from '../../components/common/RoleBadge';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
+import { Modal } from '../../components/common/Modal';
 import { ExportService } from '../../services/exportService';
 import {
   BarChart3,
@@ -40,7 +42,12 @@ import {
   Filter,
   Check,
   Eye,
-  MapPin
+  MapPin,
+  Stethoscope,
+  FlaskConical,
+  Pill,
+  Send,
+  FileText
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -132,9 +139,18 @@ export const ReportsPage: React.FC = () => {
   const { showToast } = useToast();
   const [selectedBranch, setSelectedBranch] = useState<BranchId>('all');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('month');
-  const [activeViewTab, setActiveViewTab] = useState<'overview' | 'velocity' | 'wallet_float' | 'staff_productivity' | 'audit_ledger'>('overview');
+  const [activeViewTab, setActiveViewTab] = useState<'overview' | 'velocity' | 'wallet_float' | 'staff_productivity' | 'audit_ledger' | 'dept_collections' | 'doctor_referrals'>('overview');
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
   const [syncCountdown, setSyncCountdown] = useState(30);
+
+  // Doctor Master & Commission Payouts State
+  const [doctors, setDoctors] = useState<DoctorMasterItem[]>(() => DoctorMasterService.getAllDoctors());
+  const [payouts, setPayouts] = useState<DoctorCommissionPayoutRecord[]>(() => DoctorMasterService.getPayoutHistory());
+  const [selectedDoctorForPayout, setSelectedDoctorForPayout] = useState<DoctorMasterItem | null>(null);
+  const [payoutAmount, setPayoutAmount] = useState<string>('');
+  const [payoutMode, setPayoutMode] = useState<'Bank Transfer' | 'Cash' | 'Cheque' | 'Health Wallet UPI'>('Bank Transfer');
+  const [payoutRefNo, setPayoutRefNo] = useState<string>('');
+  const [payoutNotes, setPayoutNotes] = useState<string>('');
 
   // Database Access
   const patients = StorageService.getPatients().filter(p => !p.isDeleted);
@@ -540,6 +556,8 @@ export const ReportsPage: React.FC = () => {
       <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-x-auto text-xs font-bold">
         {[
           { id: 'overview' as const, name: '📊 Operational Overview', icon: BarChart3 },
+          { id: 'dept_collections' as const, name: '🏥 Department Collections', icon: Building2 },
+          { id: 'doctor_referrals' as const, name: '🩺 Doctor Recommendations & Referrals', icon: Stethoscope },
           { id: 'velocity' as const, name: '⚡ Registration Velocity', icon: Activity },
           { id: 'wallet_float' as const, name: '💰 Prepaid Float Ledger', icon: Wallet },
           { id: 'staff_productivity' as const, name: '👥 Staff Productivity Matrix', icon: Users },
@@ -990,6 +1008,379 @@ export const ReportsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ================= TAB 6: DEPARTMENT COLLECTIONS ================= */}
+      {activeViewTab === 'dept_collections' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                Department-wise Financial Collections & Revenue Breakdown
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Real-time collection audit across Pathology, OPD Consultations, Pharmacy, Daycare OT, and Health Card Subscriptions.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Dept Report (CSV)</span>
+            </button>
+          </div>
+
+          {/* Department Metrics Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {[
+              { label: 'Pathology & Molecular Lab', gross: 245000, disc: 49000, net: 196000, count: 184, icon: FlaskConical, color: 'from-purple-600 to-indigo-600' },
+              { label: 'OPD Doctor Consultations', gross: 182000, disc: 36400, net: 145600, count: 142, icon: Stethoscope, color: 'from-teal-600 to-emerald-600' },
+              { label: 'Pharmacy & Dispensary', gross: 124000, disc: 18600, net: 105400, count: 210, icon: Pill, color: 'from-emerald-600 to-green-600' },
+              { label: 'Daycare OT & Procedures', gross: 95000, disc: 14250, net: 80750, count: 32, icon: Building2, color: 'from-amber-600 to-orange-600' },
+              { label: 'Health Card Subscriptions', gross: 112000, disc: 11200, net: 100800, count: 98, icon: CreditCard, color: 'from-blue-600 to-cyan-600' }
+            ].map((dept, idx) => (
+              <div key={idx} className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className={`p-2 rounded-xl bg-gradient-to-r ${dept.color} text-white shadow-sm`}>
+                    <dept.icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-slate-400">{dept.count} Bills</span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block truncate">{dept.label}</span>
+                  <strong className="text-lg font-black text-slate-900 dark:text-white block mt-0.5">
+                    {formatCurrency(dept.net)}
+                  </strong>
+                </div>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                  <span>Gross: ₹{(dept.gross / 1000).toFixed(0)}k</span>
+                  <span className="text-emerald-500 font-bold">Disc: -₹{(dept.disc / 1000).toFixed(0)}k</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Department Revenue Visual Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-teal-500" />
+                Department Revenue Comparison (Gross vs Card Savings vs Net Collection)
+              </h4>
+              <div className="h-72 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { name: 'Pathology Lab', Gross: 245000, Discount: 49000, Net: 196000 },
+                      { name: 'OPD Consult', Gross: 182000, Discount: 36400, Net: 145600 },
+                      { name: 'Pharmacy', Gross: 124000, Discount: 18600, Net: 105400 },
+                      { name: 'Daycare OT', Gross: 95000, Discount: 14250, Net: 80750 },
+                      { name: 'Health Cards', Gross: 112000, Discount: 11200, Net: 100800 }
+                    ]}
+                    margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
+                    <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} />
+                    <YAxis stroke="#94A3B8" fontSize={10} tickFormatter={(val) => `₹${val / 1000}k`} />
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Legend />
+                    <Bar dataKey="Gross" fill="#64748B" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Discount" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Net" fill="#0D9488" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="lg:col-span-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <PieChartIcon className="w-4 h-4 text-purple-500" />
+                Payment Settlement Channel Share
+              </h4>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Health Wallet (Cashless)', value: 58 },
+                        { name: 'UPI / QR Scanner', value: 24 },
+                        { name: 'Cash Desk', value: 12 },
+                        { name: 'Credit/Debit Card', value: 6 }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {['#0D9488', '#3B82F6', '#10B981', '#F59E0B'].map((color, index) => (
+                        <Cell key={`cell-${index}`} fill={color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val: number) => `${val}% Share`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= TAB 7: DOCTOR RECOMMENDATIONS & REFERRALS ================= */}
+      {activeViewTab === 'doctor_referrals' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Stethoscope className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                Doctor Recommendations & External Referral Auto System
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Automated tracking of diagnostic test recommendations, referral commissions, revenue attribution, and instant payouts.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Referral Report (CSV)</span>
+            </button>
+          </div>
+
+          {/* Doctor Master Referral Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider font-mono">
+                REGISTERED RECOMMENDING DOCTORS & REFERRAL PERFORMANCE ({doctors.length})
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-mono text-[11px] uppercase border-b border-slate-200 dark:border-slate-800">
+                    <th className="p-3.5">Doctor Profile & Code</th>
+                    <th className="p-3.5">Speciality & Dept</th>
+                    <th className="p-3.5 text-center">Referred Tests</th>
+                    <th className="p-3.5 text-right">Referred Lab Revenue</th>
+                    <th className="p-3.5 text-center">Comm. %</th>
+                    <th className="p-3.5 text-right">Earned Comm.</th>
+                    <th className="p-3.5 text-right">Paid Comm.</th>
+                    <th className="p-3.5 text-right">Payable Balance</th>
+                    <th className="p-3.5 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {doctors.map((doc) => (
+                    <tr key={doc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-3">
+                          <img src={doc.avatarUrl} alt={doc.name} className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                          <div>
+                            <strong className="text-slate-900 dark:text-white font-bold block">{doc.name}</strong>
+                            <span className="text-[10px] text-slate-400 font-mono">{doc.doctorCode} • Reg: {doc.regNumber}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3.5">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 block">{doc.speciality}</span>
+                        <span className="text-[10px] text-slate-400">{doc.department}</span>
+                      </td>
+                      <td className="p-3.5 text-center font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {doc.totalTestsReferredCount} tests
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-bold text-slate-900 dark:text-white">
+                        {formatCurrency(doc.totalReferredLabRevenue)}
+                      </td>
+                      <td className="p-3.5 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                          {doc.bloodCommissionPercent}%
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-bold text-purple-600 dark:text-purple-400">
+                        {formatCurrency(doc.totalCommissionEarned)}
+                      </td>
+                      <td className="p-3.5 text-right font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                        {formatCurrency(doc.totalCommissionPaid)}
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-black text-amber-600 dark:text-amber-400 text-sm">
+                        {formatCurrency(doc.payableCommissionBalance)}
+                      </td>
+                      <td className="p-3.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDoctorForPayout(doc);
+                            setPayoutAmount(String(doc.payableCommissionBalance));
+                            setPayoutRefNo(`PAY-REF-${Date.now().toString(36).toUpperCase()}`);
+                          }}
+                          disabled={doc.payableCommissionBalance <= 0}
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all mx-auto"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>Disburse</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Commission Payout History Ledger */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+            <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <FileText className="w-4 h-4 text-emerald-500" />
+              Recent Doctor Commission Payout Vouchers & Settlement Receipts ({payouts.length})
+            </h4>
+
+            {payouts.length === 0 ? (
+              <p className="text-xs text-slate-400 font-mono py-4 text-center">No commission payout vouchers generated yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {payouts.slice(0, 6).map((pay) => (
+                  <div key={pay.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                          {pay.payoutNo}
+                        </span>
+                        <strong className="text-slate-900 dark:text-white">{pay.doctorName}</strong>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{pay.notes}</p>
+                    </div>
+                    <div className="text-right font-mono">
+                      <strong className="text-emerald-600 dark:text-emerald-400 font-black text-sm block">
+                        +{formatCurrency(pay.amount)}
+                      </strong>
+                      <span className="text-[10px] text-slate-400">{pay.paymentMode} • Ref: {pay.referenceNo}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DISBURSE COMMISSION PAYOUT MODAL */}
+      {selectedDoctorForPayout && (
+        <Modal
+          isOpen={!!selectedDoctorForPayout}
+          onClose={() => setSelectedDoctorForPayout(null)}
+          title={`💸 Disburse Referral Commission Payout — ${selectedDoctorForPayout.name}`}
+          maxWidth="md"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const amt = parseFloat(payoutAmount);
+              if (!amt || amt <= 0) {
+                showToast('error', 'Invalid Amount', 'Please enter a valid payout amount.');
+                return;
+              }
+              const res = DoctorMasterService.disburseCommissionPayout(
+                selectedDoctorForPayout.id,
+                amt,
+                payoutMode,
+                payoutRefNo,
+                payoutNotes,
+                'super_admin'
+              );
+              if (res.success) {
+                triggerCelebrationFireworks();
+                showToast('success', 'Commission Disbursed!', `Paid ${formatCurrency(amt)} to ${selectedDoctorForPayout.name}.`);
+                setDoctors(DoctorMasterService.getAllDoctors());
+                setPayouts(DoctorMasterService.getPayoutHistory());
+                setSelectedDoctorForPayout(null);
+              } else {
+                showToast('error', 'Payout Error', res.error || 'Failed to disburse payout.');
+              }
+            }}
+            className="space-y-4 text-xs"
+          >
+            <div className="p-3.5 rounded-2xl bg-slate-900 text-white space-y-1">
+              <span className="text-[10px] text-amber-300 uppercase font-mono font-bold block">Current Available Commission Balance</span>
+              <strong className="text-xl font-black text-emerald-400">
+                {formatCurrency(selectedDoctorForPayout.payableCommissionBalance)}
+              </strong>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Payout Settlement Amount (₹):</label>
+              <input
+                type="number"
+                max={selectedDoctorForPayout.payableCommissionBalance}
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold text-sm"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Payment Mode:</label>
+                <select
+                  value={payoutMode}
+                  onChange={(e: any) => setPayoutMode(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold"
+                >
+                  <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                  <option value="Cash">Cash Desk Disburse</option>
+                  <option value="Cheque">Account Payee Cheque</option>
+                  <option value="Health Wallet UPI">Health Wallet UPI</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Reference No / UTR:</label>
+                <input
+                  type="text"
+                  value={payoutRefNo}
+                  onChange={(e) => setPayoutRefNo(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Payout Notes / Audit Remarks:</label>
+              <input
+                type="text"
+                placeholder="Optional commission settlement notes..."
+                value={payoutNotes}
+                onChange={(e) => setPayoutNotes(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+              />
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedDoctorForPayout(null)}
+                className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md"
+              >
+                <Send className="w-4 h-4" />
+                <span>Confirm & Disburse Payout</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
