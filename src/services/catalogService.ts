@@ -1,0 +1,549 @@
+import { StorageService } from './storage';
+
+export interface LabTestItem {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  department: string;
+  specimen: string;
+  fastingRequired: boolean;
+  tatHours: number;
+  mrp: number;
+  description: string;
+  popular?: boolean;
+  status?: 'active' | 'inactive';
+}
+
+export interface HealthPackageItem {
+  id: string;
+  packageCode: string;
+  name: string;
+  tag: string;
+  parametersCount: number;
+  category: string;
+  targetGroup: string;
+  mrp: number;
+  offerPrice: number;
+  fastingRequired: boolean;
+  description: string;
+  includedTests: string[];
+  popular?: boolean;
+  status?: 'active' | 'inactive';
+}
+
+export interface PharmacyMedicineItem {
+  id: string;
+  name: string;
+  genericComposition: string;
+  brand: string;
+  category: 'Cardiac & BP' | 'Diabetes Care' | 'Gastro & Antacid' | 'Antibiotics' | 'Pain & Fever' | 'Vitamins & Minerals' | 'Respiratory & Allergy' | 'Topical & First Aid';
+  dosageForm: 'Tablet' | 'Capsule' | 'Syrup' | 'Injection' | 'Gel' | 'Drops' | 'Inhaler';
+  strength: string;
+  packaging: string;
+  mrp: number;
+  prescriptionRequired: boolean;
+  inStock: boolean;
+  popular?: boolean;
+}
+
+const LAB_TESTS_STORAGE_KEY = 'LABMEDIX_TEST_MASTER_LIST';
+const HEALTH_PACKAGES_STORAGE_KEY = 'LABMEDIX_HEALTH_PACKAGES_LIST';
+
+export const MASTER_TEST_CATALOG_DATA: LabTestItem[] = [
+  // BIOCHEMISTRY & ROUTINE BLOOD TESTS
+  { id: 't_001', code: 'TEST-001', name: '%age Saturation', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 6, mrp: 100, description: 'Iron percentage saturation ratio in blood.' },
+  { id: 't_002', code: 'TEST-002', name: '5 - Nucleotidase', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 8, mrp: 500, description: 'Specific liver and bile duct enzyme evaluation.' },
+  { id: 't_003', code: 'TEST-003', name: 'A:G Ratio', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 150, description: 'Albumin to Globulin protein balance index.' },
+  { id: 't_004', code: 'TEST-004', name: 'ABG (Arterial Blood Gas) - Electrophoresis Based Tests', category: 'Biochemistry', department: 'Critical Care / ISE', specimen: 'Heparinized Arterial Blood', fastingRequired: false, tatHours: 2, mrp: 1200, description: 'pH, pO2, pCO2, HCO3, base excess and oxygen saturation analysis.' },
+  { id: 't_005', code: 'TEST-005', name: 'Acetone, Serum', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 2000, description: 'Diabetic ketoacidosis and ketone bodies screening.' },
+  { id: 't_006', code: 'TEST-006', name: 'Acid Phosphatase', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 400, description: 'Total serum acid phosphatase enzymatic analysis.' },
+  { id: 't_007', code: 'TEST-007', name: 'Acid Phosphatase, Prostatic', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 600, description: 'Prostatic specific fraction of acid phosphatase.' },
+  { id: 't_008', code: 'TEST-008', name: 'ADA (Adenosine Deaminase)', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 500, description: 'Tuberculosis and cellular immune response marker.' },
+  { id: 't_009', code: 'TEST-009', name: 'ADA Ascitic Fluid', category: 'Clinical Pathology', department: 'Body Fluid Analysis', specimen: 'Ascitic Fluid (5ml)', fastingRequired: false, tatHours: 6, mrp: 500, description: 'Evaluation of peritoneal tuberculosis in ascitic fluid.' },
+  { id: 't_010', code: 'TEST-010', name: 'ADA Pleural Fluid', category: 'Clinical Pathology', department: 'Body Fluid Analysis', specimen: 'Pleural Fluid (5ml)', fastingRequired: false, tatHours: 6, mrp: 500, description: 'Tuberculous pleurisy diagnostic biomarker.' },
+  { id: 't_011', code: 'TEST-011', name: 'ADA, FLUID', category: 'Clinical Pathology', department: 'Body Fluid Analysis', specimen: 'Body Fluid (5ml)', fastingRequired: false, tatHours: 6, mrp: 500, description: 'Peritoneal, pericardial, or synovial fluid ADA.' },
+  { id: 't_012', code: 'TEST-012', name: 'Adenosine Deaminase', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 500, description: 'Adenosine deaminase enzyme quantitative assay.' },
+  { id: 't_013', code: 'TEST-013', name: 'Albumin', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 150, description: 'Nutritional status and liver synthesis capacity.', popular: true },
+  { id: 't_014', code: 'TEST-014', name: 'Alcohol (Serum)', category: 'Special Assays', department: 'Toxicology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 1500, description: 'Blood ethanol level quantitative estimation.' },
+  { id: 't_015', code: 'TEST-015', name: 'Alcohol (urine)', category: 'Special Assays', department: 'Toxicology', specimen: 'Spot Urine (20ml)', fastingRequired: false, tatHours: 4, mrp: 1500, description: 'Urine ethanol metabolites detection.' },
+  { id: 't_016', code: 'TEST-016', name: 'Aldolase', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 1500, description: 'Muscle injury and skeletal myopathy enzyme test.' },
+  { id: 't_017', code: 'TEST-017', name: 'Alkaline Phosphatase', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 150, description: 'Biliary obstruction and bone remodeling enzyme.' },
+  { id: 't_018', code: 'TEST-018', name: 'Amino Acid (Qualitative)', category: 'Special Assays', department: 'Inborn Errors of Metabolism', specimen: 'Urine / Plasma', fastingRequired: true, tatHours: 12, mrp: 800, description: 'Screening for aminoacidurias and metabolic disorders.' },
+  { id: 't_019', code: 'TEST-019', name: 'Ammonia, Whole Blood', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'EDTA Whole Blood on Ice (2ml)', fastingRequired: true, tatHours: 3, mrp: 800, description: 'Hepatic encephalopathy and urea cycle monitoring.' },
+  { id: 't_020', code: 'TEST-020', name: 'Amylase', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 300, description: 'Acute pancreatitis and salivary gland inflammation.' },
+  { id: 't_021', code: 'TEST-021', name: 'Amylase, Random Urine', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Random Urine (20ml)', fastingRequired: false, tatHours: 3, mrp: 300, description: 'Renal excretion of pancreatic amylase.' },
+  { id: 't_022', code: 'TEST-022', name: 'Apolipoprotein - A1', category: 'Biochemistry', department: 'Lipid Research', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 6, mrp: 900, description: 'Anti-atherogenic HDL associated protein.' },
+  { id: 't_023', code: 'TEST-023', name: 'Apolipoprotein - B', category: 'Biochemistry', department: 'Lipid Research', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 6, mrp: 900, description: 'Atherogenic LDL and VLDL particle marker.' },
+  { id: 't_024', code: 'TEST-024', name: 'Apolipoproteins A1 & B', category: 'Biochemistry', department: 'Lipid Research', specimen: 'Serum (3ml)', fastingRequired: true, tatHours: 6, mrp: 2000, description: 'Combined Apo A1 and Apo B cardiovascular profile.' },
+  { id: 't_025', code: 'TEST-025', name: 'ASO TITRE (Quantitative)', category: 'Immunology', department: 'Serology / Turbidimetry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 300, description: 'Post-streptococcal infection and rheumatic fever.' },
+  { id: 't_026', code: 'TEST-026', name: 'Bicarbonate', category: 'Biochemistry', department: 'ISE / Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 300, description: 'Serum HCO3 acid-base electrolyte assessment.' },
+  { id: 't_027', code: 'TEST-027', name: 'Bile Acid, serum', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 8, mrp: 2000, description: 'Intrahepatic cholestasis of pregnancy screening.' },
+  { id: 't_028', code: 'TEST-028', name: 'Bilirubin Total, Direct Indirect', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 3, mrp: 150, description: 'Jaundice diagnosis: Total, Direct & Indirect Bilirubin.', popular: true },
+  { id: 't_029', code: 'TEST-029', name: 'Blood Glucose Fasting', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: true, tatHours: 2, mrp: 70, description: 'Baseline fasting blood sugar for diabetes diagnosis.', popular: true },
+  { id: 't_030', code: 'TEST-030', name: 'Blood Glucose Post Prandial (PP)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 70, description: '2-hour post meal glucose tolerance assessment.', popular: true },
+  { id: 't_031', code: 'TEST-031', name: 'Blood Glucose Random', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 70, description: 'Immediate random blood sugar check.' },
+  { id: 't_032', code: 'TEST-032', name: 'Blood Sugar (Post-Dinner)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 70, description: 'Post-dinner evening glycemic monitoring.' },
+  { id: 't_033', code: 'TEST-033', name: 'BLOOD SUGAR (PRE-DINNER)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 80, description: 'Pre-dinner pre-prandial glycemic check.' },
+  { id: 't_034', code: 'TEST-034', name: 'BLOOD SUGAR BEFORE LUNCH', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 70, description: 'Pre-lunch baseline glucose analysis.' },
+  { id: 't_035', code: 'TEST-035', name: 'Blood Sugar Fasting/Post Prandial', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2 Samples)', fastingRequired: true, tatHours: 3, mrp: 70, description: 'Combined FBS & PPBS glycemic evaluation.' },
+  { id: 't_036', code: 'TEST-036', name: 'BLOOD SUGAR PP (After Lunch)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 70, description: 'Post-lunch 2-hour blood glucose test.' },
+  { id: 't_037', code: 'TEST-037', name: 'BLOOD SUGAR PP (After Breakfast)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 70, description: 'Post-breakfast 2-hour blood sugar.' },
+  { id: 't_038', code: 'TEST-038', name: 'Blood Urea Nitrogen (BUN)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 150, description: 'Renal nitrogenous waste filtration metric.' },
+  { id: 't_039', code: 'TEST-039', name: 'BSAP, Bone Specific Alkaline Phosphatase', category: 'Biochemistry', department: 'Special Immunoassay', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 8, mrp: 2500, description: 'Osteoblastic bone formation and Pagets disease.' },
+  { id: 't_040', code: 'TEST-040', name: 'BUN/Creatinine Ratio', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 400, description: 'Differentiating pre-renal, renal and post-renal azotemia.' },
+  { id: 't_041', code: 'TEST-041', name: 'C3 Complement Component', category: 'Immunology', department: 'Immunology / Turbidimetry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 800, description: 'Immune complex and glomerulonephritis monitoring.' },
+  { id: 't_042', code: 'TEST-042', name: 'C4 Complement Component', category: 'Immunology', department: 'Immunology / Turbidimetry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 800, description: 'Classical complement pathway activity assessment.' },
+  { id: 't_043', code: 'TEST-043', name: 'Cadmium Serum', category: 'Special Assays', department: 'Heavy Metals / ICP-MS', specimen: 'Serum in Metal-Free Tube', fastingRequired: false, tatHours: 24, mrp: 2500, description: 'Heavy metal toxicology & occupational exposure.' },
+  { id: 't_044', code: 'TEST-044', name: 'Calcium', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 150, description: 'Serum total calcium for bone & parathyroid health.', popular: true },
+  { id: 't_045', code: 'TEST-045', name: 'CALCIUM (Urine)', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: '24hr or Spot Urine (20ml)', fastingRequired: false, tatHours: 4, mrp: 300, description: 'Urinary calcium excretion for renal calculi diagnosis.' },
+  { id: 't_046', code: 'TEST-046', name: 'Calcium Creatinine Ratio', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Spot Urine (20ml)', fastingRequired: false, tatHours: 4, mrp: 300, description: 'Screening for familial hypocalciuric hypercalcemia.' },
+  { id: 't_047', code: 'TEST-047', name: 'Calcium Phosphorous Ratio', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 400, description: 'Mineral metabolism balance index.' },
+  { id: 't_048', code: 'TEST-048', name: 'Cardiac Enzyme', category: 'Biochemistry', department: 'Cardiac Biomarkers', specimen: 'Serum (3ml)', fastingRequired: false, tatHours: 3, mrp: 1500, description: 'Comprehensive panel: CPK-NAC, CPK-MB, Troponin, LDH, AST.', popular: true },
+  { id: 't_049', code: 'TEST-049', name: 'Chloride', category: 'Biochemistry', department: 'ISE Analyzer', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 200, description: 'Serum chloride electrolyte level.' },
+  { id: 't_050', code: 'TEST-050', name: 'CHLORIDE (Urine)', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: '24hr / Spot Urine', fastingRequired: false, tatHours: 3, mrp: 300, description: 'Urinary chloride excretion for metabolic alkalosis.' },
+  { id: 't_051', code: 'TEST-051', name: 'Chyle', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Body Fluid / Urine', fastingRequired: false, tatHours: 3, mrp: 200, description: 'Detection of chylous effusion / lymphatic leakage.' },
+  { id: 't_052', code: 'TEST-052', name: 'CPK', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 300, description: 'Creatine phosphokinase total for muscle/myocardial damage.' },
+  { id: 't_053', code: 'TEST-053', name: 'CPK - MB', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 350, description: 'Myocardial band specific creatine kinase fraction.' },
+  { id: 't_054', code: 'TEST-054', name: 'Creatinine Clearance Test - Urine Serum Creatinine', category: 'Biochemistry', department: 'Renal Clearance', specimen: '24hr Urine + Serum', fastingRequired: false, tatHours: 6, mrp: 400, description: 'True Glomerular Filtration Rate assessment.' },
+  { id: 't_055', code: 'TEST-055', name: 'Creatinine Serum', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 150, description: 'Primary kidney function filtration benchmark.', popular: true },
+  { id: 't_056', code: 'TEST-056', name: 'Creatinine with eGFR(Estimated Glomerular Filtration Rate)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 500, description: 'Calculated eGFR based on CKD-EPI formula.' },
+  { id: 't_057', code: 'TEST-057', name: 'Creatinine, Random Urine - URINE TEST (Random Urine)', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Spot Urine (20ml)', fastingRequired: false, tatHours: 3, mrp: 150, description: 'Spot urinary creatinine concentration.' },
+  { id: 't_058', code: 'TEST-058', name: 'CRP (C-Reactive Protein)-Quantitative', category: 'Biochemistry', department: 'Turbidimetry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 400, description: 'Quantitative inflammatory response biomarker.', popular: true },
+  { id: 't_059', code: 'TEST-059', name: 'D- DIMER', category: 'Hematology', department: 'Coagulation', specimen: 'Citrate Plasma (2ml)', fastingRequired: false, tatHours: 3, mrp: 1200, description: 'Deep vein thrombosis, PE and coagulopathy marker.', popular: true },
+  { id: 't_060', code: 'TEST-060', name: 'Diabetes Profile (Comprehensive)', category: 'Biochemistry', department: 'Diabetes Care', specimen: 'Blood + Urine', fastingRequired: true, tatHours: 6, mrp: 1500, description: 'Includes HbA1c, FBS, PPBS, Lipid Profile, Microalbumin, eGFR.', popular: true },
+  { id: 't_061', code: 'TEST-061', name: 'eGFR (Estimated Glomerular Filtration Rate)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 600, description: 'Renal clearance staging and nephropathy monitoring.' },
+  { id: 't_062', code: 'TEST-062', name: 'Electrolytes (Na+ K+ Cl-),Serum', category: 'Biochemistry', department: 'ISE Analyzer', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 600, description: 'Sodium, Potassium, and Chloride balance.', popular: true },
+  { id: 't_063', code: 'TEST-063', name: 'Electrolytes with Bicarbonate', category: 'Biochemistry', department: 'ISE Analyzer', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 1000, description: 'Comprehensive Na, K, Cl, and HCO3 panel.' },
+  { id: 't_064', code: 'TEST-064', name: 'G-6PD (Quantitative)', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 6, mrp: 400, description: 'Glucose-6-phosphate dehydrogenase deficiency screen.' },
+  { id: 't_065', code: 'TEST-065', name: 'Gamma Glutamyle Transpeptidase (GGT)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 4, mrp: 250, description: 'Biliary epithelial and alcohol toxicity enzyme.' },
+  { id: 't_066', code: 'TEST-066', name: 'GCT (1 HOUR) 50 gm Glucose', category: 'Biochemistry', department: 'Obstetric Screening', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 100, description: 'Gestational diabetes glucose challenge test.' },
+  { id: 't_067', code: 'TEST-067', name: 'GCT (2 Samples) - Fasting + 50 gm Glucose', category: 'Biochemistry', department: 'Obstetric Screening', specimen: 'Fluoride Plasma (2 Samples)', fastingRequired: true, tatHours: 3, mrp: 150, description: 'Fasting and 1-hour post 50g glucose intake.' },
+  { id: 't_068', code: 'TEST-068', name: 'Glucose pp after 1 hour', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 80, description: '1-hour post-prandial glycemic surge test.' },
+  { id: 't_069', code: 'TEST-069', name: 'GTT(Fasting + 3 Samples 1 hrs Gap) 75 gm Glucose Intake', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (4 Samples)', fastingRequired: true, tatHours: 4, mrp: 200, description: 'Standard 75g Oral Glucose Tolerance Curve.' },
+  { id: 't_070', code: 'TEST-070', name: 'GTT(Glucose Tolerance Test)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Fluoride Plasma (Multiple)', fastingRequired: true, tatHours: 4, mrp: 400, description: 'Extended Glucose Tolerance Curve for insulin resistance.' },
+  { id: 't_071', code: 'TEST-071', name: 'HbA1c (Glycosylated Haemoglobin)', category: 'Biochemistry', department: 'HPLC Laboratory', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 3, mrp: 600, description: 'Gold Standard 3-month glycemic estimation.', popular: true },
+  { id: 't_072', code: 'TEST-072', name: 'HDL Cholesterol', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 3, mrp: 250, description: 'High-density lipoprotein cardio-protective cholesterol.' },
+  { id: 't_073', code: 'TEST-073', name: 'Inorganic Phosphorus', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 250, description: 'Serum phosphate for calcium homeostasis.' },
+  { id: 't_074', code: 'TEST-074', name: 'Ionic Calcium', category: 'Biochemistry', department: 'ISE Analyzer', specimen: 'Serum Anaerobic (2ml)', fastingRequired: false, tatHours: 3, mrp: 600, description: 'Biologically active ionized free calcium fraction.' },
+  { id: 't_075', code: 'TEST-075', name: 'IRON TIBC', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (3ml)', fastingRequired: true, tatHours: 6, mrp: 600, description: 'Serum Iron & Total Iron Binding Capacity.' },
+  { id: 't_076', code: 'TEST-076', name: 'Iron Studies', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (3ml)', fastingRequired: true, tatHours: 6, mrp: 600, description: 'Complete Serum Iron, TIBC, and UIBC calculation.' },
+  { id: 't_077', code: 'TEST-077', name: 'Iron, Serum', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 4, mrp: 300, description: 'Serum circulating elemental iron.' },
+  { id: 't_078', code: 'TEST-078', name: 'LACTATE', category: 'Biochemistry', department: 'Critical Care', specimen: 'Fluoride / Heparin Plasma', fastingRequired: false, tatHours: 2, mrp: 1000, description: 'Lactic acidosis, sepsis, and tissue hypoperfusion.' },
+  { id: 't_079', code: 'TEST-079', name: 'Lactate Dehydrogenase (LDH)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 500, description: 'Cellular necrosis and tissue breakdown enzyme.' },
+  { id: 't_080', code: 'TEST-080', name: 'Lactate Dehydrogenase, Fluid', category: 'Clinical Pathology', department: 'Body Fluid Analysis', specimen: 'Body Fluid (5ml)', fastingRequired: false, tatHours: 4, mrp: 400, description: 'Exudate vs transudate fluid distinction.' },
+  { id: 't_081', code: 'TEST-081', name: 'LDH - 1', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 500, description: 'Cardiac and RBC specific LDH isoenzyme.' },
+  { id: 't_082', code: 'TEST-082', name: 'LDH, Serum', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 500, description: 'Total Serum Lactate Dehydrogenase.' },
+  { id: 't_083', code: 'TEST-083', name: 'LDL / HDL Cholesterol Ratio', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 3, mrp: 400, description: 'Coronary atherogenic risk ratio.' },
+  { id: 't_084', code: 'TEST-084', name: 'LDL Cholesterol', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 3, mrp: 500, description: 'Direct low-density bad cholesterol.' },
+  { id: 't_085', code: 'TEST-085', name: 'Lipid Profile', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (3ml)', fastingRequired: true, tatHours: 4, mrp: 600, description: 'Cholesterol, Triglycerides, HDL, LDL, VLDL & Ratios.', popular: true },
+  { id: 't_086', code: 'TEST-086', name: 'Lipo Protein - A', category: 'Biochemistry', department: 'Special Immunoassay', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 8, mrp: 900, description: 'Independent genetic risk factor for early CAD.' },
+  { id: 't_087', code: 'TEST-087', name: 'Lithium', category: 'Special Assays', department: 'Therapeutic Drug Monitoring', specimen: 'Serum Plain Tube (2ml)', fastingRequired: false, tatHours: 4, mrp: 500, description: 'Bipolar therapeutic drug concentration.' },
+  { id: 't_088', code: 'TEST-088', name: 'Liver Function Test', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (3ml)', fastingRequired: true, tatHours: 4, mrp: 600, description: 'Complete LFT: Bilirubin, SGOT, SGPT, ALP, Proteins, A/G.', popular: true },
+  { id: 't_089', code: 'TEST-089', name: 'LIVER FUNCTION TEST WITH GGT', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (3ml)', fastingRequired: true, tatHours: 4, mrp: 700, description: 'Complete LFT plus Gamma-Glutamyl Transferase.', popular: true },
+  { id: 't_090', code: 'TEST-090', name: 'Magnesium', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 600, description: 'Serum magnesium level for cardiac arrhythmias.' },
+  { id: 't_091', code: 'TEST-091', name: 'MAGNESIUM (24 Hours Urine)', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: '24hr Urine Collection', fastingRequired: false, tatHours: 6, mrp: 600, description: '24-hour urinary magnesium clearance.' },
+  { id: 't_092', code: 'TEST-092', name: 'MICRO PROTEIN', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Urine / CSF', fastingRequired: false, tatHours: 4, mrp: 300, description: 'Low concentration protein determination.' },
+  { id: 't_093', code: 'TEST-093', name: 'Microalbumin', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Spot / Morning Urine (20ml)', fastingRequired: false, tatHours: 3, mrp: 400, description: 'Early diabetic nephropathy biomarker.', popular: true },
+  { id: 't_094', code: 'TEST-094', name: 'Microalbumin Creatinine Ratio', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Morning Spot Urine (20ml)', fastingRequired: false, tatHours: 3, mrp: 500, description: 'UACR ratio for kidney damage staging.', popular: true },
+  { id: 't_095', code: 'TEST-095', name: 'Microalbumin, 24Hrs.Urine', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: '24hr Urine Collection', fastingRequired: false, tatHours: 6, mrp: 400, description: '24-hour quantitative urinary microalbumin.' },
+  { id: 't_096', code: 'TEST-096', name: 'Myoglobin', category: 'Biochemistry', department: 'Cardiac Biomarkers', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 900, description: 'Ultra-early marker of acute myocardial infarction.' },
+  { id: 't_097', code: 'TEST-097', name: 'NPN (Non Protein Nitrogen)', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 250, description: 'Total non-protein nitrogenous compounds.' },
+  { id: 't_098', code: 'TEST-098', name: 'Osmolality Serum', category: 'Biochemistry', department: 'Special Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 800, description: 'Serum solute concentration and hydration status.' },
+  { id: 't_099', code: 'TEST-099', name: 'Osmolality, Random Urine - URINE TEST (Basic)', category: 'Clinical Pathology', department: 'Clinical Pathology', specimen: 'Spot Urine (20ml)', fastingRequired: false, tatHours: 4, mrp: 800, description: 'Urinary concentrating ability evaluation.' },
+  { id: 't_100', code: 'TEST-100', name: 'Phosphorus, Serum', category: 'Biochemistry', department: 'Clinical Biochemistry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 300, description: 'Inorganic phosphorus concentration.' },
+
+  // HEMATOLOGY, COAGULATION & BLOOD COUNTS
+  { id: 't_101', code: 'TEST-101', name: 'Complete Haemogram (CBC + ESR + PS)', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 2, mrp: 300, description: 'Complete Blood Count with differential, indices, ESR & smear.', popular: true },
+  { id: 't_102', code: 'TEST-102', name: 'Diffrential Leucocyte Count (DLC)', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 2, mrp: 100, description: 'Neutrophil, Lymphocyte, Monocyte, Eosinophil, Basophil %.' },
+  { id: 't_103', code: 'TEST-103', name: 'Direct Coombs Test (DCT)', category: 'Hematology', department: 'Immunohematology', specimen: 'EDTA Whole Blood (3ml)', fastingRequired: false, tatHours: 4, mrp: 250, description: 'Autoimmune hemolytic anemia & newborn HDN.' },
+  { id: 't_104', code: 'TEST-104', name: 'Indirect Coombs Test (ICT)', category: 'Hematology', department: 'Immunohematology', specimen: 'Serum (3ml)', fastingRequired: false, tatHours: 4, mrp: 250, description: 'Anti-Rh antibody screening during pregnancy.' },
+  { id: 't_105', code: 'TEST-105', name: 'ESR (Erythrocyte Sedimentation Rate)-Westergrens Method', category: 'Hematology', department: 'Clinical Hematology', specimen: 'Sodium Citrate / EDTA Blood', fastingRequired: false, tatHours: 2, mrp: 50, description: 'Systemic inflammation rate (Westergren).', popular: true },
+  { id: 't_106', code: 'TEST-106', name: 'Haemoglobin (Hb)', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 1, mrp: 80, description: 'Blood hemoglobin concentration.', popular: true },
+  { id: 't_107', code: 'TEST-107', name: 'HAEMOGLOBIN VARIANT ANALYSIS (HPLC)', category: 'Hematology', department: 'Hemoglobinopathies', specimen: 'EDTA Whole Blood (3ml)', fastingRequired: false, tatHours: 8, mrp: 700, description: 'Thalassemia, Sickle Cell & variant Hb detection by HPLC.', popular: true },
+  { id: 't_108', code: 'TEST-108', name: 'HB ESR', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 2, mrp: 120, description: 'Hemoglobin and Erythrocyte Sedimentation Rate.' },
+  { id: 't_109', code: 'TEST-109', name: 'HB TC DC ESR MP', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 2, mrp: 150, description: 'Routine fever workup: Hb, Total Count, Diff, ESR, Malaria.' },
+  { id: 't_110', code: 'TEST-110', name: 'Blood Group (ABO & Rh Factor)', category: 'Hematology', department: 'Immunohematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 1, mrp: 120, description: 'ABO forward/reverse grouping & Rh D typing.', popular: true },
+  { id: 't_111', code: 'TEST-111', name: 'Bleeding Time & Clotting Time (BT/CT)', category: 'Hematology', department: 'Clinical Hematology', specimen: 'Capillary Blood (In-Vivo)', fastingRequired: false, tatHours: 1, mrp: 60, description: 'Pre-operative primary hemostasis screening.' },
+  { id: 't_112', code: 'TEST-112', name: 'Platelet Count', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 1, mrp: 120, description: 'Dengue & thrombocytopenia platelet estimation.', popular: true },
+  { id: 't_113', code: 'TEST-113', name: 'PROTHROMBIN TIME WITH INR', category: 'Hematology', department: 'Coagulation', specimen: 'Sodium Citrate Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 250, description: 'Extrinsic coagulation pathway & Warfarin monitoring.', popular: true },
+  { id: 't_114', code: 'TEST-114', name: 'ACTIVATED PARTIAL THROMBOPLASTIN TIME (APTT)', category: 'Hematology', department: 'Coagulation', specimen: 'Sodium Citrate Plasma (2ml)', fastingRequired: false, tatHours: 2, mrp: 300, description: 'Intrinsic coagulation pathway & Heparin monitoring.' },
+  { id: 't_115', code: 'TEST-115', name: 'Fibrinogen Levels', category: 'Hematology', department: 'Coagulation', specimen: 'Sodium Citrate Plasma (2ml)', fastingRequired: false, tatHours: 3, mrp: 1200, description: 'Coagulation Factor I functional level.' },
+  { id: 't_116', code: 'TEST-116', name: 'Peripheral Blood Smear', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood Smear', fastingRequired: false, tatHours: 3, mrp: 100, description: 'RBC morphology, atypical cells & parasite review.' },
+  { id: 't_117', code: 'TEST-117', name: 'Reticulocyte Count', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 3, mrp: 250, description: 'Bone marrow erythropoietic activity estimation.' },
+  { id: 't_118', code: 'TEST-118', name: 'SICKLE CELL SCREENING', category: 'Hematology', department: 'Clinical Hematology', specimen: 'EDTA Whole Blood (2ml)', fastingRequired: false, tatHours: 3, mrp: 800, description: 'Sodium metabisulfite sickling solubility screen.' },
+
+  // HORMONES & THYROID
+  { id: 't_119', code: 'TEST-119', name: 'Thyroid Profile Total (T3, T4, TSH)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 4, mrp: 550, description: 'Total Triiodothyronine, Thyroxine & Ultra TSH.', popular: true },
+  { id: 't_120', code: 'TEST-120', name: 'FREE THYROID PROFILE (FT3, FT4, TSH)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 4, mrp: 1000, description: 'Free T3, Free T4, and Ultrasensitive TSH.', popular: true },
+  { id: 't_121', code: 'TEST-121', name: 'TSH (Thyroid Stimulating Hormone)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 400, description: 'Primary thyroid function screening benchmark.', popular: true },
+  { id: 't_122', code: 'TEST-122', name: 'Beta -HCG SERUM', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 600, description: 'Quantitative pregnancy and trophoblastic tumor marker.', popular: true },
+  { id: 't_123', code: 'TEST-123', name: 'PROLACTIN', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 4, mrp: 500, description: 'Hyperprolactinemia, galactorrhea, and pituitary adenoma.', popular: true },
+  { id: 't_124', code: 'TEST-124', name: 'FSH (Follicle Stimulating Hormone)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 400, description: 'Ovarian reserve, menopause, and spermatogenesis.' },
+  { id: 't_125', code: 'TEST-125', name: 'LH (Leutinizing Hormone)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 400, description: 'Ovulation surge and hypogonadism evaluation.' },
+  { id: 't_126', code: 'TEST-126', name: 'TOTAL TESTOSTERONE', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum Morning Sample (2ml)', fastingRequired: true, tatHours: 4, mrp: 600, description: 'Male androgen level and female virilization workup.', popular: true },
+  { id: 't_127', code: 'TEST-127', name: 'TESTOSTERONE (FREE)', category: 'Hormones', department: 'Special Immunoassay', specimen: 'Serum Morning Sample (2ml)', fastingRequired: true, tatHours: 8, mrp: 1200, description: 'Bioavailable non-protein bound free testosterone.' },
+  { id: 't_128', code: 'TEST-128', name: 'AMH (Anti Mullerian Hormone)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 1500, description: 'Accurate ovarian reserve and fertility potential index.', popular: true },
+  { id: 't_129', code: 'TEST-129', name: 'Cortisol (Morning Sample)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum 8:00 AM (2ml)', fastingRequired: true, tatHours: 4, mrp: 600, description: 'Adrenal cortex function and Cushings/Addisons screen.' },
+  { id: 't_130', code: 'TEST-130', name: 'Cortisol (Evening Sample)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum 4:00 PM (2ml)', fastingRequired: false, tatHours: 4, mrp: 600, description: 'Diurnal rhythm evaluation of cortisol.' },
+  { id: 't_131', code: 'TEST-131', name: 'DHEA Sulphate (DHEA-S)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 700, description: 'Adrenal androgen hypersecretion in PCOS.' },
+  { id: 't_132', code: 'TEST-132', name: 'Insulin (Fasting)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 4, mrp: 600, description: 'Fasting insulin resistance and hyperinsulinemia.' },
+  { id: 't_133', code: 'TEST-133', name: 'C -Peptide (Fasting)', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 6, mrp: 1200, description: 'Endogenous beta cell pancreatic insulin secretion.' },
+  { id: 't_134', code: 'TEST-134', name: 'PTH (Intact) Parathyroid Hormone', category: 'Hormones', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: true, tatHours: 6, mrp: 1200, description: 'Parathyroid adenoma, hypercalcemia & renal osteodystrophy.' },
+  { id: 't_135', code: 'TEST-135', name: 'Vitamin B12', category: 'Vitamins', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 1200, description: 'Neurological health, neuropathy & anemia check.', popular: true },
+  { id: 't_136', code: 'TEST-136', name: 'VITAMIN D3 25 Hydroxy', category: 'Vitamins', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 1500, description: 'Total 25-OH Vitamin D for bone density & immunity.', popular: true },
+  { id: 't_137', code: 'TEST-137', name: 'Ferritin', category: 'Biochemistry', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 800, description: 'Cellular iron storage reserves biomarker.', popular: true },
+
+  // IMMUNOLOGY, SEROLOGY & INFECTIONS
+  { id: 't_138', code: 'TEST-138', name: 'Widal (Slide Agglutination)', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 150, description: 'Enteric typhoid fever antibody agglutination screen.', popular: true },
+  { id: 't_139', code: 'TEST-139', name: 'Widal (Tube)', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 250, description: 'Quantitative tube dilution typhoid fever test.' },
+  { id: 't_140', code: 'TEST-140', name: 'TYPHI DOT IgG IgM', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 800, description: 'Rapid immunochromatographic early typhoid marker.', popular: true },
+  { id: 't_141', code: 'TEST-141', name: 'DENGUE NS1 ANTIGEN', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 800, description: 'Day 1-5 acute Dengue virus infection detection.', popular: true },
+  { id: 't_142', code: 'TEST-142', name: 'DENGUE IgM & IgG Antibody', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 1200, description: 'Primary and secondary Dengue antibody titer.', popular: true },
+  { id: 't_143', code: 'TEST-143', name: 'Chikungunya IgM Antibody', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 700, description: 'Acute Chikungunya viral arthritic infection test.' },
+  { id: 't_144', code: 'TEST-144', name: 'Malaria Antigen Serology (P.Vivax/Falciparum)', category: 'Immunology', department: 'Serology', specimen: 'EDTA Whole Blood / Serum', fastingRequired: false, tatHours: 1, mrp: 500, description: 'Rapid dual Pf / Pv malaria antigen test.', popular: true },
+  { id: 't_145', code: 'TEST-145', name: 'HIV I/II Antibody', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 500, description: '4th Gen Chemiluminescence HIV 1 & 2 screening.', popular: true },
+  { id: 't_146', code: 'TEST-146', name: 'HBSAG QUANTITATIVE (Hepatitis B Surface Antigen)', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 300, description: 'Hepatitis B viral infection screening.', popular: true },
+  { id: 't_147', code: 'TEST-147', name: 'HCV (Anti Hepatitis C Virus Antibody)', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 600, description: 'Hepatitis C viral antibody screening.', popular: true },
+  { id: 't_148', code: 'TEST-148', name: 'HEPATITIS A VIRUS IGM', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 800, description: 'Acute Hepatitis A infection marker.' },
+  { id: 't_149', code: 'TEST-149', name: 'Anti HEV IgM', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 800, description: 'Acute Hepatitis E viral jaundice marker.' },
+  { id: 't_150', code: 'TEST-150', name: 'VDRL , Serum', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 200, description: 'Syphilis non-treponemal reagin antibody test.' },
+  { id: 't_151', code: 'TEST-151', name: 'TREPONEMA PALLIDUM HAEMAGGLUTINATION ASSAY(TPHA)', category: 'Immunology', department: 'Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 4, mrp: 300, description: 'Confirmatory Treponema pallidum Syphilis test.' },
+  { id: 't_152', code: 'TEST-152', name: 'ANA (Anti Nuclear Antibody)', category: 'Immunology', department: 'Autoimmune Serology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 800, description: 'Screening for SLE and systemic autoimmune disorders.', popular: true },
+  { id: 't_153', code: 'TEST-153', name: 'ANA IFA (HEP 2)', category: 'Immunology', department: 'Immunofluorescence', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 8, mrp: 1500, description: 'Gold Standard HEp-2 immunofluorescence pattern analysis.' },
+  { id: 't_154', code: 'TEST-154', name: 'ANA PROFILE', category: 'Immunology', department: 'Immunoblot / Line Assay', specimen: 'Serum (3ml)', fastingRequired: false, tatHours: 12, mrp: 5500, description: '17 Autoantigens: dsDNA, Sm, RNP, Ro/SSA, La/SSB, Scl-70, Jo-1.', popular: true },
+  { id: 't_155', code: 'TEST-155', name: 'Anti CCP (Anti Cyclic Citrullinated Peptide)', category: 'Immunology', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 1500, description: 'Specific early diagnosis of Rheumatoid Arthritis.', popular: true },
+  { id: 't_156', code: 'TEST-156', name: 'RA Factor Quantitative', category: 'Immunology', department: 'Turbidimetry', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 3, mrp: 350, description: 'Rheumatoid Factor IgM quantitative titer.', popular: true },
+  { id: 't_157', code: 'TEST-157', name: 'ANCA (IFA)', category: 'Immunology', department: 'Immunofluorescence', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 8, mrp: 2500, description: 'Anti-Neutrophil Cytoplasmic Antibodies (cANCA & pANCA).' },
+  { id: 't_158', code: 'TEST-158', name: 'Anti ds DNA Antibody', category: 'Immunology', department: 'CLIA Immunology', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 6, mrp: 800, description: 'Systemic Lupus Erythematosus specific marker.' },
+  { id: 't_159', code: 'TEST-159', name: 'TORCH PROFILE IgG', category: 'Immunology', department: 'CLIA Immunology', specimen: 'Serum (3ml)', fastingRequired: false, tatHours: 8, mrp: 1000, description: 'Toxoplasma, Rubella, CMV, HSV 1 & 2 IgG panel.' },
+  { id: 't_160', code: 'TEST-160', name: 'TORCH PROFILE IgM', category: 'Immunology', department: 'CLIA Immunology', specimen: 'Serum (3ml)', fastingRequired: false, tatHours: 8, mrp: 1000, description: 'Acute maternal TORCH congenital risk panel.' },
+  { id: 't_161', code: 'TEST-161', name: 'Torch profile IgG IgM', category: 'Immunology', department: 'CLIA Immunology', specimen: 'Serum (3ml)', fastingRequired: false, tatHours: 8, mrp: 1800, description: 'Complete 10-parameter maternal TORCH panel.', popular: true },
+  { id: 't_162', code: 'TEST-162', name: 'TB GOLD (Quantiferon - TB GOLD)', category: 'Immunology', department: 'Interferon Gamma Release', specimen: 'Special QFT 4-Tube Blood (4ml)', fastingRequired: false, tatHours: 24, mrp: 3200, description: 'IGRA blood test for latent & active Tuberculosis.', popular: true },
+  { id: 't_163', code: 'TEST-163', name: 'Mantoux Test (MX)', category: 'Immunology', department: 'Clinical Pathology', specimen: 'Tuberculin PPD Injection', fastingRequired: false, tatHours: 48, mrp: 200, description: 'In-vivo delayed hypersensitivity skin test for TB.' },
+
+  // MICROBIOLOGY, CULTURES & PATHOLOGY
+  { id: 't_164', code: 'TEST-164', name: 'Blood Culture & Sensitivity', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Blood Culture Bottle (5-10ml)', fastingRequired: false, tatHours: 48, mrp: 600, description: 'Bacteremia and septicemia antibiotic sensitivity.', popular: true },
+  { id: 't_165', code: 'TEST-165', name: 'Blood Culture (Bactec)', category: 'Microbiology', department: 'Automated Microbiology', specimen: 'Bactec Aerobic Vial (8-10ml)', fastingRequired: false, tatHours: 24, mrp: 2000, description: 'Continuous fluorescent sensor automated blood culture.', popular: true },
+  { id: 't_166', code: 'TEST-166', name: 'Urine culture & sensitivity', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Clean Catch Midstream Urine', fastingRequired: false, tatHours: 24, mrp: 250, description: 'UTI bacterial isolate count & MIC antibiotic sensitivity.', popular: true },
+  { id: 't_167', code: 'TEST-167', name: 'Sputum Culture & Sensitivity', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Early Morning Sputum', fastingRequired: false, tatHours: 36, mrp: 250, description: 'Lower respiratory tract pathogen culture.' },
+  { id: 't_168', code: 'TEST-168', name: 'PUS CULTURE SENSITIVITY', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Sterile Pus Swab / Aspirate', fastingRequired: false, tatHours: 36, mrp: 250, description: 'Wound, abscess & post-op infection sensitivity.', popular: true },
+  { id: 't_169', code: 'TEST-169', name: 'Throat Swab C/S', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Posterior Pharyngeal Swab', fastingRequired: false, tatHours: 24, mrp: 300, description: 'Streptococcal pharyngitis & bacterial culture.' },
+  { id: 't_170', code: 'TEST-170', name: 'Fungus Culture Sensitivity', category: 'Microbiology', department: 'Mycology Laboratory', specimen: 'Skin Scraps / Nail / Sputum', fastingRequired: false, tatHours: 72, mrp: 600, description: 'Dermatophytes, Candida & Aspergillus identification.' },
+  { id: 't_171', code: 'TEST-171', name: 'AFB Stain (ZIEHL NEELSEN STAIN)', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Sputum / Fluid / Pus Smear', fastingRequired: false, tatHours: 4, mrp: 200, description: 'Microscopic detection of Acid Fast Mycobacteria (TB).', popular: true },
+  { id: 't_172', code: 'TEST-172', name: 'Gram Stain', category: 'Microbiology', department: 'Clinical Microbiology', specimen: 'Clinical Smear', fastingRequired: false, tatHours: 2, mrp: 200, description: 'Gram-positive vs Gram-negative bacterial differentiation.' },
+  { id: 't_173', code: 'TEST-173', name: 'Fungal Examination (KOH Preparation)', category: 'Microbiology', department: 'Mycology Laboratory', specimen: 'Skin Scrapes / Hair / Nails', fastingRequired: false, tatHours: 3, mrp: 250, description: 'Direct KOH mount for fungal hyphae and spores.' },
+
+  // HISTOPATHOLOGY & CYTOLOGY
+  { id: 't_174', code: 'TEST-174', name: 'Biopsy 1 Slide', category: 'Histopathology', department: 'Histopathology', specimen: 'Formalin Fixed Tissue', fastingRequired: false, tatHours: 48, mrp: 400, description: 'Small punch / endoscopic biopsy reporting.' },
+  { id: 't_175', code: 'TEST-175', name: 'Biopsy 2 Slide', category: 'Histopathology', department: 'Histopathology', specimen: 'Formalin Fixed Tissue', fastingRequired: false, tatHours: 48, mrp: 800, description: 'Medium biopsy 2-slide microscopic examination.' },
+  { id: 't_176', code: 'TEST-176', name: 'Biopsy 3 Slide', category: 'Histopathology', department: 'Histopathology', specimen: 'Formalin Fixed Tissue', fastingRequired: false, tatHours: 48, mrp: 1200, description: 'Surgical excision 3-slide histopathology.' },
+  { id: 't_177', code: 'TEST-177', name: 'FNAC (Fine Needle Aspiration Cytology)', category: 'Cytology', department: 'Clinical Cytology', specimen: 'Needle Aspirate Smear', fastingRequired: false, tatHours: 6, mrp: 600, description: 'Palpable lump/lymph node cytological diagnosis.', popular: true },
+  { id: 't_178', code: 'TEST-178', name: 'PAP Smear (Papanicolaou Stain)', category: 'Cytology', department: 'Gynecological Cytology', specimen: 'Cervical Smear Slide', fastingRequired: false, tatHours: 24, mrp: 500, description: 'Cervical cancer screening & dysplasia detection.', popular: true },
+  { id: 't_179', code: 'TEST-179', name: 'Fluid Exam. for Malignant Cells - Cytology', category: 'Cytology', department: 'Non-Gyn Cytology', specimen: 'Pleural / Ascitic Fluid (20ml)', fastingRequired: false, tatHours: 6, mrp: 400, description: 'Cytocentrifuge smear review for metastatic malignancy.' },
+
+  // MOLECULAR & PCR
+  { id: 't_180', code: 'TEST-180', name: 'TB DNA PCR (GeneXpert / MTBC)', category: 'Molecular & PCR', department: 'Molecular Biology', specimen: 'Sputum / Tissue / Fluid', fastingRequired: false, tatHours: 6, mrp: 3000, description: 'Real-time PCR for Mycobacterium TB and Rifampicin resistance.', popular: true },
+  { id: 't_181', code: 'TEST-181', name: 'HBV DNA PCR (Quantitative)', category: 'Molecular & PCR', department: 'Molecular Biology', specimen: 'EDTA Plasma (3ml)', fastingRequired: false, tatHours: 48, mrp: 5250, description: 'Hepatitis B viral load quantitative PCR.' },
+  { id: 't_182', code: 'TEST-182', name: 'HCV RNA PCR (Quantitative)', category: 'Molecular & PCR', department: 'Molecular Biology', specimen: 'EDTA Plasma (3ml)', fastingRequired: false, tatHours: 48, mrp: 5700, description: 'Hepatitis C viral load quantitative PCR.' },
+  { id: 't_183', code: 'TEST-183', name: 'HLA B-27 by Real Time PCR', category: 'Molecular & PCR', department: 'Molecular Biology', specimen: 'EDTA Whole Blood (3ml)', fastingRequired: false, tatHours: 24, mrp: 1500, description: 'Ankylosing Spondylitis & Spondyloarthritis gene marker.', popular: true },
+  { id: 't_184', code: 'TEST-184', name: 'HPV DNA PCR (High Risk Panel)', category: 'Molecular & PCR', department: 'Molecular Biology', specimen: 'Cervical Swab in PreservCyt', fastingRequired: false, tatHours: 48, mrp: 6000, description: 'High-risk Oncogenic HPV 16/18 genotyping.' },
+  { id: 't_185', code: 'TEST-185', name: 'Troponin - I (Cardiospecific)', category: 'Biochemistry', department: 'Cardiac Biomarkers', specimen: 'Serum (2ml)', fastingRequired: false, tatHours: 2, mrp: 2000, description: 'High sensitivity myocardial necrosis marker.', popular: true }
+];
+
+export class CatalogService {
+  /**
+   * Diagnostic Pathology Blood Tests Catalog (Loads from Storage or initializes with master catalog)
+   */
+  public static getLabTests(): LabTestItem[] {
+    return StorageService.getItem<LabTestItem[]>(LAB_TESTS_STORAGE_KEY, MASTER_TEST_CATALOG_DATA);
+  }
+
+  public static saveLabTests(tests: LabTestItem[]): void {
+    StorageService.setItem(LAB_TESTS_STORAGE_KEY, tests);
+  }
+
+  public static addLabTest(test: Omit<LabTestItem, 'id'>): LabTestItem {
+    const tests = this.getLabTests();
+    const newTest: LabTestItem = {
+      ...test,
+      id: `test_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      status: test.status || 'active'
+    };
+    tests.unshift(newTest);
+    this.saveLabTests(tests);
+    return newTest;
+  }
+
+  public static updateLabTest(id: string, updates: Partial<LabTestItem>): LabTestItem | null {
+    const tests = this.getLabTests();
+    const idx = tests.findIndex(t => t.id === id);
+    if (idx === -1) return null;
+
+    tests[idx] = { ...tests[idx], ...updates };
+    this.saveLabTests(tests);
+    return tests[idx];
+  }
+
+  public static deleteLabTest(id: string): boolean {
+    const tests = this.getLabTests();
+    const filtered = tests.filter(t => t.id !== id);
+    if (filtered.length === tests.length) return false;
+    this.saveLabTests(filtered);
+    return true;
+  }
+
+  public static bulkImportTests(newTests: Array<Omit<LabTestItem, 'id'>>): number {
+    const existing = this.getLabTests();
+    let count = 0;
+    const toAdd: LabTestItem[] = [];
+
+    for (const item of newTests) {
+      if (!item.name || !item.mrp) continue;
+      const alreadyExists = existing.some(e => e.name.toLowerCase() === item.name.toLowerCase());
+      if (!alreadyExists) {
+        toAdd.push({
+          ...item,
+          id: `test_imp_${Date.now()}_${count}`,
+          code: item.code || `LAB-${1000 + existing.length + count}`,
+          status: 'active'
+        });
+        count++;
+      }
+    }
+
+    if (toAdd.length > 0) {
+      const merged = [...toAdd, ...existing];
+      this.saveLabTests(merged);
+    }
+    return count;
+  }
+
+  /**
+   * Curated Preventive Health Checkup Packages
+   */
+  public static getHealthPackages(): HealthPackageItem[] {
+    const defaultPackages: HealthPackageItem[] = [
+      {
+        id: 'pkg_full_body_executive',
+        packageCode: 'PKG-FBE-01',
+        name: 'LABMEDIX Comprehensive Full Body Health Package',
+        tag: '⭐ BEST VALUE • 68 PARAMETERS',
+        parametersCount: 68,
+        category: 'Full Body',
+        targetGroup: 'Men & Women (All Ages)',
+        mrp: 3800,
+        offerPrice: 1699,
+        fastingRequired: true,
+        description: 'Complete master preventive screening covering Vital Organs, Heart, Liver, Kidneys, Diabetes, Thyroid, Blood count, and Bone Minerals.',
+        includedTests: [
+          'Complete Blood Count (CBC - 24 Parameters)',
+          'Liver Function Test (LFT - 11 Parameters)',
+          'Kidney Function Test (KFT - 8 Parameters)',
+          'Lipid Profile Comprehensive (8 Parameters)',
+          'HbA1c & Fasting Blood Sugar (FBS)',
+          'Thyroid Profile Total (T3, T4, TSH)',
+          'Urine Routine & Microscopic (15 Parameters)'
+        ],
+        popular: true,
+        status: 'active'
+      },
+      {
+        id: 'pkg_diabetic_care',
+        packageCode: 'PKG-DBC-02',
+        name: 'Diabetic & Cardiac Shield Monitoring Package',
+        tag: '🔥 POPULAR • 38 PARAMETERS',
+        parametersCount: 38,
+        category: 'Diabetes',
+        targetGroup: 'Diabetic & Pre-diabetic Patients',
+        mrp: 2400,
+        offerPrice: 999,
+        fastingRequired: true,
+        description: 'Essential quarterly screening for glycemic management, cardiac risk index, and early diabetic nephropathy detection.',
+        includedTests: [
+          'HbA1c Glycated Hemoglobin (HPLC)',
+          'Fasting Blood Sugar (FBS)',
+          'Post Prandial Blood Sugar (PPBS)',
+          'Lipid Profile Comprehensive',
+          'Serum Creatinine with eGFR',
+          'Urine Microalbumin to Creatinine Ratio (UACR)'
+        ],
+        popular: true,
+        status: 'active'
+      },
+      {
+        id: 'pkg_senior_citizen',
+        packageCode: 'PKG-SNR-03',
+        name: 'Senior Citizen Active Life Health Profile',
+        tag: '👴 GERIATRIC CARE • 75 PARAMETERS',
+        parametersCount: 75,
+        category: 'Senior Citizen',
+        targetGroup: 'Seniors Aged 50+ Years',
+        mrp: 5200,
+        offerPrice: 2499,
+        fastingRequired: true,
+        description: 'Specialized geriatric preventive profile including Vitamin D3, B12, Cardiac Risk, Joint and Bone Health, and Prostate / Cervical markers.',
+        includedTests: [
+          'Complete Blood Count (CBC) with ESR',
+          'Vitamin D3 (25-OH Cholecalciferol)',
+          'Vitamin B12 (Cyanocobalamin)',
+          'Liver Function Test (LFT Profile)',
+          'Kidney Function Test (KFT Profile)',
+          'Lipid Profile Comprehensive',
+          'Serum Calcium, Phosphorus & Uric Acid',
+          'HbA1c & Fasting Glucose',
+          'hs-CRP High Sensitive Inflammation',
+          'Urine Routine Examination'
+        ],
+        popular: true,
+        status: 'active'
+      },
+      {
+        id: 'pkg_cardiac_advanced',
+        packageCode: 'PKG-CRD-04',
+        name: 'Advanced Cardiac Wellness & Heart Risk Panel',
+        tag: '❤️ HEART CARE • 28 PARAMETERS',
+        parametersCount: 28,
+        category: 'Cardiac',
+        targetGroup: 'Hypertension, Smoker & Family History',
+        mrp: 3600,
+        offerPrice: 1799,
+        fastingRequired: true,
+        description: 'Advanced cardiovascular health evaluation designed to detect plaque buildup risk, arterial inflammation, and lipid abnormalities.',
+        includedTests: [
+          'Lipid Profile Comprehensive with Ratios',
+          'hs-CRP (Cardiovascular Risk Marker)',
+          'Apolipoprotein A1 & B Panel',
+          'Serum Homocysteine (Cardio Marker)',
+          'Serum Electrolytes (Na/K/Cl)',
+          'Fasting Blood Glucose',
+          'Complete Haemogram (CBC)'
+        ],
+        popular: false,
+        status: 'active'
+      },
+      {
+        id: 'pkg_women_wellness',
+        packageCode: 'PKG-WMN-05',
+        name: 'Women Complete Wellness & Hormonal Balance',
+        tag: '🌸 WOMEN CARE • 52 PARAMETERS',
+        parametersCount: 52,
+        category: 'Women',
+        targetGroup: 'Women (PCOS, Fatigue, Thyroid)',
+        mrp: 4100,
+        offerPrice: 1899,
+        fastingRequired: true,
+        description: 'Targeted health screen for women: complete anemia workup, thyroid status, bone minerals, Vitamin D, and hormonal wellness.',
+        includedTests: [
+          'Complete Blood Count (CBC) with ESR',
+          'Iron Deficiency Profile (Iron, TIBC, Ferritin)',
+          'Thyroid Profile Total (T3, T4, TSH)',
+          'Vitamin D3 (25-OH) & Serum Calcium',
+          'Fasting Blood Sugar & HbA1c',
+          'Serum Creatinine & Uric Acid',
+          'Lipid Profile',
+          'Urine Routine Examination'
+        ],
+        popular: true,
+        status: 'active'
+      }
+    ];
+
+    return StorageService.getItem<HealthPackageItem[]>(HEALTH_PACKAGES_STORAGE_KEY, defaultPackages);
+  }
+
+  public static saveHealthPackages(packages: HealthPackageItem[]): void {
+    StorageService.setItem(HEALTH_PACKAGES_STORAGE_KEY, packages);
+  }
+
+  public static addHealthPackage(pkg: Omit<HealthPackageItem, 'id'>): HealthPackageItem {
+    const packages = this.getHealthPackages();
+    const newPkg: HealthPackageItem = {
+      ...pkg,
+      id: `pkg_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      status: pkg.status || 'active'
+    };
+    packages.unshift(newPkg);
+    this.saveHealthPackages(packages);
+    return newPkg;
+  }
+
+  public static updateHealthPackage(id: string, updates: Partial<HealthPackageItem>): HealthPackageItem | null {
+    const packages = this.getHealthPackages();
+    const idx = packages.findIndex(p => p.id === id);
+    if (idx === -1) return null;
+
+    packages[idx] = { ...packages[idx], ...updates };
+    this.saveHealthPackages(packages);
+    return packages[idx];
+  }
+
+  public static deleteHealthPackage(id: string): boolean {
+    const packages = this.getHealthPackages();
+    const filtered = packages.filter(p => p.id !== id);
+    if (filtered.length === packages.length) return false;
+    this.saveHealthPackages(filtered);
+    return true;
+  }
+
+  /**
+   * Auto Package Builder: generates a custom package bundle from selected test IDs
+   */
+  public static autoBuildPackage(
+    name: string,
+    selectedTestIds: string[],
+    discountPercentage = 40,
+    category = 'Full Body',
+    targetGroup = 'General Adults'
+  ): HealthPackageItem {
+    const allTests = this.getLabTests();
+    const selectedTests = allTests.filter(t => selectedTestIds.includes(t.id));
+
+    const totalMrp = selectedTests.reduce((sum, t) => sum + (t.mrp || 0), 0);
+    const offerPrice = Math.round(totalMrp * (1 - discountPercentage / 100));
+    const fasting = selectedTests.some(t => t.fastingRequired);
+    const testNames = selectedTests.map(t => t.name);
+
+    const newPkg: HealthPackageItem = {
+      id: `pkg_auto_${Date.now()}`,
+      packageCode: `PKG-AUT-${Math.floor(100 + Math.random() * 900)}`,
+      name: name.trim() || 'Custom Health Checkup Package',
+      tag: `⚡ AUTO-BUNDLE • ${selectedTests.length} TESTS (${discountPercentage}% OFF)`,
+      parametersCount: selectedTests.length * 4,
+      category,
+      targetGroup,
+      mrp: totalMrp,
+      offerPrice,
+      fastingRequired: fasting,
+      description: `Comprehensive health bundle comprising ${selectedTests.length} tests curated for maximum diagnostic coverage.`,
+      includedTests: testNames,
+      popular: true,
+      status: 'active'
+    };
+
+    const packages = this.getHealthPackages();
+    packages.unshift(newPkg);
+    this.saveHealthPackages(packages);
+    return newPkg;
+  }
+
+  /**
+   * Pharmacy Medicines Catalog
+   */
+  public static getPharmacyMedicines(): PharmacyMedicineItem[] {
+    return [
+      { id: 'med_telma40', name: 'Telma 40mg Tablet', genericComposition: 'Telmisartan 40mg', brand: 'Glenmark', category: 'Cardiac & BP', dosageForm: 'Tablet', strength: '40mg', packaging: 'Strip of 15 Tablets', mrp: 165, prescriptionRequired: true, inStock: true, popular: true },
+      { id: 'med_glycomet_sr500', name: 'Glycomet-SR 500mg', genericComposition: 'Metformin Hydrochloride SR 500mg', brand: 'USV Ltd', category: 'Diabetes Care', dosageForm: 'Tablet', strength: '500mg', packaging: 'Strip of 20 Tablets', mrp: 85, prescriptionRequired: true, inStock: true, popular: true },
+      { id: 'med_pan_d', name: 'Pan-D Capsule', genericComposition: 'Pantoprazole 40mg + Domperidone 30mg', brand: 'Alkem Labs', category: 'Gastro & Antacid', dosageForm: 'Capsule', strength: '40mg + 30mg', packaging: 'Strip of 15 Capsules', mrp: 210, prescriptionRequired: true, inStock: true, popular: true },
+      { id: 'med_rosuvas10', name: 'Rosuvas 10mg Tablet', genericComposition: 'Rosuvastatin 10mg', brand: 'Sun Pharma', category: 'Cardiac & BP', dosageForm: 'Tablet', strength: '10mg', packaging: 'Strip of 15 Tablets', mrp: 230, prescriptionRequired: true, inStock: true, popular: true },
+      { id: 'med_dolo650', name: 'Dolo 650mg Tablet', genericComposition: 'Paracetamol 650mg', brand: 'Micro Labs', category: 'Pain & Fever', dosageForm: 'Tablet', strength: '650mg', packaging: 'Strip of 15 Tablets', mrp: 35, prescriptionRequired: false, inStock: true, popular: true },
+      { id: 'med_thyronorm50', name: 'Thyronorm 50mcg Tablet', genericComposition: 'Thyroxine Sodium 50mcg', brand: 'Abbott', category: 'Diabetes Care', dosageForm: 'Tablet', strength: '50mcg', packaging: 'Bottle of 120 Tablets', mrp: 180, prescriptionRequired: true, inStock: true, popular: true },
+      { id: 'med_shelcal500', name: 'Shelcal 500mg Tablet', genericComposition: 'Calcium 500mg + Vitamin D3 250 IU', brand: 'Torrent Pharma', category: 'Vitamins & Minerals', dosageForm: 'Tablet', strength: '500mg', packaging: 'Strip of 15 Tablets', mrp: 130, prescriptionRequired: false, inStock: true, popular: true },
+      { id: 'med_becosules', name: 'Becosules Z Capsule', genericComposition: 'Vitamin B-Complex with Vitamin C & Zinc', brand: 'Pfizer', category: 'Vitamins & Minerals', dosageForm: 'Capsule', strength: 'Multi-Vitamin', packaging: 'Strip of 20 Capsules', mrp: 55, prescriptionRequired: false, inStock: true, popular: true }
+    ];
+  }
+
+  public static getMedicines(): PharmacyMedicineItem[] {
+    return this.getPharmacyMedicines();
+  }
+}

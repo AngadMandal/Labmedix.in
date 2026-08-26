@@ -1,0 +1,306 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   LABMEDIX MODERN HEALTHCARE DESIGN SYSTEM
+   Standardized Color Tokens, Typography & Dual-Theme Architecture
+   ===================================================================== */
+
+@layer base {
+  :root {
+    --color-bg-canvas: #f8fafc;
+    --color-bg-card: #ffffff;
+    --color-bg-subtle: #f1f5f9;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #475569;
+    --color-text-muted: #64748b;
+    --color-border: #e2e8f0;
+    --color-border-subtle: #f1f5f9;
+    --color-brand-blue: #1e3a8a;
+    --color-brand-green: #15803d;
+  }
+
+  .dark {
+    --color-bg-canvas: #070d1e;
+    --color-bg-card: #0c162e;
+    --color-bg-subtle: #111d3d;
+    --color-text-primary: #f8fafc;
+    --color-text-secondary: #cbd5e1;
+    --color-text-muted: #94a3b8;
+    --color-border: #1e293b;
+    --color-border-subtle: #0f172a;
+    --color-brand-blue: #3b82f6;
+    --color-brand-green: #22c55e;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: light dark;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-display text-slate-900 dark:text-white;
+  }
+
+  ::selection {
+    background-color: #2563eb;
+    color: #ffffff;
+  }
+}
+
+/* =====================================================================
+   3D CARD & PERSPECTIVE UTILITIES
+   ===================================================================== */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* =====================================================================
+   HOLOGRAM SHIMMER & METALLIC FINISH
+   ===================================================================== */
+.hologram-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.hologram-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 400%;
+  height: 400%;
+  background: linear-gradient(
+    45deg,
+    transparent 20%,
+    rgba(37, 99, 235, 0.22) 32%,
+    rgba(22, 163, 74, 0.22) 44%,
+    rgba(220, 38, 38, 0.12) 54%,
+    transparent 65%
+  );
+  transform: rotate(25deg);
+  animation: holoSweep 5s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes holoSweep {
+  0%   { transform: translateY(-60%) rotate(25deg); }
+  50%  { transform: translateY(0%) rotate(25deg); }
+  100% { transform: translateY(-60%) rotate(25deg); }
+}
+
+.metallic-shine {
+  box-shadow:
+    inset 0 0 35px rgba(255, 255, 255, 0.10),
+    0 15px 35px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(30, 58, 138, 0.25);
+}
+
+.matte-finish {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* =====================================================================
+   SURFACE GLOW & GLASS UTILITIES
+   ===================================================================== */
+.glow-green {
+  box-shadow: 0 0 25px rgba(22, 163, 74, 0.3), 0 0 50px rgba(22, 163, 74, 0.12);
+}
+.glow-blue {
+  box-shadow: 0 0 25px rgba(37, 99, 235, 0.3), 0 0 50px rgba(37, 99, 235, 0.12);
+}
+.glow-red {
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.25), 0 0 40px rgba(220, 38, 38, 0.1);
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-card-dark {
+  background: rgba(12, 22, 46, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(30, 58, 138, 0.35);
+}
+
+/* =====================================================================
+   ANIMATED GRID MESH BACKGROUND
+   ===================================================================== */
+.grid-mesh {
+  background-image:
+    linear-gradient(to right, rgba(37, 99, 235, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(22, 163, 74, 0.04) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+}
+
+/* =====================================================================
+   PROFESSIONAL SCROLLBAR (Light & Dark)
+   ===================================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* =====================================================================
+   BRAND GRADIENT TEXT
+   ===================================================================== */
+.text-brand-gradient {
+  background: linear-gradient(135deg, #15803d 0%, #1d4ed8 50%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .text-brand-gradient {
+  background: linear-gradient(135deg, #4ade80 0%, #60a5fa 50%, #2dd4bf 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-brand-gradient-v {
+  background: linear-gradient(135deg, #16a34a 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .text-brand-gradient-v {
+  background: linear-gradient(135deg, #4ade80 0%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* =====================================================================
+   PRINT OPTIMIZATION — CR80 PVC, Staff Badges & A4 Sheets
+   ===================================================================== */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  header, aside, nav, button, .toast-container, .no-print, [aria-label="Close modal"] {
+    display: none !important;
+  }
+
+  div[class*="fixed inset-0"] {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  div[class*="bg-black/"] {
+    background: transparent !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  #cr80-front, #cr80-back,
+  [id^="staff-modal-card"],
+  [id^="staff-card"],
+  .printable-card-target {
+    box-shadow: none !important;
+    border-radius: 4mm !important;
+    margin: 10mm auto !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #a4-sheet-container {
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 5mm;
+  }
+}
+
+/* Google Sign-In Button Styles */
+.gsi-material-button {
+  background-color: white;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-family: Roboto, arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.25px;
+  padding: 0;
+  transition: background-color .2s, box-shadow .2s;
+  height: 40px;
+}
+.gsi-material-button:hover { background-color: #f8f9fa; box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15); }
+.gsi-material-button-icon { padding: 8px; }
+.gsi-material-button-icon svg { width: 18px; height: 18px; }
+.gsi-material-button-contents { flex-grow: 1; padding: 0 12px; text-align: center; }
+.gsi-material-button-state { display: none; }
+.gsi-material-button-content-wrapper { display: flex; align-items: center; width: 100%; }

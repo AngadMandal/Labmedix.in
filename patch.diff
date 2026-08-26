@@ -1,0 +1,40 @@
+--- src/pages/vouchers/CashDeskBillVouchersPage.tsx
++++ src/pages/vouchers/CashDeskBillVouchersPage.tsx
+@@ -282,6 +282,23 @@
+     }
+   };
+ 
++  const handleApprove = (v: CashDeskVoucher) => {
++    if (currentUser?.role !== 'super_admin') {
++      showToast('error', 'Access Denied', 'Only Super Admin can approve vouchers.');
++      return;
++    }
++    const vouchers = StorageService.getCashDeskVouchers();
++    const target = vouchers.find(x => x.id === v.id);
++    if (target) {
++      target.status = 'active';
++      StorageService.saveCashDeskVouchers(vouchers);
++      refreshVouchers();
++      showToast('success', 'Voucher Approved', `Voucher ${v.voucherCode} is now active.`);
++    }
++  };
++
+   const handleVoid = (v: CashDeskVoucher) => {
+     if (currentUser?.role !== 'super_admin') {
+       showToast('error', 'Access Denied', 'Only Super Admin can void vouchers.');
+@@ -671,6 +688,18 @@
+                           )}
+ 
++                          {v.status === 'pending' && currentUser?.role === 'super_admin' && (
++                            <button
++                              type="button"
++                              onClick={() => handleApprove(v)}
++                              className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300 hover:bg-teal-200 transition-colors"
++                              title="Approve Voucher"
++                            >
++                              <Check className="w-3.5 h-3.5" />
++                            </button>
++                          )}
++
+                           {/* Void Voucher */}
+                           {v.status === 'active' && (

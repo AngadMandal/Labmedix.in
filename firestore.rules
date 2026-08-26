@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Patients Collection
+    match /patients/{patientId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(patientId);
+      allow delete: if isSignedIn();
+    }
+
+    // Health Cards Collection
+    match /healthCards/{cardId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(cardId);
+      allow delete: if isSignedIn();
+    }
+
+    // Audit Logs Collection
+    match /auditLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(logId);
+      allow update, delete: if false;
+    }
+  }
+}

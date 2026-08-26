@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient records and health card holder details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fullName"]
+    },
+    "HealthCard": {
+      "title": "HealthCard",
+      "description": "LabMedix Health Card subscription and wallet details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "cardNumber": { "type": "string", "maxLength": 50 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["active", "suspended", "expired"] },
+        "balance": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "cardNumber", "patientId"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System operational audit and security logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "action", "userId"]
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": {
+      "schema": { "$ref": "Patient" },
+      "description": "Patient records collection"
+    },
+    "/healthCards/{cardId}": {
+      "schema": { "$ref": "HealthCard" },
+      "description": "Health cards collection"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "AuditLog" },
+      "description": "System audit logs collection"
+    }
+  }
+}

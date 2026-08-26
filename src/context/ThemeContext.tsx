@@ -1,0 +1,223 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { ThemeConfig } from '../types';
+
+export interface ThemeContextType {
+  theme: ThemeConfig;
+  resolvedTheme: 'light' | 'dark';
+  systemTheme: 'light' | 'dark';
+  isDark: boolean;
+  setThemeMode: (mode: 'light' | 'dark' | 'system') => void;
+  toggleTheme: () => void;
+  setPrimaryColor: (color: string) => void;
+  setAccentColor: (color: string) => void;
+}
+
+const THEME_MODE_KEY = 'labmedix_theme_mode';
+const THEME_CONFIG_KEY = 'labmedix_theme_v1';
+
+const DEFAULT_THEME: ThemeConfig = {
+  mode: 'system',
+  primaryColor: '#0B4F9C',
+  accentColor: '#109B48'
+};
+
+/**
+ * Detect current OS/browser color scheme preference
+ */
+const getSystemPreference = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    return 'light';
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
+/**
+ * Load initial theme configuration from local storage or system default
+ */
+const getInitialTheme = (): ThemeConfig => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_THEME;
+  }
+
+  try {
+    // 1. Check full ThemeConfig JSON in storage
+    const savedConfig = localStorage.getItem(THEME_CONFIG_KEY);
+    if (savedConfig) {
+      const parsed = JSON.parse(savedConfig);
+      if (parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system')) {
+        return {
+          mode: parsed.mode,
+          primaryColor: parsed.primaryColor || DEFAULT_THEME.primaryColor,
+          accentColor: parsed.accentColor || DEFAULT_THEME.accentColor
+        };
+      }
+    }
+
+    // 2. Check standalone theme mode string
+    const savedMode = localStorage.getItem(THEME_MODE_KEY);
+    if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') {
+      return {
+        ...DEFAULT_THEME,
+        mode: savedMode
+      };
+    }
+  } catch (error) {
+    console.warn('[ThemeContext] Failed to parse saved theme settings:', error);
+  }
+
+  // 3. If no user preference saved, default to 'system' to automatically match OS
+  return DEFAULT_THEME;
+};
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [theme, setTheme] = useState<ThemeConfig>(getInitialTheme);
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemPreference);
+
+  // Compute resolved theme mode ('light' or 'dark')
+  const resolvedTheme: 'light' | 'dark' = useMemo(() => {
+    if (theme.mode === 'system') {
+      return systemTheme;
+    }
+    return theme.mode;
+  }, [theme.mode, systemTheme]);
+
+  const isDark = resolvedTheme === 'dark';
+
+  // Apply theme classes and attributes to DOM
+  const applyThemeToDOM = useCallback((dark: boolean) => {
+    if (typeof document === 'undefined') return;
+
+    const root = document.documentElement;
+
+    if (dark) {
+      root.classList.add('dark');
+      root.style.colorScheme = 'dark';
+    } else {
+      root.classList.remove('dark');
+      root.style.colorScheme = 'light';
+    }
+
+    // Sync HTML meta theme-color tag for mobile browsers & status bars
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute('content', dark ? '#0f172a' : '#ffffff');
+  }, []);
+
+  // Listen to live system color scheme changes
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleSystemThemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      const newSystemTheme = e.matches ? 'dark' : 'light';
+      setSystemTheme(newSystemTheme);
+    };
+
+    // Initialize with current system state
+    handleSystemThemeChange(mediaQuery);
+
+    // Modern and legacy event listener bindings
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+    } else if ((mediaQuery as any).addListener) {
+      (mediaQuery as any).addListener(handleSystemThemeChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleSystemThemeChange);
+      } else if ((mediaQuery as any).removeListener) {
+        (mediaQuery as any).removeListener(handleSystemThemeChange);
+      }
+    };
+  }, []);
+
+  // Apply resolved theme to DOM and persist to localStorage
+  useEffect(() => {
+    applyThemeToDOM(isDark);
+
+    try {
+      localStorage.setItem(THEME_MODE_KEY, theme.mode);
+      localStorage.setItem(THEME_CONFIG_KEY, JSON.stringify(theme));
+    } catch (error) {
+      console.warn('[ThemeContext] Could not persist theme preference:', error);
+    }
+  }, [theme, isDark, applyThemeToDOM]);
+
+  // Synchronize across browser tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === THEME_MODE_KEY && e.newValue) {
+        const mode = e.newValue as 'light' | 'dark' | 'system';
+        if (mode === 'light' || mode === 'dark' || mode === 'system') {
+          setTheme(prev => ({ ...prev, mode }));
+        }
+      } else if (e.key === THEME_CONFIG_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system')) {
+            setTheme(parsed);
+          }
+        } catch {
+          // Ignore parse errors from concurrent tab writes
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const setThemeMode = useCallback((mode: 'light' | 'dark' | 'system') => {
+    setTheme(prev => ({ ...prev, mode }));
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    // Toggle directly between opposite resolved states
+    setTheme(prev => {
+      const currentResolved = prev.mode === 'system' ? getSystemPreference() : prev.mode;
+      const nextMode = currentResolved === 'dark' ? 'light' : 'dark';
+      return { ...prev, mode: nextMode };
+    });
+  }, []);
+
+  const setPrimaryColor = useCallback((primaryColor: string) => {
+    setTheme(prev => ({ ...prev, primaryColor }));
+  }, []);
+
+  const setAccentColor = useCallback((accentColor: string) => {
+    setTheme(prev => ({ ...prev, accentColor }));
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      theme,
+      resolvedTheme,
+      systemTheme,
+      isDark,
+      setThemeMode,
+      toggleTheme,
+      setPrimaryColor,
+      setAccentColor
+    }),
+    [theme, resolvedTheme, systemTheme, isDark, setThemeMode, toggleTheme, setPrimaryColor, setAccentColor]
+  );
+
+  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
+};
+
+export const useTheme = (): ThemeContextType => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+

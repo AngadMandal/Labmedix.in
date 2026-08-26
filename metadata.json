@@ -1,0 +1,6 @@
+{
+  "name": "LabMedix - Smart Digital Health Card System",
+  "description": "Enterprise healthcare management platform with automatic digital health cards, EMR, family vault, and instant billing.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

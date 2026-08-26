@@ -1,0 +1,293 @@
+import React from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { ToastProvider } from './context/ToastContext';
+
+import { AppLayout } from './components/layout/AppLayout';
+import { LoginPage } from './pages/auth/LoginPage';
+import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { PatientListPage } from './pages/patients/PatientListPage';
+import { PatientCreatePage } from './pages/patients/PatientCreatePage';
+import { PatientDetailPage } from './pages/patients/PatientDetailPage';
+import { PatientEditPage } from './pages/patients/PatientEditPage';
+import { CardListPage } from './pages/cards/CardListPage';
+import { CardStudioPage } from './pages/cards/CardStudioPage';
+import { CardPrintSheetPage } from './pages/cards/CardPrintSheetPage';
+import { MembershipListPage } from './pages/memberships/MembershipListPage';
+import { FamilyListPage } from './pages/families/FamilyListPage';
+import { WalletDashboardPage } from './pages/wallet/WalletDashboardPage';
+import { DoctorEMRPage } from './pages/emr/DoctorEMRPage';
+import { DoctorMasterPage } from './pages/doctors/DoctorMasterPage';
+import { TestMasterPage } from './pages/catalog/TestMasterPage';
+import { ReportsPage } from './pages/reports/ReportsPage';
+import { UserListPage } from './pages/users/UserListPage';
+import { ActivityLogPage } from './pages/activity/ActivityLogPage';
+import { BackupRestorePage } from './pages/backup/BackupRestorePage';
+import { SettingsPage } from './pages/settings/SettingsPage';
+import { IntegrationsPage } from './pages/integrations/IntegrationsPage';
+import { WebsiteCmsPage } from './pages/cms/WebsiteCmsPage';
+import { CashDeskBillVouchersPage } from './pages/vouchers/CashDeskBillVouchersPage';
+import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
+import { PatientPortalPage } from './pages/portal/PatientPortalPage';
+import { HomePage } from './pages/public/HomePage';
+import { NotFoundPage } from './pages/not-found/NotFoundPage';
+
+import { SystemModuleKey } from './constants/roles';
+import { ShieldAlert, Stethoscope, UserCheck } from 'lucide-react';
+import { StorageService } from './services/storage';
+
+// Protected Route Wrapper
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Granular Module Permission Guard
+const ModuleGuard: React.FC<{ moduleKey: SystemModuleKey; children: React.ReactNode }> = ({ moduleKey, children }) => {
+  const { hasModuleAccess, currentUser } = useAuth();
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!hasModuleAccess(moduleKey)) {
+    return (
+      <div className="p-8 max-w-xl mx-auto my-12 rounded-3xl bg-slate-900 border border-rose-500/40 text-center text-white space-y-4 shadow-2xl">
+        <div className="w-16 h-16 rounded-3xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/40">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <div className="space-y-1">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase font-mono bg-rose-950 text-rose-300 border border-rose-500/50">
+            HTTP 403 ACCESS DENIED
+          </span>
+          <h2 className="text-xl font-black text-white">Module Access Restricted</h2>
+          <p className="text-xs text-slate-300">
+            You do not have administrative permission to access the <strong className="text-rose-400">{moduleKey.toUpperCase()}</strong> module. The Super Administrator must grant this module to your user profile ({currentUser.fullName}).
+          </p>
+        </div>
+        <div className="pt-2">
+          <a
+            href="#/dashboard"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-colors shadow-md"
+          >
+            Return to Authorized Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
+// Dedicated Doctor Role Gate for EMR & Clinical Prescriptions
+
+import { AuditService } from './services/auditService';
+const SuperAdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const currentUser = StorageService.getCurrentUser();
+  if (!currentUser) return <Navigate to="/login" replace />;
+  
+  if (currentUser.role !== 'super_admin') {
+    React.useEffect(() => {
+      AuditService.log('UNAUTHORIZED_ACCESS_ATTEMPT', 'auth', `User ${currentUser.username} (${currentUser.role}) attempted to access Super Admin Portal.`);
+    }, [currentUser]);
+    
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 p-6 text-center">
+        <div className="p-4 rounded-full bg-rose-500/20 text-rose-500 mb-6">
+          <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h1 className="text-3xl font-black text-white mb-2">403 Forbidden</h1>
+        <p className="text-slate-400 max-w-md">
+          ACCESS DENIED. You do not have the required Super Admin clearance to access this highly classified security sector.
+        </p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+};
+
+
+const DoctorRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser, login } = useAuth();
+  const [error, setError] = React.useState<string>('');
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (currentUser.role !== 'doctor') {
+    const doctorUsers = StorageService.getUsers().filter(u => u.role === 'doctor');
+
+    const handleSwitchToDoctor = (username: string) => {
+      const res = login(username);
+      if (!res.success) {
+        setError(res.error || 'Failed to authenticate doctor account.');
+      } else {
+        setError('');
+      }
+    };
+
+    return (
+      <div className="p-6 sm:p-8 max-w-2xl mx-auto my-8 rounded-3xl bg-slate-900 border border-teal-500/40 text-white shadow-2xl space-y-6">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-3xl bg-teal-500/20 text-teal-400 flex items-center justify-center mx-auto border border-teal-500/40 shadow-lg shadow-teal-500/10">
+            <Stethoscope className="w-8 h-8" />
+          </div>
+          <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase font-mono bg-teal-950 text-teal-300 border border-teal-500/50">
+            LICENSED MEDICAL PRACTITIONER ACCESS ONLY
+          </span>
+          <h2 className="text-2xl font-black text-white">Doctor EMR & Prescription Suite</h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+            Prescription issuance, diagnostic orders, and clinical SOAP notes are legally restricted to verified Medical Doctors. You are currently logged in as <strong className="text-amber-400">{currentUser.fullName} ({currentUser.role.toUpperCase().replace('_', ' ')})</strong>.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+          <div className="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-teal-400" />
+            <span>Select a Doctor Profile to Enter Clinical Suite:</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {doctorUsers.map(doc => (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => handleSwitchToDoctor(doc.username)}
+                className="flex items-center gap-3 p-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-teal-500 hover:bg-teal-950/40 transition-all text-left group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-teal-600/20 text-teal-300 font-bold flex items-center justify-center text-sm shrink-0 border border-teal-500/30 group-hover:scale-105 transition-transform">
+                  👨‍⚕️
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-bold text-white block truncate group-hover:text-teal-300">{doc.fullName}</span>
+                  <span className="text-[10px] text-slate-400 block truncate">{doc.department || 'OPD Physician'}</span>
+                  <span className="text-[9px] font-mono text-teal-400">License: {doc.licenseNo || 'WBMC-Verified'}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs font-bold text-center">
+            {error}
+          </div>
+        )}
+
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <a
+            href="#/dashboard"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-colors border border-slate-700"
+          >
+            Return to Authorized Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <HashRouter>
+              <Routes>
+                {/* Public Verification Route for QR Scanners */}
+                <Route path="/verify/:code" element={<PublicVerifyPage />} />
+                <Route path="/verify" element={<PublicVerifyPage />} />
+
+                {/* Public 3D Website Home Page (Default Root) */}
+                <Route path="/" element={<HomePage />} />
+                <Route path="/home" element={<HomePage />} />
+                <Route path="/website" element={<HomePage />} />
+
+                {/* Single Unified Patient & Cardholder Smart Portal */}
+                <Route path="/portal" element={<PatientPortalPage />} />
+                <Route path="/patient-portal" element={<Navigate to="/portal" replace />} />
+
+                {/* Staff Login */}
+                <Route path="/login" element={<LoginPage />} />
+
+                {/* Protected Staff Operational Workspace */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/dashboard" element={<DashboardPage />} />
+
+                  {/* Patient Routes */}
+                  <Route path="/patients" element={<ModuleGuard moduleKey="patients"><PatientListPage /></ModuleGuard>} />
+                  <Route path="/patients/new" element={<ModuleGuard moduleKey="patients"><PatientCreatePage /></ModuleGuard>} />
+                  <Route path="/patients/:id" element={<ModuleGuard moduleKey="patients"><PatientDetailPage /></ModuleGuard>} />
+                  <Route path="/patients/:id/edit" element={<ModuleGuard moduleKey="patients"><PatientEditPage /></ModuleGuard>} />
+
+                  {/* Card & Studio Routes */}
+                  <Route path="/cards" element={<ModuleGuard moduleKey="cards"><CardListPage /></ModuleGuard>} />
+                  <Route path="/card-studio" element={<ModuleGuard moduleKey="card_studio"><CardStudioPage /></ModuleGuard>} />
+                  <Route path="/cards/print-sheet" element={<ModuleGuard moduleKey="print_sheet"><CardPrintSheetPage /></ModuleGuard>} />
+
+                  {/* Memberships */}
+                  <Route path="/memberships" element={<ModuleGuard moduleKey="memberships"><MembershipListPage /></ModuleGuard>} />
+
+                  {/* Families */}
+                  <Route path="/families" element={<ModuleGuard moduleKey="families"><FamilyListPage /></ModuleGuard>} />
+
+                  {/* Wallet */}
+                  <Route path="/wallet" element={<ModuleGuard moduleKey="wallet"><WalletDashboardPage /></ModuleGuard>} />
+
+                  {/* Doctor EMR & Clinical Prescriptions (Exclusive to Doctor Role) */}
+                  <Route path="/emr" element={<DoctorRouteGuard><DoctorEMRPage /></DoctorRouteGuard>} />
+
+                  {/* Doctor Master & Commission Governance (Super Admin) */}
+                  <Route path="/doctor-master" element={<ModuleGuard moduleKey="doctor_master"><DoctorMasterPage /></ModuleGuard>} />
+
+                  {/* Diagnostic Test Master & Package Management */}
+                  <Route path="/test-master" element={<ModuleGuard moduleKey="test_master"><TestMasterPage /></ModuleGuard>} />
+
+                  {/* Branch Analytics & Reports */}
+                  <Route path="/reports" element={<ModuleGuard moduleKey="reports"><ReportsPage /></ModuleGuard>} />
+
+                  {/* Staff User Management */}
+                  <Route path="/users" element={<SuperAdminGuard><ModuleGuard moduleKey="users"><UserListPage /></ModuleGuard></SuperAdminGuard>} />
+
+                  {/* Super Admin Sovereign Cash Desk Voucher Engine */}
+                  <Route path="/cash-desk-vouchers" element={<ModuleGuard moduleKey="cash_desk_vouchers"><CashDeskBillVouchersPage /></ModuleGuard>} />
+
+                  {/* 3D Website Customizer & CMS Studio (Super Admin Exclusive) */}
+                  <Route path="/website-cms" element={<ModuleGuard moduleKey="website_cms"><WebsiteCmsPage /></ModuleGuard>} />
+
+                  {/* System & Audit */}
+                  <Route path="/activity" element={<ModuleGuard moduleKey="activity"><ActivityLogPage /></ModuleGuard>} />
+                  <Route path="/backup" element={<SuperAdminGuard><ModuleGuard moduleKey="backup"><BackupRestorePage /></ModuleGuard></SuperAdminGuard>} />
+                  <Route path="/integrations" element={<ModuleGuard moduleKey="integrations"><IntegrationsPage /></ModuleGuard>} />
+                  <Route path="/settings" element={<ModuleGuard moduleKey="settings"><SettingsPage /></ModuleGuard>} />
+
+                  {/* Super Admin Security Portal */}
+                  <Route path="/super-admin" element={<SuperAdminGuard><SettingsPage /></SuperAdminGuard>} />
+
+                </Route>
+
+                {/* Fallback to Home */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </HashRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </SettingsProvider>
+    </ThemeProvider>
+  );
+};
+export default App;
