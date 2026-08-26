@@ -66,7 +66,12 @@ import {
   RotateCcw,
   Menu,
   X,
-  QrCode
+  QrCode,
+  Microscope,
+  Building2,
+  Calendar,
+  UserCheck,
+  Dna
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
@@ -487,7 +492,7 @@ export const HomePage: React.FC = () => {
       </header>
 
       {/* 3. HERO SECTION WITH 3D HOLOGRAPHIC ROTATING CARD */}
-      <section className="relative pt-12 pb-24 overflow-hidden">
+      <section className="relative pt-12 pb-20 overflow-hidden">
         {/* Futuristic Cyber Light Orbs & Mesh Background */}
         <div className="absolute top-1/4 left-1/4 w-[700px] h-[500px] rounded-full blur-[160px] pointer-events-none" style={{background:'radial-gradient(ellipse,rgba(30,58,138,0.25),transparent 70%)'}} />
         <div className="absolute top-1/3 right-10 w-[500px] h-[500px] rounded-full blur-[150px] pointer-events-none" style={{background:'radial-gradient(ellipse,rgba(21,128,61,0.18),transparent 70%)'}} />
@@ -500,18 +505,18 @@ export const HomePage: React.FC = () => {
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               {/* Accreditation Badge */}
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold shadow-lg" style={{background:'linear-gradient(90deg,rgba(30,58,138,0.25),rgba(21,128,61,0.20))',border:'1px solid rgba(74,222,128,0.35)',color:'#4ade80',boxShadow:'0 0 20px rgba(21,128,61,0.15)'}}>
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" style={{color:'#4ade80'}} />
-                <span>{cmsConfig.heroBadge}</span>
+                <Building2 className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span>NABL ACCREDITED DIAGNOSTIC CENTRE & MULTI-SPECIALITY OUTDOOR</span>
               </div>
 
               {/* Main Headline with Theme Glow */}
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.12]">
-                Universal Digital Health Card & <span className="text-brand-gradient">Smart Diagnostic Ecosystem</span>
+                Labmedix Multi-Speciality <span className="text-brand-gradient">Outdoor & Diagnosis Centre</span>
               </h1>
 
               {/* Subtitle */}
               <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-normal">
-                {cmsConfig.heroSubtitle}
+                West Bengal’s trusted medical destination — combining 50+ senior outdoor specialist consultants, fully automated NABL pathology, 32-slice high-speed CT scan, 3D/4D USG color doppler, 24/7 ICU ambulance, and Universal Health Cards with up to 50% flat cashless discounts.
               </p>
 
               {/* CTAs & Quick Triggers */}
@@ -524,7 +529,7 @@ export const HomePage: React.FC = () => {
                     setIsCardAppModalOpen(true);
                   }}
                 >
-                  {cmsConfig.heroCtaPrimaryText}
+                  Apply for Digital Health Card
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -533,24 +538,24 @@ export const HomePage: React.FC = () => {
                   style={{border:'1px solid rgba(30,58,138,0.5)',background:'rgba(30,58,138,0.10)'}}
                   onClick={() => setIsLabBookingModalOpen(true)}
                 >
-                  <Search className="w-4 h-4" style={{color:'#60a5fa'}} />
-                  {cmsConfig.heroCtaSecondaryText}
+                  <Search className="w-4 h-4 text-blue-400" />
+                  Book Outdoor OPD / Lab Test
                 </button>
               </div>
 
               {/* Key Trust Signals Strip */}
               <div className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs text-slate-400 font-mono">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" style={{color:'#22c55e'}} />
-                  <span>NABL Accredited Lab</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>NABL ISO 9001:2015 Certified</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" style={{color:'#22c55e'}} />
-                  <span>Dual-Chip Smart PVC Card</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>50+ Senior Outdoor Consultants</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" style={{color:'#22c55e'}} />
-                  <span>Flat 15% - 50% Discounts</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Flat 15% - 50% Health Card Savings</span>
                 </div>
               </div>
             </div>
@@ -623,6 +628,186 @@ export const HomePage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* COUNTER STATS STRIP */}
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 p-6 rounded-3xl bg-slate-900/90 border border-blue-900/40 shadow-2xl">
+            <div className="text-center space-y-1 border-r border-slate-800 last:border-r-0">
+              <strong className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono block">50+</strong>
+              <span className="text-[11px] text-slate-300 font-bold block">Senior Outdoor Consultants</span>
+              <span className="text-[9px] text-slate-500 font-mono block">Morning & Evening OPD</span>
+            </div>
+            <div className="text-center space-y-1 border-r border-slate-800 last:border-r-0">
+              <strong className="text-2xl sm:text-3xl font-black text-blue-400 font-mono block">350+</strong>
+              <span className="text-[11px] text-slate-300 font-bold block">NABL Lab Tests & Radiology</span>
+              <span className="text-[9px] text-slate-500 font-mono block">CT, USG, Digital X-Ray, Blood</span>
+            </div>
+            <div className="text-center space-y-1 border-r border-slate-800 last:border-r-0">
+              <strong className="text-2xl sm:text-3xl font-black text-amber-400 font-mono block">2,50,000+</strong>
+              <span className="text-[11px] text-slate-300 font-bold block">Health Cardholders</span>
+              <span className="text-[9px] text-slate-500 font-mono block">Cashless Discount Shield</span>
+            </div>
+            <div className="text-center space-y-1">
+              <strong className="text-2xl sm:text-3xl font-black text-rose-400 font-mono block">30 Mins</strong>
+              <span className="text-[11px] text-slate-300 font-bold block">Home Sample Collection</span>
+              <span className="text-[9px] text-slate-500 font-mono block">24x7 Certified Phlebotomy</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3.1. MULTI-SPECIALITY OUTDOOR OPD CLINIC SECTION */}
+      <section id="outdoor-opd" className="py-16 bg-slate-950/90 border-t border-slate-800 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
+            <div className="space-y-2 max-w-2xl">
+              <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase bg-blue-500/10 text-blue-300 border border-blue-500/30 flex items-center gap-1.5 w-fit">
+                <Stethoscope className="w-3.5 h-3.5 text-blue-400" />
+                <span>MULTI-SPECIALITY OUTDOOR CLINIC</span>
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                Senior Visiting Consultants & Outdoor OPD
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400">
+                Consult Kolkata's renowned senior professors & medical college doctors. Health cardholders get flat 20%-30% discount on OPD ticket fees.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-900 border border-blue-900/40 text-xs font-mono shrink-0">
+              <span className="text-amber-400 font-bold block">🕒 OPD Clinic Operating Hours:</span>
+              <span className="text-slate-300 block">Morning: 8:00 AM - 2:00 PM</span>
+              <span className="text-slate-300 block">Evening: 4:00 PM - 8:30 PM</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { title: 'General Medicine & Diabetology', docs: '8 Specialists', icon: '🩺', fee: '₹400 - ₹600', timing: 'Daily 8:00 AM - 8:00 PM', tests: 'HbA1c, Fasting Sugar, Lipid' },
+              { title: 'Cardiology & Echocardiography', docs: '6 Consultants', icon: '🫀', fee: '₹600 - ₹900', timing: 'Mon, Wed, Fri, Sat', tests: 'ECG, 2D ECHO, TMT Stress' },
+              { title: 'Orthopaedics & Spine Care', docs: '5 Surgeons', icon: '🦴', fee: '₹500 - ₹800', timing: 'Tue, Thu, Sat, Sun', tests: 'Digital X-Ray, Bone Density' },
+              { title: 'Gynaecology & Obstetrics', docs: '6 Specialists', icon: '🤰', fee: '₹500 - ₹800', timing: 'Daily Morning & Evening', tests: 'USG 3D/4D, Pap Smear' },
+              { title: 'Paediatrics & Child Health', docs: '4 Doctors', icon: '👶', fee: '₹400 - ₹600', timing: 'Daily Morning OPD', tests: 'Vaccination & Growth Chart' },
+              { title: 'Neurology & Brain Care', docs: '3 Consultants', icon: '🧠', fee: '₹700 - ₹1000', timing: 'Wed, Sat 5:00 PM', tests: 'CT Scan Brain, NCV, EEG' },
+              { title: 'Gastroenterology & Liver', docs: '4 Doctors', icon: '🧪', fee: '₹600 - ₹900', timing: 'Tue, Fri Evening', tests: 'LFT, Endoscopy, USG Abdomen' },
+              { title: 'Ophthalmology & ENT Specialist', docs: '5 Doctors', icon: '👁️', fee: '₹400 - ₹600', timing: 'Daily Evening OPD', tests: 'Vision Check, Audiometry' }
+            ].map((dept, idx) => (
+              <div key={idx} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/40 transition-all flex flex-col justify-between space-y-3 group shadow-lg">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{dept.icon}</span>
+                    <span className="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      {dept.docs}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-black text-white group-hover:text-blue-400 transition-colors">
+                    {dept.title}
+                  </h3>
+                  <div className="text-[11px] text-slate-400 font-mono space-y-0.5">
+                    <div>Fees: <strong className="text-emerald-400">{dept.fee}</strong></div>
+                    <div>Timing: {dept.timing}</div>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-mono pt-2 border-t border-slate-800">
+                    Key Tests: <span className="text-slate-300">{dept.tests}</span>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-blue-500/40 text-blue-300 hover:bg-blue-950/40 text-xs font-bold mt-2"
+                  onClick={() => setIsLabBookingModalOpen(true)}
+                >
+                  Book Outdoor OPD Token
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 3.2. ADVANCED DIAGNOSTIC & RADIOLOGY CENTRE */}
+      <section id="diagnostic-centre" className="py-16 border-t border-slate-800 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="text-center space-y-2 max-w-3xl mx-auto">
+            <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase bg-teal-500/10 text-teal-300 border border-teal-500/30 flex items-center gap-1.5 w-fit mx-auto">
+              <Microscope className="w-3.5 h-3.5 text-teal-400" />
+              <span>ADVANCED RADIOLOGY & NABL PATHOLOGY</span>
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              High-Precision Diagnostic & Imaging Centre
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Equipped with fully automated European & Japanese analyzers for 100% accurate, certified diagnostic reports.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                title: '32-Slice High-Speed CT Scan',
+                badge: 'RADIOLOGY',
+                desc: 'Ultra-low radiation high resolution Brain, HRCT Chest, Abdomen, Bone & CT Angiography scans.',
+                perks: ['Same-day film & digital CD', 'Radiologist official sign-off', '24/7 Emergency CT Scan']
+              },
+              {
+                title: '3D / 4D Color Doppler USG',
+                badge: 'ULTRASONOGRAPHY',
+                desc: 'High frequency abdominal, anomaly, pelvic, follicular monitoring & peripheral vascular Doppler.',
+                perks: ['Senior Radiologist conducted', '3D Anomaly Pregnancy scan', 'Instant color report']
+              },
+              {
+                title: 'Automated NABL Pathology Lab',
+                badge: 'PATHOLOGY',
+                desc: 'Sysmex & Roche fully automated analyzers for CBC, Liver, Kidney, Thyroid, Hormones & Tumor Markers.',
+                perks: ['NABL Certified Lab', 'Barcode sample tracking', '4-Hour WhatsApp report']
+              },
+              {
+                title: 'Digital X-Ray & Mammography',
+                badge: 'IMAGING',
+                desc: 'High clarity CR digital radiography for chest, spine, joints, and specialized Contrast studies.',
+                perks: ['Instant digital film', 'Low radiation dose', 'Contrast X-Ray facility']
+              },
+              {
+                title: '2D ECHO, TMT & 12-Lead ECG',
+                badge: 'CARDIOLOGY',
+                desc: 'Complete cardiac evaluation suite with Echocardiography, Treadmill Stress Test & 24-Hour Holter.',
+                perks: ['Cardiologist certified', 'TMT Stress evaluation', '24-Hour Holter monitor']
+              },
+              {
+                title: '24/7 Home Sample Collection',
+                badge: 'DOORSTEP CARE',
+                desc: 'Certified phlebotomists collect blood & urine samples right from your bedroom with zero hassle.',
+                perks: ['GPS Phlebotomist tracking', 'Cold-chain sample transport', 'Free with Health Card']
+              }
+            ].map((facility, fIdx) => (
+              <div key={fIdx} className="p-6 rounded-3xl bg-slate-900 border border-slate-800 hover:border-teal-500/40 transition-all space-y-4 shadow-xl flex flex-col justify-between">
+                <div className="space-y-3">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                    {facility.badge}
+                  </span>
+                  <h3 className="text-base font-black text-white">{facility.title}</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">{facility.desc}</p>
+
+                  <ul className="space-y-1.5 pt-2 border-t border-slate-800 text-[11px] text-slate-400 font-mono">
+                    {facility.perks.map((p, pIdx) => (
+                      <li key={pIdx} className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 text-slate-950 font-black text-xs shadow-md mt-2"
+                  onClick={() => setIsLabBookingModalOpen(true)}
+                >
+                  Book {facility.badge} Test
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1205,11 +1390,15 @@ export const HomePage: React.FC = () => {
                 <div className="w-8 h-8 rounded-xl bg-teal-500 p-1 flex items-center justify-center text-slate-950">
                   <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
                 </div>
-                <span className="text-base font-black text-white">LABMEDIX HEALTH SYSTEM</span>
+                <span className="text-base font-black text-white">LABMEDIX MULTI-SPECIALITY OUTDOOR & DIAGNOSIS CENTRE</span>
               </div>
               <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                {cmsConfig.footerAboutText}
+                NABL Accredited Diagnostic Centre & Senior Outdoor OPD Clinic. Delivering 350+ automated blood, urine & radiology diagnostic services with Universal Health Protection Cards.
               </p>
+              <div className="text-[11px] font-mono text-slate-500 space-y-1 pt-1">
+                <div>📍 Central Medical Hub: Salt Lake Sector V, Kolkata - 700091</div>
+                <div>Licence No: WB/KLK/CL-2024/99120 • ISO 9001:2015 Certified</div>
+              </div>
             </div>
 
             <div className="space-y-2">

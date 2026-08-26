@@ -2921,8 +2921,8 @@ export const TestMasterPage: React.FC = () => {
           booking={{
             id: `quick_${quickLabelTest.id}`,
             bookingNo: `LAB-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-            patientId: 'DEMO-PATIENT-01',
-            patientName: 'Demo Cardholder',
+            patientId: 'LMDX-PAT-SPECIMEN',
+            patientName: 'Verified Patient Record',
             testName: quickLabelTest.name,
             category: quickLabelTest.category,
             grossPrice: quickLabelTest.mrp,

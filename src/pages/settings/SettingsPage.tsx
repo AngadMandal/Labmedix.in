@@ -556,7 +556,7 @@ export const SettingsPage: React.FC = () => {
       bloodGroup: 'B+',
       allergies: 'None'
     },
-    walletId: 'w_demo_01',
+    walletId: 'w_preview_01',
     isDeleted: false,
     createdBy: 'usr_admin',
     createdAt: new Date().toISOString(),
@@ -584,7 +584,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   const previewCard: HealthCard = {
-    id: 'card_demo_01',
+    id: 'card_preview_01',
     cardNumber: 'LHC-2026-000001',
     patientId: 'LMDX-2026-000001',
     membershipId: 'mem_gold',
