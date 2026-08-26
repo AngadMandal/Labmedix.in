@@ -406,6 +406,9 @@ export interface CompanyProfile {
   cardFooterNotice?: string;
   cardSecurityWatermark?: string;
   currencySymbol?: string;
+  isLocked?: boolean;
+  lockedAt?: string;
+  lockedBy?: string;
   services: {
     id: string;
     title: string;

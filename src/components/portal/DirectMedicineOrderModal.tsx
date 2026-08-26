@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
+import { AddressAutoPopupModal } from '../common/AddressAutoPopupModal';
 import { CatalogService, PharmacyMedicineItem } from '../../services/catalogService';
 import { PortalService, MedicineOrder, PharmacyOrderItem } from '../../services/portalService';
 import { WalletService } from '../../services/walletService';
@@ -99,6 +100,7 @@ export const DirectMedicineOrderModal: React.FC<DirectMedicineOrderModalProps> =
     patient?.address?.fullAddress || 'Flat 4B, Salt Lake Sector 2, Kolkata 700091'
   );
   const [patientPhone, setPatientPhone] = useState(patient?.mobile || '9830012345');
+  const [isAddressPopupOpen, setIsAddressPopupOpen] = useState(false);
 
   // Payment Option
   const [paymentOption, setPaymentOption] = useState<'paid_wallet' | 'cash_on_delivery'>('paid_wallet');
@@ -566,9 +568,19 @@ export const DirectMedicineOrderModal: React.FC<DirectMedicineOrderModalProps> =
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-300">Delivery Address</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddressPopupOpen(true)}
+                  className="text-[10px] text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 underline"
+                >
+                  <MapPin className="w-3 h-3" />
+                  <span>📍 Auto Popup Address / PIN Lookup</span>
+                </button>
+              </div>
               <Input
-                label="Delivery Address"
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
                 leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
@@ -647,6 +659,16 @@ export const DirectMedicineOrderModal: React.FC<DirectMedicineOrderModalProps> =
           </Button>
         </div>
       </div>
+
+      <AddressAutoPopupModal
+        isOpen={isAddressPopupOpen}
+        onClose={() => setIsAddressPopupOpen(false)}
+        initialQuery={deliveryAddress}
+        onSelectAddress={(addr) => {
+          setDeliveryAddress(`${addr.cityArea}, P.O: ${addr.postOffice}, P.S: ${addr.policeStation}, ${addr.district}, ${addr.state} - ${addr.pinCode}`);
+          showToast('success', 'Address Selected', `${addr.cityArea}, ${addr.district} (${addr.pinCode}) selected for delivery.`);
+        }}
+      />
     </Modal>
   );
 };

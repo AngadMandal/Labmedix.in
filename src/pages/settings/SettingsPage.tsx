@@ -51,17 +51,33 @@ import {
   RefreshCw,
   Cpu,
   Radio,
-  Smartphone
+  Smartphone,
+  Unlock,
+  Compass,
+  Building2,
+  ShieldAlert
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ZohoPaymentService, ZohoTestConnectionResult } from '../../services/zohoPaymentService';
 import { ZohoPaymentConfig, NFCSettings, UpiMerchantSettings } from '../../types';
 import { GooglePayMerchantQR } from '../../components/payment/GooglePayMerchantQR';
 import { ZohoMerchantLoginModal } from '../../components/payment/ZohoMerchantLoginModal';
+import { AddressAutoPopupModal } from '../../components/common/AddressAutoPopupModal';
 
 export const SettingsPage: React.FC = () => {
   const { companyProfile, updateCompanyProfile } = useSettings();
   const { showToast } = useToast();
+
+  const currentUser = StorageService.getCurrentUser();
+  const isSuperAdmin = currentUser?.role === 'super_admin';
+
+  // Super Admin Auto-Lock System State
+  const [isLocked, setIsLocked] = useState<boolean>(companyProfile.isLocked ?? true);
+  const [lockedBy, setLockedBy] = useState<string>(companyProfile.lockedBy || 'Super Administrator');
+  const [lockedAt, setLockedAt] = useState<string>(companyProfile.lockedAt || '');
+
+  // Address Selection Popup Modal State
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   const [isZohoLoginModalOpen, setIsZohoLoginModalOpen] = useState(false);
 
@@ -398,9 +414,36 @@ export const SettingsPage: React.FC = () => {
     }, 850);
   };
 
+  const handleToggleLock = () => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Access Denied', 'Only Super Administrator is authorized to unlock or modify system settings.');
+      return;
+    }
+    if (isLocked) {
+      setIsLocked(false);
+      showToast('info', 'Settings Unlocked 🔓', 'Configuration fields are now editable. Click "Save All & Auto-Lock Settings" when done.');
+    } else {
+      setIsLocked(true);
+      showToast('info', 'Settings Locked 🔒', 'System settings are locked in read-only mode.');
+    }
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Access Denied', 'Only Super Administrator can modify system settings.');
+      return;
+    }
+
+    if (isLocked) {
+      showToast('error', 'Settings Auto-Locked', 'System settings are currently locked. Click "Unlock & Edit Settings" to make modifications.');
+      return;
+    }
+
     setIsSaving(true);
+    const now = new Date().toISOString();
+    const operator = currentUser?.fullName || 'Super Administrator';
 
     const updatedZohoConfig: ZohoPaymentConfig = {
       enabled: zohoEnabled,
@@ -418,7 +461,7 @@ export const SettingsPage: React.FC = () => {
       settlementSchedule: zohoSettlement,
       lastPingStatus: zohoTestResult?.success ? 'online' : (companyProfile.zohoPayments?.lastPingStatus || 'online'),
       lastPingLatencyMs: zohoTestResult?.latencyMs || companyProfile.zohoPayments?.lastPingLatencyMs || 68,
-      lastPingTimestamp: new Date().toISOString()
+      lastPingTimestamp: now
     };
 
     const updatedNfcConfig: NFCSettings = {
@@ -469,14 +512,20 @@ export const SettingsPage: React.FC = () => {
       cardFooterNotice: cardFooterNotice.trim(),
       cardSecurityWatermark: cardSecurityWatermark.trim(),
       currencySymbol,
+      isLocked: true, // Auto-lock on save!
+      lockedAt: now,
+      lockedBy: operator,
       zohoPayments: updatedZohoConfig,
       nfcSettings: updatedNfcConfig,
       upiSettings: updatedUpiConfig
     });
 
+    setIsLocked(true);
+    setLockedAt(now);
+    setLockedBy(operator);
     setIsSaving(false);
     triggerCelebrationFireworks();
-    showToast('success', 'Settings Synchronized!', 'Organization profile, NFC configurations & Payment credentials saved.');
+    showToast('success', 'Settings Synchronized & Auto-Locked! 🔒', 'Executive branding, helpline numbers & CR80 templates saved and locked into read-only mode.');
   };
 
   // Mock Patient & Live Card Setup for true-to-life 300 DPI Preview
@@ -620,15 +669,87 @@ export const SettingsPage: React.FC = () => {
             Export JSON
           </Button>
 
-          <Button
-            type="button"
-            variant="primary"
-            leftIcon={<Save className="w-4 h-4" />}
-            onClick={handleSave}
-            isLoading={isSaving}
-          >
-            Save All Settings
-          </Button>
+          {isLocked ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              leftIcon={<Unlock className="w-4 h-4" />}
+              onClick={handleToggleLock}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md"
+            >
+              Unlock Settings
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="primary"
+              leftIcon={<Save className="w-4 h-4" />}
+              onClick={handleSave}
+              isLoading={isSaving}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md"
+            >
+              Save & Auto-Lock Settings
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Super Admin Lock Banner */}
+      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+        isLocked
+          ? 'bg-slate-900 border-slate-800 text-slate-200'
+          : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-100 shadow-lg'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+            isLocked ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+          }`}>
+            {isLocked ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <strong className="text-sm font-black uppercase tracking-wider">
+                {isLocked ? '🔒 System Settings Auto-Locked & Secured' : '🔓 Edit Mode Active (Super Admin)'}
+              </strong>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                isLocked ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}>
+                {isLocked ? 'Read-Only Protected' : 'Ready to Edit'}
+              </span>
+            </div>
+            <p className="text-xs opacity-90 mt-0.5">
+              {isLocked
+                ? `All branding, helplines, logo, and CR80 card templates are currently protected. Only Super Administrator can unlock and edit these values.`
+                : `You are editing active configuration parameters. Click "Save & Auto-Lock Settings" when finished to lock into read-only mode.`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {isLocked ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              leftIcon={<Unlock className="w-4 h-4 text-amber-400" />}
+              onClick={handleToggleLock}
+              className="border-amber-500/40 text-amber-300 hover:bg-amber-950/50 text-xs font-bold"
+            >
+              Unlock Settings
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              leftIcon={<Lock className="w-4 h-4 text-slate-400" />}
+              onClick={handleToggleLock}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-bold"
+            >
+              Cancel & Lock
+            </Button>
+          )}
         </div>
       </div>
 
@@ -783,18 +904,23 @@ export const SettingsPage: React.FC = () => {
                       Upload PNG, JPG, or SVG. Automatically rendered in high resolution across all PVC Health Cards, Staff Badges, and Verification systems.
                     </p>
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                      <label className="cursor-pointer py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors">
+                      <label className={`py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors ${
+                        isLocked || !isSuperAdmin ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
+                      }`}>
                         <Upload className="w-3.5 h-3.5" />
                         <span>Upload New Logo</span>
-                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                        <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={isLocked || !isSuperAdmin} className="hidden" />
                       </label>
                       <button
                         type="button"
+                        disabled={isLocked || !isSuperAdmin}
                         onClick={() => {
                           setLogoUrl('');
                           showToast('info', 'Default Monogram Restored', 'Switched to official LabMedix vector healthcare emblem.');
                         }}
-                        className="py-1.5 px-3 rounded-xl border text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5"
+                        className={`py-1.5 px-3 rounded-xl border text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 ${
+                          isLocked || !isSuperAdmin ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>Use Official Vector Monogram</span>
@@ -804,26 +930,80 @@ export const SettingsPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Organization Name" value={name} onChange={(e) => setName(e.target.value)} required />
-                  <Input label="Official Slogan / Tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} required />
-                  <Input label="Established Year" value={estdYear} onChange={(e) => setEstdYear(e.target.value)} required />
-                  <Input label="Clinical Subtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} required />
+                  <Input label="Organization Name" value={name} onChange={(e) => setName(e.target.value)} disabled={isLocked || !isSuperAdmin} required />
+                  <Input label="Official Slogan / Tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} disabled={isLocked || !isSuperAdmin} required />
+                  <Input label="Established Year" value={estdYear} onChange={(e) => setEstdYear(e.target.value)} disabled={isLocked || !isSuperAdmin} required />
+                  <Input label="Clinical Subtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} disabled={isLocked || !isSuperAdmin} required />
                 </div>
 
-                {/* Headquarters Location */}
+                {/* Headquarters & Branch Location */}
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-red-500" /> Headquarters Address
-                  </h4>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-red-500" /> Headquarters Address
+                    </h4>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isLocked || !isSuperAdmin}
+                      leftIcon={<Compass className="w-3.5 h-3.5 text-teal-400" />}
+                      onClick={() => setIsAddressModalOpen(true)}
+                      className="border-teal-500/40 text-teal-300 hover:bg-teal-950/50 text-xs font-bold"
+                    >
+                      📍 Select / Search Address via Address Popup
+                    </Button>
+                  </div>
+
+                  {/* LABMEDIX Regional Branch Presets */}
+                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                      🏥 Quick Select LABMEDIX Regional Hub Address Presets:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { name: 'Malda HQ Sultanganj', addr: 'Main Medical Expressway, Sultanganj', po: 'Sultanganj P.O.', ps: 'Sultanganj PS', dist: 'Malda', state: 'West Bengal', pin: '732142' },
+                        { name: 'Kolkata Park Street Hub', addr: '12B Park Street, Medical Enclave', po: 'Park Street P.O.', ps: 'Park Street PS', dist: 'Kolkata', state: 'West Bengal', pin: '700016' },
+                        { name: 'Salt Lake Sec-V Hub', addr: 'Plot 5, Sector V Tech & Health Zone', po: 'Bidhan Nagar P.O.', ps: 'Electronics Complex PS', dist: 'North 24 Parganas', state: 'West Bengal', pin: '700091' },
+                        { name: 'Siliguri Regional Hub', addr: 'Hill Cart Road, Near Court Square', po: 'Siliguri Head P.O.', ps: 'Siliguri PS', dist: 'Darjeeling', state: 'West Bengal', pin: '734001' },
+                        { name: 'Durgapur Health City', addr: 'City Centre Medical Complex', po: 'Durgapur P.O.', ps: 'Durgapur PS', dist: 'Paschim Bardhaman', state: 'West Bengal', pin: '713216' }
+                      ].map((b, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          disabled={isLocked || !isSuperAdmin}
+                          onClick={() => {
+                            setAddress(b.addr);
+                            setPostOffice(b.po);
+                            setPoliceStation(b.ps);
+                            setDistrict(b.dist);
+                            setStateVal(b.state);
+                            setPinCode(b.pin);
+                            showToast('info', 'Branch Preset Loaded 📍', `Set address to ${b.name}`);
+                          }}
+                          className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                            district === b.dist && pinCode === b.pin
+                              ? 'bg-teal-600 text-white border-teal-500 shadow-xs'
+                              : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                          } ${isLocked || !isSuperAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <Building2 className="w-3 h-3 text-teal-400" />
+                          <span>{b.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="sm:col-span-3">
-                      <Input label="Main Campus Address" value={address} onChange={(e) => setAddress(e.target.value)} required />
+                      <Input label="Main Campus Address" value={address} onChange={(e) => setAddress(e.target.value)} disabled={isLocked || !isSuperAdmin} required />
                     </div>
-                    <Input label="Post Office (P.O.)" value={postOffice} onChange={(e) => setPostOffice(e.target.value)} />
-                    <Input label="Police Station (P.S.)" value={policeStation} onChange={(e) => setPoliceStation(e.target.value)} />
-                    <Input label="PIN Code" value={pinCode} onChange={(e) => setPinCode(e.target.value)} />
-                    <Input label="District" value={district} onChange={(e) => setDistrict(e.target.value)} />
-                    <Input label="State" value={stateVal} onChange={(e) => setStateVal(e.target.value)} />
+                    <Input label="Post Office (P.O.)" value={postOffice} onChange={(e) => setPostOffice(e.target.value)} disabled={isLocked || !isSuperAdmin} />
+                    <Input label="Police Station (P.S.)" value={policeStation} onChange={(e) => setPoliceStation(e.target.value)} disabled={isLocked || !isSuperAdmin} />
+                    <Input label="PIN Code" value={pinCode} onChange={(e) => setPinCode(e.target.value)} disabled={isLocked || !isSuperAdmin} />
+                    <Input label="District" value={district} onChange={(e) => setDistrict(e.target.value)} disabled={isLocked || !isSuperAdmin} />
+                    <Input label="State" value={stateVal} onChange={(e) => setStateVal(e.target.value)} disabled={isLocked || !isSuperAdmin} />
                   </div>
                 </div>
               </div>
@@ -2014,6 +2194,22 @@ export const SettingsPage: React.FC = () => {
           setZohoAccountHolder(details.organization);
           setZohoEnv(details.environment);
           setZohoEnabled(true);
+        }}
+      />
+
+      {/* Address Selection Popup System (Super Admin & Operations) */}
+      <AddressAutoPopupModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        initialQuery={pinCode || district || address}
+        onSelectAddress={(sel) => {
+          setAddress(sel.cityArea);
+          setPostOffice(sel.postOffice);
+          setPoliceStation(sel.policeStation);
+          setDistrict(sel.district);
+          setStateVal(sel.state);
+          setPinCode(sel.pinCode);
+          showToast('success', 'Address Applied via Popup 📍', `${sel.cityArea}, ${sel.district}, ${sel.state} (PIN: ${sel.pinCode})`);
         }}
       />
     </div>

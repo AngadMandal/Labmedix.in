@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
+import { AddressAutoPopupModal } from '../common/AddressAutoPopupModal';
 import { CatalogService, HealthPackageItem, LabTestItem } from '../../services/catalogService';
 import { PortalService, BloodTestBooking, BloodTestBookingItem } from '../../services/portalService';
 import { WalletService } from '../../services/walletService';
@@ -74,6 +75,7 @@ export const DirectLabAndPackageBookingModal: React.FC<DirectLabAndPackageBookin
   const [collectionAddress, setCollectionAddress] = useState(
     patient?.address?.fullAddress || 'Sector 3, Salt Lake, Kolkata 700098'
   );
+  const [isAddressPopupOpen, setIsAddressPopupOpen] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(() => {
     const tomorrow = new Date(Date.now() + 86400000);
     return tomorrow.toISOString().slice(0, 10);
@@ -536,13 +538,25 @@ export const DirectLabAndPackageBookingModal: React.FC<DirectLabAndPackageBookin
           </div>
 
           {collectionType === 'home_collection' && (
-            <Input
-              label="Doorstep Home Collection Address"
-              value={collectionAddress}
-              onChange={(e) => setCollectionAddress(e.target.value)}
-              leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
-              required
-            />
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-300">Doorstep Home Collection Address</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddressPopupOpen(true)}
+                  className="text-[10px] text-teal-400 hover:text-teal-300 font-bold flex items-center gap-1 underline"
+                >
+                  <MapPin className="w-3 h-3" />
+                  <span>📍 Auto Popup Address / PIN Lookup</span>
+                </button>
+              </div>
+              <Input
+                value={collectionAddress}
+                onChange={(e) => setCollectionAddress(e.target.value)}
+                leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
+                required
+              />
+            </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -645,6 +659,16 @@ export const DirectLabAndPackageBookingModal: React.FC<DirectLabAndPackageBookin
           </Button>
         </div>
       </div>
+
+      <AddressAutoPopupModal
+        isOpen={isAddressPopupOpen}
+        onClose={() => setIsAddressPopupOpen(false)}
+        initialQuery={collectionAddress}
+        onSelectAddress={(addr) => {
+          setCollectionAddress(`${addr.cityArea}, P.O: ${addr.postOffice}, P.S: ${addr.policeStation}, ${addr.district}, ${addr.state} - ${addr.pinCode}`);
+          showToast('success', 'Address Selected', `${addr.cityArea}, ${addr.district} (${addr.pinCode}) selected for sample collection.`);
+        }}
+      />
     </Modal>
   );
 };
