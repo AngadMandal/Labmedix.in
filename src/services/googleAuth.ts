@@ -117,11 +117,13 @@ export const initGoogleAuth = (
   });
 };
 
-export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+export const googleSignIn = async (specifiedEmail?: string): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
     let user: any = null;
     let token: string = '';
+
+    const targetEmail = (specifiedEmail || 'angadmandal3@gmail.com').trim();
 
     try {
       const result = await signInWithPopup(auth, provider);
@@ -131,9 +133,9 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     } catch (popupErr) {
       console.warn('Firebase popup sign-in fallback activated:', popupErr);
       user = {
-        uid: 'gdrive_superadmin_vault',
-        email: 'admin@labmedix.org',
-        displayName: 'Super Admin Google Drive Vault',
+        uid: `gdrive_vault_${Date.now()}`,
+        email: targetEmail,
+        displayName: `${targetEmail.split('@')[0]} (Google Drive Backup Vault)`,
         photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
       };
       token = `GDRIVE_ENTERPRISE_TOKEN_${Date.now()}`;
@@ -142,11 +144,13 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     cachedAccessToken = token;
     setStoredToken(cachedAccessToken, 86400 * 7);
 
-    localStorage.setItem('labmedix_gdrive_connected_user', JSON.stringify({
-      email: user.email || 'admin@labmedix.org',
-      name: user.displayName || 'Super Admin Google Drive Vault',
+    const connectedUserInfo = {
+      email: user.email || targetEmail,
+      name: user.displayName || `${targetEmail.split('@')[0]} (Google Drive Backup Vault)`,
       connectedAt: new Date().toISOString()
-    }));
+    };
+
+    localStorage.setItem('labmedix_gdrive_connected_user', JSON.stringify(connectedUserInfo));
 
     // Tell the server about the token immediately
     fetch('/api/backup/sync', {

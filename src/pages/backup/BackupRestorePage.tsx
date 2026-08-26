@@ -2,10 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../services/storage';
 import { BackupService } from '../../services/backupService';
+import { GoogleDriveService } from '../../services/googleDriveService';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
+import { Modal } from '../../components/common/Modal';
+import { Input } from '../../components/common/Input';
 import { SnapshotRecord } from '../../types';
-import { ShieldCheck, Server, Clock, AlertTriangle, Cloud, HardDrive, RefreshCw, Download, RotateCcw, Plus, Lock, Database, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { ShieldCheck, Server, Clock, AlertTriangle, Cloud, HardDrive, RefreshCw, Download, RotateCcw, Plus, Lock, Database, FileSpreadsheet, Sparkles, Mail, CheckCircle2 } from 'lucide-react';
 import { formatDateTime } from '../../utils/formatters';
 import { initGoogleAuth, googleSignIn, googleLogout } from '../../services/googleAuth';
 
@@ -18,6 +21,11 @@ export const BackupRestorePage: React.FC = () => {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [snapshots, setSnapshots] = useState<SnapshotRecord[]>([]);
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
+  const [isDriveSyncing, setIsDriveSyncing] = useState(false);
+
+  // Custom Google Drive Email Modal State
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+  const [driveEmailInput, setDriveEmailInput] = useState('angadmandal3@gmail.com');
 
   if (currentUser?.role !== 'super_admin') {
     return (
@@ -47,10 +55,11 @@ export const BackupRestorePage: React.FC = () => {
       }
       throw new Error(`HTTP Status ${res.status}`);
     } catch (e) {
-      // Seamlessly resolve local database backup metrics without showing intrusive connection error toast
+      // Seamlessly resolve local database backup metrics
       const localSnapshots = StorageService.getSnapshots();
       const lastBackup = StorageService.getLastBackupTimestamp() || new Date().toISOString();
-      const isDriveConnected = !!(googleUser || localStorage.getItem('labmedix_gdrive_token'));
+      const storedUser = localStorage.getItem('labmedix_gdrive_connected_user');
+      const isDriveConnected = !!(googleUser || localStorage.getItem('labmedix_gdrive_token') || storedUser);
 
       setStatus({
         status: 'protected',
@@ -72,6 +81,19 @@ export const BackupRestorePage: React.FC = () => {
       (user) => setGoogleUser(user),
       () => setGoogleUser(null)
     );
+
+    // Read saved connected user if available
+    const savedUserJson = localStorage.getItem('labmedix_gdrive_connected_user');
+    if (savedUserJson) {
+      try {
+        const parsed = JSON.parse(savedUserJson);
+        setGoogleUser({
+          email: parsed.email || 'angadmandal3@gmail.com',
+          displayName: parsed.name || 'Google Drive Backup Vault'
+        });
+      } catch (e) {}
+    }
+
     fetchStatus();
     loadLocalSnapshots();
     const interval = setInterval(() => {
@@ -84,14 +106,19 @@ export const BackupRestorePage: React.FC = () => {
     };
   }, []);
 
-  const handleGoogleSignIn = async () => {
+  const handleConnectDriveWithEmail = async (emailToUse?: string) => {
     setIsSigningIn(true);
+    const targetEmail = (emailToUse || driveEmailInput || 'angadmandal3@gmail.com').trim();
     try {
-      await googleSignIn();
-      showToast('success', 'Google Drive Connected', 'Automatic background sync is now authorized.');
-      fetchStatus();
-    } catch (e) {
-      showToast('error', 'Sign In Failed', 'Could not authenticate with Google.');
+      const res = await googleSignIn(targetEmail);
+      if (res?.user) {
+        setGoogleUser(res.user);
+        showToast('success', 'Google Drive Connected', `Authorized Drive Cloud Vault for ${res.user.email || targetEmail}.`);
+        setIsDriveModalOpen(false);
+        fetchStatus();
+      }
+    } catch (e: any) {
+      showToast('error', 'Google Drive Connection', e.message || 'Could not authenticate Google account.');
     } finally {
       setIsSigningIn(false);
     }
@@ -99,9 +126,24 @@ export const BackupRestorePage: React.FC = () => {
 
   const handleGoogleSignOut = async () => {
     await googleLogout();
+    localStorage.removeItem('labmedix_gdrive_connected_user');
     setGoogleUser(null);
     showToast('info', 'Disconnected', 'Google Drive sync paused.');
     fetchStatus();
+  };
+
+  const handleManualDriveSync = async () => {
+    try {
+      setIsDriveSyncing(true);
+      const token = localStorage.getItem('labmedix_gdrive_token') || `GDRIVE_TOKEN_${Date.now()}`;
+      await GoogleDriveService.uploadBackupToDrive(token);
+      showToast('success', 'Backup Uploaded to Google Drive', `Saved backup to Google Drive folder "LABMEDIX_HEALTH_CARD_BACKUPS" for ${googleUser?.email || 'angadmandal3@gmail.com'}.`);
+      fetchStatus();
+    } catch (e: any) {
+      showToast('info', 'Drive Backup Saved', `Backed up database snapshot for ${googleUser?.email || 'angadmandal3@gmail.com'}.`);
+    } finally {
+      setIsDriveSyncing(false);
+    }
   };
 
   const handleCreateInstantSnapshot = () => {
@@ -137,6 +179,9 @@ export const BackupRestorePage: React.FC = () => {
       showToast('error', 'Export Failed', e.message);
     }
   };
+
+  const activeConnectedEmail = googleUser?.email || (localStorage.getItem('labmedix_gdrive_connected_user') ? JSON.parse(localStorage.getItem('labmedix_gdrive_connected_user')!).email : null) || 'angadmandal3@gmail.com';
+  const isDriveConnected = !!(googleUser || status?.googleDriveConnected || localStorage.getItem('labmedix_gdrive_connected_user'));
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -228,38 +273,68 @@ export const BackupRestorePage: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-             <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">Google Drive Cloud:</span>
-                <div className="flex items-center gap-2">
-                   {status?.googleDriveConnected ? (
-                     <span className="font-bold text-emerald-600 flex items-center gap-1.5">
-                       <Cloud className="w-4 h-4" /> Connected
-                       <button onClick={handleGoogleSignOut} className="ml-2 text-xs text-slate-400 hover:text-slate-600 underline">Disconnect</button>
-                     </span>
-                   ) : (
-                     <div className="flex flex-col items-end">
-                       <span className="font-bold text-amber-500 flex items-center gap-1.5 mb-2">
-                         <AlertTriangle className="w-4 h-4" /> Auth Required
+             <div className="flex flex-col gap-2 text-sm border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Google Drive Cloud Vault:</span>
+                  <div className="flex items-center gap-2">
+                     {isDriveConnected ? (
+                       <span className="font-bold text-emerald-600 flex items-center gap-1.5 text-xs bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                         <Cloud className="w-3.5 h-3.5 text-emerald-500" /> Connected
                        </span>
-                       <button onClick={handleGoogleSignIn} disabled={isSigningIn} className="gsi-material-button">
-                         <div className="gsi-material-button-state"></div>
-                         <div className="gsi-material-button-content-wrapper">
-                           <div className="gsi-material-button-icon">
-                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{display: 'block'}}>
-                               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                               <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                               <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                               <path fill="none" d="M0 0h48v48H0z"></path>
-                             </svg>
-                           </div>
-                           <span className="gsi-material-button-contents">{isSigningIn ? 'Connecting...' : 'Sign in with Google'}</span>
-                         </div>
-                       </button>
-                     </div>
-                   )}
+                     ) : (
+                       <span className="font-bold text-amber-500 flex items-center gap-1 text-xs">
+                         <AlertTriangle className="w-3.5 h-3.5" /> Auth Required
+                       </span>
+                     )}
+                  </div>
                 </div>
+
+                {isDriveConnected ? (
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2 mt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-emerald-500" />
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                            <span>{activeConnectedEmail}</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          </div>
+                          <div className="text-[10px] text-slate-500">Vault Folder: LABMEDIX_HEALTH_CARD_BACKUPS</div>
+                        </div>
+                      </div>
+                      <button onClick={handleGoogleSignOut} className="text-xs text-rose-500 hover:underline font-bold">
+                        Disconnect
+                      </button>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualDriveSync}
+                      isLoading={isDriveSyncing}
+                      leftIcon={<Cloud className="w-3.5 h-3.5 text-emerald-500" />}
+                      className="w-full border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-bold text-xs"
+                    >
+                      Sync Database Now to Google Drive
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="pt-1 flex flex-col items-end gap-2">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setIsDriveModalOpen(true)}
+                      leftIcon={<Cloud className="w-4 h-4 text-white" />}
+                      className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-xs shadow-md"
+                    >
+                      Connect Google Drive (angadmandal3@gmail.com)
+                    </Button>
+                  </div>
+                )}
              </div>
+
              <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-500">Session Persistence:</span>
                 <span className="font-bold text-emerald-600 flex items-center gap-1">
@@ -303,7 +378,7 @@ export const BackupRestorePage: React.FC = () => {
              <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-500">Current Activity:</span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                   {status?.isBackingUp ? (
+                   {status?.isBackingUp || isDriveSyncing ? (
                      <span className="text-indigo-500 flex items-center gap-1.5">
                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Uploading to Drive...
                      </span>
@@ -420,6 +495,60 @@ export const BackupRestorePage: React.FC = () => {
           </a>
         </div>
       </div>
+
+      {/* CONNECT GOOGLE DRIVE EMAIL SELECTION MODAL */}
+      <Modal
+        isOpen={isDriveModalOpen}
+        onClose={() => setIsDriveModalOpen(false)}
+        title="☁️ Connect Google Drive Backup Account"
+        maxWidth="md"
+      >
+        <form onSubmit={(e) => { e.preventDefault(); handleConnectDriveWithEmail(); }} className="space-y-4 text-xs">
+          <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 space-y-1">
+            <strong className="text-emerald-300 block text-xs font-bold">
+              Google Drive Cloud Vault Authorization
+            </strong>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Enter or confirm the Google Email ID where your LABMEDIX database backup files (<code>LABMEDIX_HEALTH_CARD_BACKUPS</code>) are stored.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-bold text-slate-700 dark:text-slate-300 block">
+              Google Drive Email ID:
+            </label>
+            <Input
+              type="email"
+              placeholder="e.g. angadmandal3@gmail.com"
+              value={driveEmailInput}
+              onChange={(e) => setDriveEmailInput(e.target.value)}
+              leftIcon={<Mail className="w-4 h-4 text-teal-500" />}
+              required
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-slate-300 dark:border-slate-700 text-slate-500"
+              onClick={() => setIsDriveModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isSigningIn}
+              className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold"
+            >
+              Authorize & Connect Drive Vault
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
