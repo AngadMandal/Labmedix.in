@@ -58,20 +58,20 @@ export class CardService {
     return card;
   }
 
-  public static changeStatus(id: string, newStatus: CardStatus, reason: string): HealthCard | null {
+  public static changeStatus(id: string, newStatus: CardStatus, reason: string, userRole?: string): HealthCard | null {
     const cards = StorageService.getCards();
     const card = cards.find(c => c.id === id);
     if (!card) return null;
 
-    const prevStatus = card.status;
     const currentUser = StorageService.getCurrentUser();
-    
-    // Security Upgrade: Only Super Admin can approve cards
-    if (newStatus === 'active' && prevStatus === 'pending') {
-      if (!currentUser || currentUser.role !== 'super_admin') {
-        throw new Error('403 Forbidden: Only Super Admin can approve cards.');
-      }
+    const activeRole = userRole || currentUser?.role;
+
+    // Security Gate: Only Super Admin can activate, deactivate, suspend, block, or cancel cards
+    if (activeRole !== 'super_admin') {
+      throw new Error('SECURITY VIOLATION: Only Super Administrator is authorized to Activate, Deactivate, Block, or Change Health Card Status.');
     }
+
+    const prevStatus = card.status;
     card.status = newStatus;
     card.updatedAt = new Date().toISOString();
     card.statusHistory.unshift({
@@ -80,13 +80,41 @@ export class CardService {
       date: new Date().toISOString(),
       previousStatus: prevStatus,
       newStatus,
-      changedBy: currentUser?.fullName || 'Operator',
+      changedBy: currentUser?.fullName || 'Super Administrator',
       reason: reason || `Status changed from ${prevStatus} to ${newStatus}`
     });
     StorageService.saveCards(cards);
 
-    AuditService.log('CARD_STATUS_CHANGED', 'card', `Card ${card.cardNumber} status changed: ${prevStatus} -> ${newStatus} (${reason})`, card.id);
+    AuditService.log('CARD_STATUS_CHANGED', 'card', `Super Admin changed Card ${card.cardNumber} status: ${prevStatus} -> ${newStatus} (${reason})`, card.id);
     return card;
+  }
+
+  public static editCard(
+    id: string,
+    updates: Partial<HealthCard>,
+    userRole: string = 'super_admin'
+  ): { success: boolean; card?: HealthCard; error?: string } {
+    if (userRole !== 'super_admin') {
+      return { success: false, error: 'SECURITY VIOLATION: Only Super Administrator is authorized to edit Health Card details or change Membership Tier assignments.' };
+    }
+
+    const cards = StorageService.getCards();
+    const card = cards.find(c => c.id === id);
+    if (!card) return { success: false, error: 'Health Card not found.' };
+
+    const previousValue = { ...card };
+    Object.assign(card, updates, { updatedAt: new Date().toISOString() });
+    StorageService.saveCards(cards);
+
+    AuditService.log(
+      'CARD_EDITED_BY_SUPER_ADMIN',
+      'card',
+      `Super Admin edited Health Card ${card.cardNumber} (Membership Tier / Details updated)`,
+      card.id,
+      { previousValue, newValue: card }
+    );
+
+    return { success: true, card };
   }
 
   /**

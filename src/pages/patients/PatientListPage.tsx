@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PatientService } from '../../services/patientService';
 import { StorageService } from '../../services/storage';
@@ -114,6 +114,20 @@ export const PatientListPage: React.FC = () => {
     setCardApplications(PortalService.getCardApplications());
     showToast('info', 'Data Synchronized', 'Live requests, card applications, and patient records refreshed.');
   };
+
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (!e.detail || ['labmedix_patients_v1', 'labmedix_portal_card_applications_v1', 'labmedix_portal_lab_bookings_v1', 'labmedix_portal_pharmacy_orders_v1'].includes(e.detail.key)) {
+        setPatients(PatientService.getAll(true));
+        setLabBookings(PortalService.getLabBookings());
+        setPharmacyOrders(PortalService.getPharmacyOrders());
+        setAppointments(EMRService.getAllAppointments());
+        setCardApplications(PortalService.getCardApplications());
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   const handleSoftDelete = (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to archive patient ${name}?`)) {

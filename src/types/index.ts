@@ -656,9 +656,19 @@ export interface ApplicationFamilyMember {
   issueCard?: boolean; // Whether an individual CR80 Health Card is requested for this member
 }
 
+export interface CardApplicationHistoryItem {
+  id: string;
+  date: string;
+  status: string;
+  title: string;
+  note: string;
+  actor: string;
+}
+
 export interface CardApplicationRequest {
   id: string; // app_xxxx
-  applicationNo: string; // APP-2026-XXXXX
+  applicationNo: string; // LMX-REQ-2026-000001 or APP-2026-XXXXX
+  trackingId: string; // Unique Card Request / Tracking ID e.g. LMX-REQ-2026-000001
   fullName: string;
   dob: string;
   age: number;
@@ -675,6 +685,7 @@ export interface CardApplicationRequest {
   clinicalVitals?: ClinicalVitals;
   referralSource?: string;
   referralDetails?: Record<string, any>;
+  doctorRecommendation?: string;
   cardThemeConfig?: Record<string, any>;
   familyMembers?: ApplicationFamilyMember[];
   membershipId: string;
@@ -684,9 +695,31 @@ export interface CardApplicationRequest {
   totalPaidAmount: number;
   paymentMethod: string;
   paymentReference: string;
-  paymentStatus: 'paid' | 'pending' | 'pending_verification';
-  status: 'pending_approval' | 'approved' | 'rejected';
+  paymentStatus:
+    | 'pending'
+    | 'processing'
+    | 'paid'
+    | 'failed'
+    | 'pending_verification'
+    | 'cancelled'
+    | 'refunded';
+  status:
+    | 'submitted'
+    | 'under_review'
+    | 'pending_approval'
+    | 'pending_verification'
+    | 'info_required'
+    | 'approved'
+    | 'processing'
+    | 'ready'
+    | 'issued'
+    | 'rejected'
+    | 'payment_pending'
+    | 'payment_failed'
+    | 'cancelled';
   rejectionReason?: string;
+  infoRequiredNote?: string;
+  processingHistory?: CardApplicationHistoryItem[];
   approvedPatientId?: string;
   approvedCardNumber?: string;
   approvedBy?: string;

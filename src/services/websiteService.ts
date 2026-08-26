@@ -213,10 +213,44 @@ export const DEFAULT_WEBSITE_CMS_CONFIG: WebsiteCMSConfig = {
 
 export class WebsiteService {
   /**
-   * Retrieve active Website CMS Configuration
+   * Retrieve active Website CMS Configuration (Dynamically synced with active Membership Tiers)
    */
   public static getWebsiteConfig(): WebsiteCMSConfig {
-    return StorageService.getItem<WebsiteCMSConfig>(WEBSITE_CMS_STORAGE_KEY, DEFAULT_WEBSITE_CMS_CONFIG);
+    const raw = StorageService.getItem<WebsiteCMSConfig>(WEBSITE_CMS_STORAGE_KEY, DEFAULT_WEBSITE_CMS_CONFIG);
+    
+    // Single Source of Truth: Map ACTIVE membership tiers from Central Store
+    const activeMemberships = StorageService.getMemberships().filter(m => m.status === 'active');
+    
+    if (activeMemberships && activeMemberships.length > 0) {
+      const syncedCardTiers: WebsiteCardTierConfig[] = activeMemberships.map((mem) => {
+        const custom = (raw.cardTiers || []).find(ct => ct.id === mem.id || ct.name?.toLowerCase() === mem.name?.toLowerCase());
+        const tierLabel = mem.name.includes('Silver') ? 'Silver' : mem.name.includes('Gold') ? 'Gold' : mem.name.includes('Platinum') ? 'Platinum' : 'VIP';
+        
+        return {
+          id: mem.id,
+          name: mem.name,
+          tier: tierLabel as any,
+          annualFee: mem.annualRenewalFee || mem.registrationFee || 999,
+          discountPercentage: mem.labDiscount || mem.opdDiscount || 25,
+          cashbackPercentage: Math.round((mem.labDiscount || 25) / 3),
+          familyMembersCovered: mem.isFamilyPlan ? 6 : 4,
+          colorTheme: custom?.colorTheme || 'from-amber-600 via-yellow-700 to-amber-950',
+          popular: custom?.popular || mem.name.toLowerCase().includes('gold') || mem.name.toLowerCase().includes('executive'),
+          perks: mem.specialBenefits && mem.specialBenefits.length > 0 ? mem.specialBenefits : [
+            `${mem.labDiscount}% Flat Discount on pathology & radiology`,
+            `${mem.opdDiscount}% OPD Doctor Consultation Discount`,
+            `${mem.pharmacyDiscount}% Pharmacy Medicine Discount`,
+            `Free Home Sample Collection (${mem.homeCollectionDiscount}% Off)`,
+            `Validity: ${mem.validityMonths} Months`
+          ]
+        };
+      });
+      return {
+        ...raw,
+        cardTiers: syncedCardTiers
+      };
+    }
+    return raw;
   }
 
   /**

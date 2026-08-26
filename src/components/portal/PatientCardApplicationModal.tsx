@@ -75,7 +75,7 @@ export const PatientCardApplicationModal: React.FC<PatientCardApplicationModalPr
   onOpenStatusTracker
 }) => {
   const { showToast } = useToast();
-  const memberships = StorageService.getMemberships();
+  const memberships = StorageService.getMemberships().filter(m => m.status === 'active');
   const company = StorageService.getCompanyProfile();
 
   // Multi-step Wizard: 1: Profile -> 2: 3D Plan -> 3: Payment -> 4: Success Slip

@@ -8,6 +8,7 @@ import { CashDeskVoucherService } from '../../services/cashDeskVoucherService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
 import { triggerCelebrationFireworks } from '../../utils/confetti';
+import { CardRequestSlipModal } from '../portal/CardRequestSlipModal';
 import {
   CheckCircle2,
   XCircle,
@@ -30,7 +31,9 @@ import {
   Lock,
   Building2,
   FileCheck2,
-  ShieldAlert
+  ShieldAlert,
+  Printer,
+  HelpCircle
 } from 'lucide-react';
 
 export interface CardApplicationReviewModalProps {
@@ -52,8 +55,10 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
   const [isBankReconciled, setIsBankReconciled] = useState(false);
+  const [isSlipOpen, setIsSlipOpen] = useState(false);
   const company = StorageService.getCompanyProfile();
   const currentUser = StorageService.getCurrentUser();
+  const isSuperAdmin = currentUser?.role === 'super_admin';
 
   // Find linked Cash Desk Voucher if paid by voucher
   const linkedVoucher = useMemo<CashDeskVoucher | null>(() => {
@@ -84,7 +89,26 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
     setTimeout(() => setCopiedRef(false), 2000);
   };
 
+  const handlePaymentStatusChange = (newPayStatus: CardApplicationRequest['paymentStatus']) => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Violation', 'Only Super Admin can verify/change payment status.');
+      return;
+    }
+    const res = PortalService.updateCardApplicationPaymentStatus(
+      application.id,
+      newPayStatus,
+      currentUser?.fullName || 'Super Administrator'
+    );
+    if (res.success) {
+      showToast('info', 'Payment Status Updated', `Payment status updated to ${newPayStatus.toUpperCase()}.`);
+    }
+  };
+
   const handleApprove = () => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Violation', 'Only Super Admin can approve card applications.');
+      return;
+    }
     setIsProcessing(true);
     setTimeout(() => {
       const res = PortalService.approveCardApplication(
@@ -109,6 +133,10 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
   };
 
   const handleReject = () => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Violation', 'Only Super Admin can reject card applications.');
+      return;
+    }
     const reason = prompt('Please enter rejection reason / remarks:', 'Verification documents incomplete or invalid payment reference.');
     if (!reason) return;
 
@@ -122,7 +150,7 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
       setIsProcessing(false);
 
       if (res.success) {
-        showToast('info', 'Application Rejected', `Application ${application.applicationNo} marked as rejected.`);
+        showToast('info', 'Application Rejected', `Application ${application.trackingId || application.applicationNo} marked as rejected.`);
         onRejected();
         onClose();
       } else {
@@ -131,13 +159,41 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
     }, 600);
   };
 
+  const handleRequestInfo = () => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Violation', 'Only Super Admin can request additional information.');
+      return;
+    }
+    const note = prompt('Enter missing details or instructions required from applicant:', 'Please upload clear identity proof and valid UTR transaction reference.');
+    if (!note) return;
+
+    setIsProcessing(true);
+    setTimeout(() => {
+      const res = PortalService.requestMoreInformation(
+        application.id,
+        note,
+        currentUser?.fullName || 'Super Administrator'
+      );
+      setIsProcessing(false);
+
+      if (res.success) {
+        showToast('info', 'Information Requested', `Application ${application.trackingId || application.applicationNo} flagged for additional info.`);
+        onRejected();
+        onClose();
+      } else {
+        showToast('error', 'Error', res.error || 'Failed to request information.');
+      }
+    }, 600);
+  };
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Review Online Health Card Application: ${application.applicationNo}`}
-      maxWidth="4xl"
-    >
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={`Review Online Health Card Application: ${application.applicationNo}`}
+        maxWidth="4xl"
+      >
       <div className="space-y-6 text-xs">
         {/* Status Header Banner */}
         <div className={`p-4 rounded-2xl border flex items-center justify-between ${
@@ -441,13 +497,33 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
         </div>
 
         {/* Action Controls for Super Admin */}
-        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Close Window
-          </Button>
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Close Window
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              leftIcon={<Printer className="w-4 h-4 text-teal-400" />}
+              onClick={() => setIsSlipOpen(true)}
+            >
+              Print Card Request Slip
+            </Button>
+          </div>
 
-          {application.status === 'pending_approval' && (
+          {isSuperAdmin && application.status !== 'approved' && application.status !== 'issued' && (
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-blue-500/50 text-blue-400 hover:bg-blue-950"
+                onClick={handleRequestInfo}
+                isLoading={isProcessing}
+                leftIcon={<HelpCircle className="w-4 h-4" />}
+              >
+                Request Info
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -466,12 +542,12 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
                 isLoading={isProcessing}
                 leftIcon={<CheckCircle2 className="w-4 h-4" />}
               >
-                Approve & Issue Official Health Card
+                Approve & Issue Health Card
               </Button>
             </div>
           )}
 
-          {application.status === 'approved' && (
+          {(application.status === 'approved' || application.status === 'issued') && (
             <span className="text-emerald-400 font-mono font-bold flex items-center gap-1.5">
               <Check className="w-4 h-4" /> Card Issued: {application.approvedCardNumber} [Patient ID: {application.approvedPatientId}]
             </span>
@@ -479,5 +555,12 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
         </div>
       </div>
     </Modal>
+
+    <CardRequestSlipModal
+      isOpen={isSlipOpen}
+      onClose={() => setIsSlipOpen(false)}
+      application={application}
+    />
+    </>
   );
 };

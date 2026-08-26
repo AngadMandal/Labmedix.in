@@ -5,6 +5,7 @@ import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface MembershipEditModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
   membership,
   onSuccess
 }) => {
+  const { currentUser } = useAuth();
   const { showToast } = useToast();
   const isEditing = !!membership;
 
@@ -30,47 +32,66 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
   const [labDiscount, setLabDiscount] = useState(membership?.labDiscount || 25);
   const [pharmacyDiscount, setPharmacyDiscount] = useState(membership?.pharmacyDiscount || 10);
   const [homeCollectionDiscount, setHomeCollectionDiscount] = useState(membership?.homeCollectionDiscount || 50);
+  const [status, setStatus] = useState<'active' | 'inactive'>(membership?.status || 'active');
   const [benefitsText, setBenefitsText] = useState(membership?.specialBenefits.join('\n') || 'Specialist Consultations Discount\nPathology & Radiology Test Discounts\nPharmacy Flat Discount');
   const [color, setColor] = useState(membership?.color || '#0B4F9C');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const userRole = currentUser?.role || 'user';
+    if (userRole !== 'super_admin') {
+      showToast('error', 'Security Violation', 'Only Super Admin can modify membership tiers.');
+      return;
+    }
+
     const benefitsArray = benefitsText.split('\n').map(s => s.trim()).filter(Boolean);
 
-    if (isEditing && membership) {
-      MembershipService.update(membership.id, {
-        name,
-        validityMonths,
-        registrationFee,
-        annualRenewalFee,
-        opdDiscount,
-        labDiscount,
-        pharmacyDiscount,
-        homeCollectionDiscount,
-        specialBenefits: benefitsArray,
-        color
-      });
-      showToast('success', 'Tier Updated', `${name} tier configuration saved.`);
-    } else {
-      MembershipService.create({
-        name,
-        slug: name.toLowerCase().replace(/\s+/g, '_'),
-        validityMonths,
-        registrationFee,
-        annualRenewalFee,
-        opdDiscount,
-        labDiscount,
-        pharmacyDiscount,
-        homeCollectionDiscount,
-        specialBenefits: benefitsArray,
-        color,
-        badgeIcon: 'Shield',
-        isFamilyPlan: false,
-        status: 'active'
-      });
-      showToast('success', 'Tier Created', `${name} membership tier created.`);
+    try {
+      if (isEditing && membership) {
+        MembershipService.update(
+          membership.id,
+          {
+            name,
+            validityMonths,
+            registrationFee,
+            annualRenewalFee,
+            opdDiscount,
+            labDiscount,
+            pharmacyDiscount,
+            homeCollectionDiscount,
+            specialBenefits: benefitsArray,
+            color,
+            status
+          },
+          userRole
+        );
+        showToast('success', 'Tier Updated', `${name} tier configuration saved and synced system-wide.`);
+      } else {
+        MembershipService.create(
+          {
+            name,
+            slug: name.toLowerCase().replace(/\s+/g, '_'),
+            validityMonths,
+            registrationFee,
+            annualRenewalFee,
+            opdDiscount,
+            labDiscount,
+            pharmacyDiscount,
+            homeCollectionDiscount,
+            specialBenefits: benefitsArray,
+            color,
+            badgeIcon: 'Shield',
+            isFamilyPlan: false,
+            status
+          },
+          userRole
+        );
+        showToast('success', 'Tier Created', `${name} membership tier created and published system-wide.`);
+      }
+      onSuccess();
+    } catch (err: any) {
+      showToast('error', 'Operation Blocked', err.message);
     }
-    onSuccess();
   };
 
   return (
@@ -85,7 +106,22 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
           <Input label="OPD Discount (%)" type="number" value={opdDiscount} onChange={(e) => setOpdDiscount(Number(e.target.value))} required />
           <Input label="Lab Discount (%)" type="number" value={labDiscount} onChange={(e) => setLabDiscount(Number(e.target.value))} required />
           <Input label="Pharmacy Discount (%)" type="number" value={pharmacyDiscount} onChange={(e) => setPharmacyDiscount(Number(e.target.value))} required />
-          <div className="sm:col-span-2">
+          
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+              Initial Status
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as 'active' | 'inactive')}
+              className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+            >
+              <option value="active">Active (Available System-Wide)</option>
+              <option value="inactive">Inactive (Hidden from New Card Selections)</option>
+            </select>
+          </div>
+
+          <div>
             <Input label="Home Collection Discount (%) - 100 for Free" type="number" value={homeCollectionDiscount} onChange={(e) => setHomeCollectionDiscount(Number(e.target.value))} required />
           </div>
         </div>
@@ -96,7 +132,7 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
           </label>
           <textarea
             rows={4}
-            className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+            className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
             value={benefitsText}
             onChange={(e) => setBenefitsText(e.target.value)}
           />

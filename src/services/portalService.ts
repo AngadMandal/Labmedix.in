@@ -4,7 +4,7 @@ import { EMRService } from './emrService';
 import { PatientService } from './patientService';
 import { FamilyService } from './familyService';
 import { AuditService } from './auditService';
-import { PatientAppointment, CardApplicationRequest } from '../types';
+import { PatientAppointment, CardApplicationRequest, CardApplicationHistoryItem } from '../types';
 import { generateUuid } from '../utils/idGenerator';
 
 export interface BloodTestBookingItem {
@@ -337,16 +337,34 @@ export class PortalService {
     return all.filter(a => a.status === status);
   }
 
-  public static saveCardApplication(data: Omit<CardApplicationRequest, 'id' | 'applicationNo' | 'status' | 'createdAt' | 'updatedAt'>): CardApplicationRequest {
+  public static saveCardApplication(data: Omit<CardApplicationRequest, 'id' | 'applicationNo' | 'trackingId' | 'status' | 'createdAt' | 'updatedAt'>): CardApplicationRequest {
     const all = this.getCardApplications();
-    const appNo = `APP-2026-${String(Math.floor(10000 + Math.random() * 90000))}`;
+    const reqSeq = String(Math.floor(100000 + Math.random() * 900000));
+    const trackingId = `LMX-REQ-2026-${reqSeq}`;
+    const appNo = trackingId;
+    const now = new Date().toISOString();
+
+    const initialHistory: CardApplicationHistoryItem[] = [
+      {
+        id: generateUuid(),
+        date: now,
+        status: 'submitted',
+        title: 'Request Submitted',
+        note: `Card Creation Request submitted for ${data.fullName} (${data.membershipName}).`,
+        actor: 'Applicant'
+      }
+    ];
+
     const newApp: CardApplicationRequest = {
       ...data,
       id: `app_req_${generateUuid().slice(0, 8)}`,
       applicationNo: appNo,
-      status: 'pending_approval',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      trackingId,
+      status: 'submitted',
+      paymentStatus: data.paymentStatus || 'pending_verification',
+      processingHistory: initialHistory,
+      createdAt: now,
+      updatedAt: now
     };
 
     all.unshift(newApp);
@@ -355,7 +373,7 @@ export class PortalService {
     AuditService.log(
       'CARD_APPLICATION_SUBMITTED',
       'patient',
-      `New Online Health Card Registration submitted by ${newApp.fullName} (${newApp.membershipName}) [App: ${newApp.applicationNo}, Paid: ₹${newApp.totalPaidAmount}]`,
+      `New Online Health Card Registration submitted by ${newApp.fullName} (${newApp.membershipName}) [Tracking ID: ${newApp.trackingId}, Paid: ₹${newApp.totalPaidAmount}]`,
       newApp.id
     );
 
@@ -367,10 +385,10 @@ export class PortalService {
     approvedBy: string = 'Super Administrator'
   ): { success: boolean; application?: CardApplicationRequest; patient?: any; card?: any; error?: string } {
     const all = this.getCardApplications();
-    const app = all.find(a => a.id === applicationId);
+    const app = all.find(a => a.id === applicationId || a.trackingId === applicationId);
     if (!app) return { success: false, error: 'Application not found.' };
 
-    if (app.status === 'approved') {
+    if (app.status === 'approved' || app.status === 'issued') {
       return { success: false, error: 'This application is already approved and card has been issued.' };
     }
 
@@ -420,8 +438,9 @@ export class PortalService {
     // 4. Generate Automated Dispatched Email Content
     const emailContent = `Subject: Official Welcome to ${company.name} - Health Card & Patient ID Activated\n\nDear ${patient.fullName},\n\nWe are pleased to inform you that your official Health Card application has been APPROVED by the Medical Administration.\n\nYour Credential Summary:\n• Assigned Patient ID: ${patient.id}\n• Official Health Card Number: ${card.cardNumber}\n• Membership Tier: ${app.membershipName}\n• Blood Group: ${patient.bloodGroup}\n• Validity: Valid through ${card.expiryDate}\n• Initial Wallet Float: ₹${app.initialDeposit || 0}${familyGroup ? `\n• Linked Family Shield: ${familyGroup.familyName} (${app.familyMembers?.length || 0} Dependents Covered)` : ''}\n\nYou can now log in to the Patient & Cardholder Smart Portal at https://labmedix.health/portal using your Patient ID (${patient.id}) or Card Number (${card.cardNumber}) to book OPD consultations, schedule pathology blood tests, and enjoy cardholder discounts.\n\nWarm regards,\n${company.name} Central Medical Board`;
 
-    // 5. Update Application State
+    // 5. Update Application State & Processing History
     app.status = 'approved';
+    app.paymentStatus = 'paid';
     app.approvedPatientId = patient.id;
     app.approvedCardNumber = card.cardNumber;
     app.approvedBy = approvedBy;
@@ -432,12 +451,22 @@ export class PortalService {
     app.smsContent = smsContent;
     app.emailContent = emailContent;
 
+    if (!app.processingHistory) app.processingHistory = [];
+    app.processingHistory.unshift({
+      id: generateUuid(),
+      date: now,
+      status: 'approved',
+      title: 'Request Approved & Card Minted',
+      note: `Super Admin approved application. Patient ID: ${patient.id}, Card Number: ${card.cardNumber}.`,
+      actor: approvedBy
+    });
+
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
 
     AuditService.log(
       'CARD_APPLICATION_APPROVED',
       'card',
-      `Super Admin approved card application ${app.applicationNo} for ${patient.fullName}. Minted Card ${card.cardNumber} [Patient ID: ${patient.id}].${familyGroup ? ` Registered ${app.familyMembers?.length || 0} family dependents.` : ''} SMS & Email dispatched.`,
+      `Super Admin approved card application ${app.trackingId || app.applicationNo} for ${patient.fullName}. Minted Card ${card.cardNumber} [Patient ID: ${patient.id}].${familyGroup ? ` Registered ${app.familyMembers?.length || 0} family dependents.` : ''} SMS & Email dispatched.`,
       patient.id
     );
 
@@ -450,7 +479,7 @@ export class PortalService {
     rejectedBy: string = 'Super Administrator'
   ): { success: boolean; application?: CardApplicationRequest; error?: string } {
     const all = this.getCardApplications();
-    const app = all.find(a => a.id === applicationId);
+    const app = all.find(a => a.id === applicationId || a.trackingId === applicationId);
     if (!app) return { success: false, error: 'Application not found.' };
 
     const now = new Date().toISOString();
@@ -459,12 +488,94 @@ export class PortalService {
     app.approvedBy = rejectedBy;
     app.updatedAt = now;
 
+    if (!app.processingHistory) app.processingHistory = [];
+    app.processingHistory.unshift({
+      id: generateUuid(),
+      date: now,
+      status: 'rejected',
+      title: 'Request Rejected',
+      note: `Application rejected by ${rejectedBy}. Reason: ${reason}`,
+      actor: rejectedBy
+    });
+
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
 
     AuditService.log(
       'CARD_APPLICATION_REJECTED',
       'card',
-      `Card application ${app.applicationNo} for ${app.fullName} was rejected. Reason: ${reason}`,
+      `Card application ${app.trackingId || app.applicationNo} for ${app.fullName} was rejected. Reason: ${reason}`,
+      app.id
+    );
+
+    return { success: true, application: app };
+  }
+
+  public static requestMoreInformation(
+    applicationId: string,
+    note: string,
+    requestedBy: string = 'Super Administrator'
+  ): { success: boolean; application?: CardApplicationRequest; error?: string } {
+    const all = this.getCardApplications();
+    const app = all.find(a => a.id === applicationId || a.trackingId === applicationId);
+    if (!app) return { success: false, error: 'Application not found.' };
+
+    const now = new Date().toISOString();
+    app.status = 'info_required';
+    app.infoRequiredNote = note;
+    app.updatedAt = now;
+
+    if (!app.processingHistory) app.processingHistory = [];
+    app.processingHistory.unshift({
+      id: generateUuid(),
+      date: now,
+      status: 'info_required',
+      title: 'Additional Information Required',
+      note: `Super Admin requested missing details: ${note}`,
+      actor: requestedBy
+    });
+
+    StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+
+    AuditService.log(
+      'CARD_APPLICATION_INFO_REQUESTED',
+      'card',
+      `Super Admin requested additional information for card application ${app.trackingId || app.applicationNo}. Note: ${note}`,
+      app.id
+    );
+
+    return { success: true, application: app };
+  }
+
+  public static updateCardApplicationPaymentStatus(
+    applicationId: string,
+    paymentStatus: CardApplicationRequest['paymentStatus'],
+    actor: string = 'Super Administrator'
+  ): { success: boolean; application?: CardApplicationRequest; error?: string } {
+    const all = this.getCardApplications();
+    const app = all.find(a => a.id === applicationId || a.trackingId === applicationId);
+    if (!app) return { success: false, error: 'Application not found.' };
+
+    const prev = app.paymentStatus;
+    const now = new Date().toISOString();
+    app.paymentStatus = paymentStatus;
+    app.updatedAt = now;
+
+    if (!app.processingHistory) app.processingHistory = [];
+    app.processingHistory.unshift({
+      id: generateUuid(),
+      date: now,
+      status: app.status,
+      title: 'Payment Status Updated',
+      note: `Payment status updated from ${prev.toUpperCase()} to ${paymentStatus.toUpperCase()} by ${actor}.`,
+      actor
+    });
+
+    StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+
+    AuditService.log(
+      'CARD_APPLICATION_PAYMENT_STATUS_UPDATED',
+      'card',
+      `Payment status updated for card application ${app.trackingId || app.applicationNo}: ${prev} -> ${paymentStatus}`,
       app.id
     );
 

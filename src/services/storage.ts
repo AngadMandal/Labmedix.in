@@ -522,7 +522,16 @@ export class StorageService {
       }
     } catch { }
 
-    // 6. Trigger Live Backup to Google Drive if configured
+    // 6. Direct Central Server Database Sync API (Persists across devices)
+    if (![STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) {
+      fetch(`/api/sync/key/${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value })
+      }).catch(() => {});
+    }
+
+    // 7. Trigger Live Backup to Google Drive if configured
     GoogleDriveService.triggerAutoBackup();
   }
 
@@ -745,14 +754,56 @@ export class StorageService {
       }
     });
 
-    // 4. Auto-Periodic deep sync every 3 minutes
+    // 4. Real-Time Central Server Data Polling for Cross-Device Synchronization (e.g., Mobile 2 -> Mobile 1)
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/sync/store');
+        if (res.ok) {
+          const body = await res.json();
+          const serverStore = body.store;
+          if (serverStore && typeof serverStore === 'object') {
+            for (const [key, val] of Object.entries(serverStore)) {
+              if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) continue;
+              const serverValStr = JSON.stringify(val);
+              const localValStr = localStorage.getItem(key);
+              if (localValStr !== serverValStr) {
+                StorageService.memoryCache.set(key, val);
+                try { localStorage.setItem(key, serverValStr); } catch {}
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
+              }
+            }
+          }
+        }
+      } catch {}
+    }, 2500);
+
+    // 5. Auto-Periodic deep sync every 3 minutes
     setInterval(() => {
       StorageService.forceSyncToIndexedDB().catch(() => {});
     }, 180000);
   }
 
-  public static initializeDatabase(): void {
+  public static async initializeDatabase(): Promise<void> {
     StorageService.initPersistentEngine();
+
+    // 1. Initial Central Server Hydration (Ensures data across devices is loaded on boot)
+    try {
+      const res = await fetch('/api/sync/store');
+      if (res.ok) {
+        const body = await res.json();
+        const serverStore = body.store;
+        if (serverStore && typeof serverStore === 'object') {
+          for (const [key, val] of Object.entries(serverStore)) {
+            if (val !== undefined && val !== null) {
+              StorageService.memoryCache.set(key, val);
+              try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[LABMEDIX] Central store hydration warning:', e);
+    }
 
     // Active live migration: Purge legacy demo patient identities from storage
     const DEMO_NAMES = ['sourav ganguly', 'ananya banerjee', 'subrata bhattacharya', 'rahim uddin', 'fatema begum', 'priya mukherjee'];
@@ -819,13 +870,14 @@ export class StorageService {
     if (!localStorage.getItem(STORAGE_KEYS.COMPANY_PROFILE)) {
       this.setItem(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
     } else {
-      // Refresh default profile fields for AngadMandal/Labmedix.in
+      // Safely merge fallback defaults into existing profile without overwriting user-updated fields
       const existing = this.getItem<CompanyProfile>(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
-      if (existing.website !== 'https://labmedix.in' || !existing.subtitle?.includes('AngadMandal')) {
-        this.setItem(STORAGE_KEYS.COMPANY_PROFILE, {
-          ...existing,
-          ...DEFAULT_COMPANY_PROFILE
-        });
+      const merged = {
+        ...DEFAULT_COMPANY_PROFILE,
+        ...existing
+      };
+      if (JSON.stringify(existing) !== JSON.stringify(merged)) {
+        this.setItem(STORAGE_KEYS.COMPANY_PROFILE, merged);
       }
     }
     if (!localStorage.getItem(STORAGE_KEYS.PATIENTS)) {

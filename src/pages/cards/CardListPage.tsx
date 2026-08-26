@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CardService } from '../../services/cardService';
 import { PatientService } from '../../services/patientService';
@@ -95,6 +95,17 @@ export const CardListPage: React.FC = () => {
     setApplications(PortalService.getCardApplications());
     showToast('info', 'Cards Synchronized', 'Health card repository updated.');
   };
+
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (!e.detail || ['labmedix_portal_card_applications_v1', 'labmedix_cards_v1', 'labmedix_patients_v1'].includes(e.detail.key)) {
+        setCards(CardService.getAll(true));
+        setApplications(PortalService.getCardApplications());
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   // Active / Archived Lists
   const activeCardsList = useMemo(() => cards.filter(c => !c.isDeleted && c.status !== 'deleted'), [cards]);

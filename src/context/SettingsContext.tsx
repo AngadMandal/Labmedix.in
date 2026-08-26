@@ -18,6 +18,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCompanyProfile(StorageService.getCompanyProfile());
   };
 
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (!e.detail || e.detail.key === 'labmedix_company_profile_v1') {
+        setCompanyProfile(StorageService.getCompanyProfile());
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
+
   const updateCompanyProfile = (updates: Partial<CompanyProfile>) => {
     const updated = SettingsService.updateProfile(updates);
     setCompanyProfile(updated);

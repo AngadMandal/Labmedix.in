@@ -5,6 +5,7 @@ import { Input } from '../common/Input';
 import { PortalService } from '../../services/portalService';
 import { CardApplicationRequest } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { CardRequestSlipModal } from './CardRequestSlipModal';
 import {
   Search,
   CheckCircle2,
@@ -16,7 +17,9 @@ import {
   Mail,
   ShieldCheck,
   ArrowRight,
-  MessageSquare
+  MessageSquare,
+  Printer,
+  HelpCircle
 } from 'lucide-react';
 
 export interface ApplicationStatusTrackModalProps {
@@ -34,6 +37,7 @@ export const ApplicationStatusTrackModal: React.FC<ApplicationStatusTrackModalPr
   const [searched, setSearched] = useState(false);
   const [result, setResult] = useState<CardApplicationRequest | null>(null);
   const [error, setError] = useState('');
+  const [isSlipOpen, setIsSlipOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +68,13 @@ export const ApplicationStatusTrackModal: React.FC<ApplicationStatusTrackModalPr
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Track Health Card Application Status"
-      maxWidth="lg"
-    >
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Track Health Card Application Status"
+        maxWidth="lg"
+      >
       <div className="space-y-5 text-xs">
         {/* Search Form */}
         <form onSubmit={handleSearch} className="space-y-3">
@@ -204,16 +209,39 @@ export const ApplicationStatusTrackModal: React.FC<ApplicationStatusTrackModalPr
               </div>
             )}
 
-            {/* If Pending */}
-            {result.status === 'pending_approval' && (
-              <div className="p-3 bg-slate-950 rounded-xl border border-amber-500/30 text-[11.5px] text-slate-300 space-y-1">
-                <span className="font-bold text-amber-300 block">⏳ Under Super Admin Review</span>
-                <p>Your application and payment (Ref: <span className="font-mono text-amber-300">{result.paymentReference}</span>) are currently queued for Super Admin approval. Once verified, you will receive an instant SMS and Email with your Patient ID.</p>
+            {/* If Pending or Info Required */}
+            {(result.status === 'pending_approval' || result.status === 'submitted' || result.status === 'under_review' || result.status === 'info_required') && (
+              <div className="p-3.5 bg-slate-950 rounded-xl border border-amber-500/30 text-[11.5px] text-slate-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-300">⏳ Status: {result.status.replace('_', ' ').toUpperCase()}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Printer className="w-3.5 h-3.5" />}
+                    onClick={() => setIsSlipOpen(true)}
+                  >
+                    Print Request Slip
+                  </Button>
+                </div>
+                {result.status === 'info_required' && result.infoRequiredNote && (
+                  <div className="p-2.5 rounded-lg bg-blue-950/60 border border-blue-500/50 text-blue-200">
+                    <strong className="block text-xs">Super Admin Note:</strong>
+                    <span>{result.infoRequiredNote}</span>
+                  </div>
+                )}
+                <p>Your tracking number <span className="font-mono text-amber-300">{result.trackingId || result.applicationNo}</span> is active. You can print your Card Request Slip or present your tracking ID at any diagnostic helpdesk.</p>
               </div>
             )}
           </div>
         )}
       </div>
     </Modal>
+
+    <CardRequestSlipModal
+      isOpen={isSlipOpen}
+      onClose={() => setIsSlipOpen(false)}
+      application={result}
+    />
+    </>
   );
 };

@@ -103,6 +103,17 @@ export const HomePage: React.FC = () => {
     }
   }, []);
 
+  // Listen to Single Source of Truth Real-Time Data Sync (Central Server Database)
+  useEffect(() => {
+    const handleSync = () => {
+      setCmsConfig(WebsiteService.getWebsiteConfig());
+      setHealthPackages(CatalogService.getHealthPackages());
+      setLabTests(CatalogService.getLabTests());
+    };
+    window.addEventListener('labmedix_data_synced', handleSync);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync);
+  }, []);
+
   // 3D Card Interactive Tilt State
   const [cardMousePos, setCardMousePos] = useState({ x: 0, y: 0 });
   const [isCardHovered, setIsCardHovered] = useState(false);
