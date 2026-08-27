@@ -244,6 +244,180 @@ app.get('/api/sync/key/:key', (req, res) => {
   res.json({ success: true, key, value: store[key] ?? null });
 });
 
+// Server-Side Secure Transaction: Approve Card Application & Mint Official Health Card
+app.post('/api/admin/approve-card-application', async (req, res) => {
+  try {
+    const { applicationId, approvedBy } = req.body;
+    if (!applicationId) {
+      return res.status(400).json({ success: false, error: 'Missing applicationId parameter' });
+    }
+
+    const store = getCentralStore();
+    const apps = store['labmedix_portal_card_applications_v1'] || [];
+    const app = apps.find((a: any) => a.id === applicationId || a.trackingId === applicationId);
+
+    if (!app) {
+      return res.status(404).json({ success: false, error: 'Application not found in central database.' });
+    }
+
+    // STRICT VERIFICATION: PENDING_APPROVAL status & Duplicate prevention check
+    if (app.status === 'approved' || app.status === 'issued' || app.approvedCardNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'Duplicate Prevention Error: Card has already been approved and issued for this application.'
+      });
+    }
+
+    if (app.status !== 'pending_approval' && app.status !== 'submitted') {
+      return res.status(400).json({
+        success: false,
+        error: `Server Transaction Blocked: Application status must be PENDING_APPROVAL. Current status is "${app.status}".`
+      });
+    }
+
+    // Execute Server-Side Transaction to mint official health card and patient record
+    const patients = store['labmedix_patients_v1'] || [];
+    const cards = store['labmedix_cards_v1'] || [];
+    const wallets = store['labmedix_wallets_v1'] || [];
+    const auditLogs = store['labmedix_audit_logs_v1'] || [];
+
+    const patientId = `lmdx-p-${Math.floor(1000 + Math.random() * 9000)}`;
+    const cardId = `card_${Math.floor(1000 + Math.random() * 9000)}`;
+    const cardNumber = `LHC-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    const cvv = String(Math.floor(100 + Math.random() * 900));
+    const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const now = new Date().toISOString();
+    const expiryDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const newPatient = {
+      id: patientId,
+      fullName: app.fullName,
+      dob: app.dob || '1995-01-01',
+      age: app.age || 30,
+      gender: app.gender || 'male',
+      mobile: app.mobile,
+      whatsapp: app.whatsapp || app.mobile,
+      email: app.email || `${app.mobile}@labmedix.org`,
+      bloodGroup: app.bloodGroup || 'O+',
+      photoUrl: app.photoUrl || '/logo.jpg',
+      address: app.address || { villageArea: '', postOffice: '', policeStation: '', district: '', state: '', pinCode: '', fullAddress: '' },
+      emergencyContact: app.emergencyContact || { name: '', relation: '', phone: '' },
+      medicalInfo: app.medicalInfo || { chronicConditions: [], allergies: [], regularMedications: [] },
+      healthCardId: cardId,
+      membershipId: app.membershipId || 'silver',
+      status: 'active',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const newCard = {
+      id: cardId,
+      cardNumber,
+      patientId,
+      membershipId: app.membershipId || 'silver',
+      issueDate: now.split('T')[0],
+      expiryDate,
+      status: 'active',
+      cvv,
+      verificationCode,
+      designConfig: app.cardThemeConfig || { theme: 'emerald_health', material: 'gloss_pvc' },
+      statusHistory: [
+        {
+          id: 'hist_' + Math.random().toString(36).substring(2, 8),
+          cardId,
+          date: now,
+          previousStatus: 'pending_approval',
+          newStatus: 'active',
+          changedBy: approvedBy || 'Super Administrator',
+          reason: `Server-side transaction: Approved card application ${app.trackingId}`
+        }
+      ],
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const newWallet = {
+      id: `wal_${Math.floor(1000 + Math.random() * 9000)}`,
+      patientId,
+      balance: app.initialDeposit || 0,
+      status: 'active',
+      transactions: app.initialDeposit ? [
+        {
+          id: 'txn_' + Math.random().toString(36).substring(2, 8),
+          walletId: `wal_${Math.floor(1000 + Math.random() * 9000)}`,
+          patientId,
+          type: 'credit',
+          amount: app.initialDeposit,
+          category: 'initial_deposit',
+          description: 'Initial Wallet Opening Balance upon Card Approval',
+          referenceNo: app.trackingId,
+          balanceAfter: app.initialDeposit,
+          createdBy: approvedBy || 'Super Administrator',
+          createdAt: now
+        }
+      ] : [],
+      createdAt: now,
+      updatedAt: now
+    };
+
+    // Update application state
+    app.status = 'approved';
+    app.paymentStatus = 'paid';
+    app.approvedPatientId = patientId;
+    app.approvedCardNumber = cardNumber;
+    app.approvedBy = approvedBy || 'Super Administrator';
+    app.approvedAt = now;
+    app.updatedAt = now;
+
+    if (!app.processingHistory) app.processingHistory = [];
+    app.processingHistory.unshift({
+      id: 'hist_' + Math.random().toString(36).substring(2, 8),
+      date: now,
+      status: 'approved',
+      title: 'Server-Side Transaction Approved & Card Minted',
+      note: `Verified PENDING_APPROVAL status. Minted Card ${cardNumber} [Patient ID: ${patientId}].`,
+      actor: approvedBy || 'Super Administrator'
+    });
+
+    patients.unshift(newPatient);
+    cards.unshift(newCard);
+    wallets.unshift(newWallet);
+
+    store['labmedix_portal_card_applications_v1'] = apps;
+    store['labmedix_patients_v1'] = patients;
+    store['labmedix_cards_v1'] = cards;
+    store['labmedix_wallets_v1'] = wallets;
+
+    const auditLog = {
+      id: 'aud_' + Math.random().toString(36).substring(2, 8),
+      action: 'CARD_APPLICATION_APPROVED',
+      category: 'card',
+      description: `Server-side transaction approved card application ${app.trackingId} for ${app.fullName}. Minted Card ${cardNumber} [Patient ID: ${patientId}].`,
+      targetId: patientId,
+      timestamp: now,
+      actor: approvedBy || 'Super Administrator'
+    };
+    auditLogs.unshift(auditLog);
+    store['labmedix_audit_logs_v1'] = auditLogs;
+
+    saveCentralStore(store);
+    backupQueue = store;
+
+    res.json({
+      success: true,
+      application: app,
+      patient: newPatient,
+      card: newCard,
+      wallet: newWallet,
+      message: 'Server-side transaction executed successfully: PENDING_APPROVAL verified, card minted and activated.'
+    });
+
+  } catch (e: any) {
+    console.error('Server approval transaction error:', e);
+    res.status(500).json({ success: false, error: e?.message || 'Server-side approval transaction failed.' });
+  }
+});
+
 app.post('/api/sync/key/:key', (req, res) => {
   const { value } = req.body;
   const key = decodeURIComponent(req.params.key);
@@ -406,6 +580,20 @@ app.post('/api/backup/restore-drive', async (req, res) => {
     });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e?.message || 'Google Drive restore failed' });
+  }
+});
+
+app.post('/api/backup/import', async (req, res) => {
+  try {
+    const { store } = req.body;
+    if (!store || typeof store !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid or missing store object in request body.' });
+    }
+    saveCentralStore(store);
+    backupQueue = store;
+    res.json({ success: true, message: 'Database successfully imported and synced to Central Store.' });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Database import failed.' });
   }
 });
 

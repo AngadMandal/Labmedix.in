@@ -221,8 +221,8 @@ export const CardListPage: React.FC = () => {
   };
 
   // Quick 1-Click Mint & Transition to Issued Card Deck
-  const handleQuickMintApplication = (app: CardApplicationRequest) => {
-    const res = PortalService.approveCardApplication(app.id, currentUser?.fullName || 'Super Administrator');
+  const handleQuickMintApplication = async (app: CardApplicationRequest) => {
+    const res = await PortalService.approveCardApplication(app.id, currentUser?.fullName || 'Super Administrator');
     if (res.success && res.card && res.patient) {
       triggerCelebrationFireworks();
       refreshList();

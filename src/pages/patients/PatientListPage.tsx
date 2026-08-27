@@ -210,8 +210,8 @@ export const PatientListPage: React.FC = () => {
   };
 
   // Online Card Application Direct Approval
-  const handleApproveApplication = (appId: string) => {
-    const res = PortalService.approveCardApplication(appId, 'Super Administrator');
+  const handleApproveApplication = async (appId: string) => {
+    const res = await PortalService.approveCardApplication(appId, 'Super Administrator');
     if (res.success && res.patient && res.card) {
       triggerCelebrationFireworks();
       showToast(

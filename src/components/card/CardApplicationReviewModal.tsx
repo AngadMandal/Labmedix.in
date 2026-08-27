@@ -104,32 +104,30 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
     }
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!isSuperAdmin) {
       showToast('error', 'Security Violation', 'Only Super Admin can approve card applications.');
       return;
     }
     setIsProcessing(true);
-    setTimeout(() => {
-      const res = PortalService.approveCardApplication(
-        application.id,
-        currentUser?.fullName || 'Super Administrator'
-      );
-      setIsProcessing(false);
+    const res = await PortalService.approveCardApplication(
+      application.id,
+      currentUser?.fullName || 'Super Administrator'
+    );
+    setIsProcessing(false);
 
-      if (res.success && res.patient && res.card) {
-        triggerCelebrationFireworks();
-        showToast(
-          'success',
-          'Official Health Card Minted & Issued! 🚀',
-          `Patient ${res.patient.fullName} (${res.patient.id}) registered. Health Card ${res.card.cardNumber} active! Moving to Issued Cards Deck...`
-        );
-        onApproved(res.card, res.patient);
-        onClose();
-      } else {
-        showToast('error', 'Approval Error', res.error || 'Failed to approve application.');
-      }
-    }, 800);
+    if (res.success && res.patient && res.card) {
+      triggerCelebrationFireworks();
+      showToast(
+        'success',
+        'Official Health Card Minted & Issued! 🚀',
+        `Patient ${res.patient.fullName} (${res.patient.id}) registered. Health Card ${res.card.cardNumber} active! Moving to Issued Cards Deck...`
+      );
+      onApproved(res.card, res.patient);
+      onClose();
+    } else {
+      showToast('error', 'Approval Error', res.error || 'Failed to approve application.');
+    }
   };
 
   const handleReject = () => {

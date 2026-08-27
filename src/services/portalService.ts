@@ -360,7 +360,7 @@ export class PortalService {
       id: `app_req_${generateUuid().slice(0, 8)}`,
       applicationNo: appNo,
       trackingId,
-      status: 'submitted',
+      status: 'pending_approval',
       paymentStatus: data.paymentStatus || 'pending_verification',
       processingHistory: initialHistory,
       createdAt: now,
@@ -380,97 +380,49 @@ export class PortalService {
     return newApp;
   }
 
-  public static approveCardApplication(
+  public static async approveCardApplication(
     applicationId: string,
     approvedBy: string = 'Super Administrator'
-  ): { success: boolean; application?: CardApplicationRequest; patient?: any; card?: any; error?: string } {
-    const all = this.getCardApplications();
-    const app = all.find(a => a.id === applicationId || a.trackingId === applicationId);
-    if (!app) return { success: false, error: 'Application not found.' };
-
-    if (app.status === 'approved' || app.status === 'issued') {
-      return { success: false, error: 'This application is already approved and card has been issued.' };
-    }
-
-    const company = StorageService.getCompanyProfile();
-
-    // 1. Create Official Patient Record, Mint Official Health Card, and Initialize Health Wallet
-    const { patient, card, wallet } = PatientService.createPatient({
-      fullName: app.fullName,
-      dob: app.dob,
-      age: app.age,
-      gender: app.gender,
-      mobile: app.mobile,
-      whatsapp: app.whatsapp || app.mobile,
-      email: app.email,
-      bloodGroup: app.bloodGroup,
-      photoUrl: app.photoUrl || '',
-      address: app.address,
-      emergencyContact: app.emergencyContact,
-      medicalInfo: app.medicalInfo,
-      membershipId: app.membershipId,
-      initialDeposit: app.initialDeposit || 0
-    });
-
-    // 2. Automatically Create Linked Family Group & Register All Covered Family Members
-    let familyGroup = null;
-    if (app.familyMembers && app.familyMembers.length > 0) {
-      familyGroup = FamilyService.createFamily(`${patient.fullName} Family Shield`, patient.id);
-      app.familyMembers.forEach(mem => {
-        FamilyService.registerAndLinkDependent(familyGroup!.id, {
-          fullName: mem.fullName,
-          relationship: mem.relationship,
-          gender: mem.gender,
-          age: mem.age,
-          bloodGroup: mem.bloodGroup,
-          mobile: mem.mobile || patient.mobile,
-          photoUrl: mem.photoUrl || '/logo.jpg'
-        });
+  ): Promise<{ success: boolean; application?: CardApplicationRequest; patient?: any; card?: any; error?: string }> {
+    try {
+      const response = await fetch('/api/admin/approve-card-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, approvedBy })
       });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Update local application list cache
+        const all = this.getCardApplications();
+        const idx = all.findIndex(a => a.id === applicationId || a.trackingId === applicationId);
+        if (idx !== -1 && data.application) {
+          all[idx] = data.application;
+          StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+        }
+        // Update local patients and cards cache
+        if (data.patient) {
+          const patients = StorageService.getPatients();
+          if (!patients.some(p => p.id === data.patient.id)) {
+            patients.unshift(data.patient);
+            StorageService.savePatients(patients);
+          }
+        }
+        if (data.card) {
+          const cards = StorageService.getCards();
+          if (!cards.some(c => c.id === data.card.id)) {
+            cards.unshift(data.card);
+            StorageService.saveCards(cards);
+          }
+        }
+        return { success: true, application: data.application, patient: data.patient, card: data.card };
+      } else {
+        return { success: false, error: data.error || 'Server-side transaction failed to verify PENDING_APPROVAL status or minted card.' };
+      }
+    } catch (e: any) {
+      console.error('Approve card application network error:', e);
+      return { success: false, error: e?.message || 'Network error communicating with server-side approval transaction.' };
     }
-
-    const now = new Date().toISOString();
-
-    // 3. Generate Automated Dispatched SMS Content
-    const familyNote = app.familyMembers && app.familyMembers.length > 0 ? ` (+${app.familyMembers.length} Family Members Covered)` : '';
-    const smsContent = `Dear ${patient.fullName}, Welcome to ${company.name}! Your Health Card [${card.cardNumber}] (${app.membershipName})${familyNote} is APPROVED & ACTIVE. Your Patient ID is [${patient.id}]. Login to cashless portal at https://labmedix.health/portal with your ID. 24x7 Helpline: ${company.helpline || '1800-889-9911'}.`;
-
-    // 4. Generate Automated Dispatched Email Content
-    const emailContent = `Subject: Official Welcome to ${company.name} - Health Card & Patient ID Activated\n\nDear ${patient.fullName},\n\nWe are pleased to inform you that your official Health Card application has been APPROVED by the Medical Administration.\n\nYour Credential Summary:\n• Assigned Patient ID: ${patient.id}\n• Official Health Card Number: ${card.cardNumber}\n• Membership Tier: ${app.membershipName}\n• Blood Group: ${patient.bloodGroup}\n• Validity: Valid through ${card.expiryDate}\n• Initial Wallet Float: ₹${app.initialDeposit || 0}${familyGroup ? `\n• Linked Family Shield: ${familyGroup.familyName} (${app.familyMembers?.length || 0} Dependents Covered)` : ''}\n\nYou can now log in to the Patient & Cardholder Smart Portal at https://labmedix.health/portal using your Patient ID (${patient.id}) or Card Number (${card.cardNumber}) to book OPD consultations, schedule pathology blood tests, and enjoy cardholder discounts.\n\nWarm regards,\n${company.name} Central Medical Board`;
-
-    // 5. Update Application State & Processing History
-    app.status = 'approved';
-    app.paymentStatus = 'paid';
-    app.approvedPatientId = patient.id;
-    app.approvedCardNumber = card.cardNumber;
-    app.approvedBy = approvedBy;
-    app.approvedAt = now;
-    app.updatedAt = now;
-    app.smsNotificationSent = true;
-    app.emailNotificationSent = true;
-    app.smsContent = smsContent;
-    app.emailContent = emailContent;
-
-    if (!app.processingHistory) app.processingHistory = [];
-    app.processingHistory.unshift({
-      id: generateUuid(),
-      date: now,
-      status: 'approved',
-      title: 'Request Approved & Card Minted',
-      note: `Super Admin approved application. Patient ID: ${patient.id}, Card Number: ${card.cardNumber}.`,
-      actor: approvedBy
-    });
-
-    StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
-
-    AuditService.log(
-      'CARD_APPLICATION_APPROVED',
-      'card',
-      `Super Admin approved card application ${app.trackingId || app.applicationNo} for ${patient.fullName}. Minted Card ${card.cardNumber} [Patient ID: ${patient.id}].${familyGroup ? ` Registered ${app.familyMembers?.length || 0} family dependents.` : ''} SMS & Email dispatched.`,
-      patient.id
-    );
-
-    return { success: true, application: app, patient, card };
   }
 
   public static rejectCardApplication(

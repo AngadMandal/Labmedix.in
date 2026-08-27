@@ -242,6 +242,52 @@ export const BackupRestorePage: React.FC = () => {
     }
   };
 
+  const handleFileUploadImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const jsonContent = event.target?.result as string;
+        const parsed = JSON.parse(jsonContent);
+        
+        let storeData = parsed;
+        if (parsed.data && typeof parsed.data === 'object') {
+          storeData = {
+            'labmedix_patients_v1': parsed.data.patients || [],
+            'labmedix_cards_v1': parsed.data.healthCards || [],
+            'labmedix_memberships_v1': parsed.data.memberships || [],
+            'labmedix_families_v1': parsed.data.families || [],
+            'labmedix_wallets_v1': parsed.data.wallets || [],
+            'labmedix_wallet_transactions_v1': parsed.data.walletTransactions || [],
+            'labmedix_audit_logs_v1': parsed.data.auditLogs || [],
+            'labmedix_company_profile_v1': parsed.data.companyProfile || StorageService.getCompanyProfile(),
+            'labmedix_users_v1': parsed.data.users || StorageService.getUsers()
+          };
+        }
+
+        // Save to local storage
+        for (const [k, v] of Object.entries(storeData)) {
+          StorageService.setItem(k, v);
+        }
+
+        // Sync to server central store
+        await fetch('/api/backup/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ store: storeData })
+        });
+
+        showToast('success', 'Database Imported Successfully!', 'Patients, health cards, wallets, and system logs restored.');
+        setTimeout(() => window.location.reload(), 1200);
+      } catch (err: any) {
+        showToast('error', 'Import Error', err.message || 'Invalid backup JSON file format.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const activeConnectedEmail = googleUser?.email || (localStorage.getItem('labmedix_gdrive_connected_user') ? JSON.parse(localStorage.getItem('labmedix_gdrive_connected_user')!).email : null) || 'angadmandal3@gmail.com';
   const isDriveConnected = !!(googleUser || status?.googleDriveConnected || localStorage.getItem('labmedix_gdrive_connected_user'));
 
@@ -299,15 +345,22 @@ export const BackupRestorePage: React.FC = () => {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportFullBackup}
-          leftIcon={<Download className="w-4 h-4 text-emerald-400" />}
-          className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/40 font-bold text-xs shrink-0"
-        >
-          Export Database JSON
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-md transition-all">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Import Database JSON
+            <input type="file" accept=".json" onChange={handleFileUploadImport} className="hidden" />
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportFullBackup}
+            leftIcon={<Download className="w-4 h-4 text-emerald-400" />}
+            className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/40 font-bold text-xs shrink-0"
+          >
+            Export Database JSON
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
