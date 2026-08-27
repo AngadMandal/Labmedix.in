@@ -8,56 +8,38 @@ export class ExportService {
    * avoiding 3D perspective transforms, viewport clipping, and scaling distortions.
    */
   public static async captureElementToCanvas(element: HTMLElement, scale = 3): Promise<HTMLCanvasElement> {
-    // 1. Create a clean in-DOM sandbox container
-    const sandbox = document.createElement('div');
-    sandbox.style.position = 'fixed';
-    sandbox.style.top = '0px';
-    sandbox.style.left = '0px';
-    sandbox.style.zIndex = '-99999';
-    sandbox.style.opacity = '1';
-    sandbox.style.pointerEvents = 'none';
-    sandbox.style.background = 'transparent';
-    sandbox.style.overflow = 'visible';
+    // Ensure all images within the element are fully loaded with CORS
+    const images = element.querySelectorAll('img');
+    await Promise.all(
+      Array.from(images).map(img => {
+        img.crossOrigin = 'anonymous';
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      })
+    );
 
-    // 2. Clone the element
-    const clone = element.cloneNode(true) as HTMLElement;
-    clone.style.transform = 'none';
-    clone.style.transformOrigin = 'top left';
-    clone.style.margin = '0';
-    clone.style.boxShadow = 'none';
-    clone.style.position = 'relative';
-    clone.style.left = '0';
-    clone.style.top = '0';
-    clone.style.display = 'block';
-    clone.style.visibility = 'visible';
-
-    // Ensure all images in clone have crossOrigin set
-    const images = clone.querySelectorAll('img');
-    images.forEach(img => {
-      img.crossOrigin = 'anonymous';
-    });
-
-    sandbox.appendChild(clone);
-    document.body.appendChild(sandbox);
-
-    // Wait a moment for DOM and fonts to settle
-    await new Promise(r => setTimeout(r, 120));
+    // Wait for fonts and SVG rendering to settle
+    await new Promise(r => setTimeout(r, 250));
 
     try {
-      const canvas = await html2canvas(clone, {
+      const canvas = await html2canvas(element, {
         scale: scale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
         logging: false,
-        width: clone.offsetWidth || 500,
-        height: clone.offsetHeight || 315,
+        width: element.offsetWidth || 500,
+        height: element.offsetHeight || 315,
         windowWidth: 1920,
         windowHeight: 1080
       });
       return canvas;
-    } finally {
-      document.body.removeChild(sandbox);
+    } catch (error) {
+      console.error('Error capturing element to canvas:', error);
+      throw error;
     }
   }
 

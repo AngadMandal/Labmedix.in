@@ -174,7 +174,7 @@ export class PatientService {
       selectedMembership.slug === 'silver' ? 'emerald_health' : 'executive_navy'
     );
 
-    const initialStatus = currentUser?.role === 'super_admin' ? 'active' : 'pending';
+    const initialStatus = 'active';
 
     const newCard: HealthCard = {
       id: cardId,
@@ -196,7 +196,7 @@ export class PatientService {
           id: generateUuid(),
           cardId,
           date: now.toISOString(),
-          previousStatus: 'pending',
+          previousStatus: 'active',
           newStatus: initialStatus,
           changedBy: currentUser?.fullName || 'System',
           reason: `Initial card generation for ${selectedMembership.name}`
@@ -309,7 +309,7 @@ export class PatientService {
             membershipId: selectedMembership.id,
             issueDate: now.toISOString().split('T')[0],
             expiryDate: expiry.toISOString().split('T')[0],
-            status: currentUser?.role === 'super_admin' ? 'active' : 'pending',
+            status: 'active',
             cvv: generateCardCvv(),
             verificationCode: generateVerificationCode(),
             designConfig: {
@@ -323,8 +323,8 @@ export class PatientService {
                 id: generateUuid(),
                 cardId: memberCardId,
                 date: now.toISOString(),
-                previousStatus: 'pending',
-                newStatus: currentUser?.role === 'super_admin' ? 'active' : 'pending',
+                previousStatus: 'active',
+                newStatus: 'active',
                 changedBy: currentUser?.fullName || 'System',
                 reason: `Issued family health card under ${familyGroup?.familyName}`
               }

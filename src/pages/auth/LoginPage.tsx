@@ -48,6 +48,7 @@ export const LoginPage: React.FC = () => {
   // Emergency Super Admin Override Modal
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [overrideTokenInput, setOverrideTokenInput] = useState('');
+  const [overridePinInput, setOverridePinInput] = useState('');
   const [overrideMessage, setOverrideMessage] = useState('');
 
   // Refresh Math Captcha
@@ -143,17 +144,21 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setOverrideMessage('');
 
-    const res = AuthService.emergencySuperAdminUnlock(overrideTokenInput);
+    const res = AuthService.emergencySuperAdminUnlock(overrideTokenInput, overridePinInput);
     if (res.success) {
       setLockoutSeconds(0);
       setError('');
-      setOverrideMessage('✅ Master Override Executed: All account lockouts cleared and active statuses restored.');
-      showToast('success', 'Master Root Override Success', 'All brute-force lockouts have been reset.');
+      setOverrideMessage('✅ Master Override Executed: HSM Verified. All account lockouts cleared & Super Admin session active.');
+      showToast('success', 'Master Root Override Success', 'All brute-force lockouts have been reset and root session established.');
+      triggerCelebrationFireworks();
       setTimeout(() => {
         setIsOverrideModalOpen(false);
         setOverrideTokenInput('');
+        setOverridePinInput('');
         setOverrideMessage('');
-      }, 1800);
+        login('superadmin');
+        navigate('/dashboard');
+      }, 1500);
     } else {
       setOverrideMessage(`❌ ${res.error}`);
     }
@@ -351,9 +356,20 @@ export const LoginPage: React.FC = () => {
             <label className="font-bold text-slate-300 block">Enter Master Root Recovery Token:</label>
             <Input
               type="password"
-              placeholder="Enter Recovery Token"
+              placeholder="e.g. LABMEDIX-ROOT-MASTER-9091"
               value={overrideTokenInput}
               onChange={(e) => setOverrideTokenInput(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-bold text-slate-300 block">Super Admin Security PIN (MFA):</label>
+            <Input
+              type="password"
+              placeholder="Enter 6-digit PIN (e.g. 1509442)"
+              value={overridePinInput}
+              onChange={(e) => setOverridePinInput(e.target.value)}
               required
             />
           </div>

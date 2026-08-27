@@ -23,6 +23,7 @@ import {
   Globe,
   Sparkles,
   Crown,
+  Mail,
   Receipt
 } from 'lucide-react';
 
@@ -70,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { name: 'Staff Management', href: '/users', icon: UserCheck, moduleKey: 'users', permission: 'users_manage' },
     { name: '3D Website & CMS Studio', href: '/website-cms', icon: Sparkles, moduleKey: 'website_cms', permission: 'all' },
     { name: 'Integrations Hub', href: '/integrations', icon: Globe, moduleKey: 'integrations', permission: 'settings_manage' },
+    { name: 'Gmail Workspace Hub', href: '/gmail-integration', icon: Mail, moduleKey: 'integrations', permission: 'settings_manage' },
     { name: 'Audit & Activity', href: '/activity', icon: History, moduleKey: 'activity', permission: 'audit_view' },
     { name: 'Backup & Restore', href: '/backup', icon: Database, moduleKey: 'backup', permission: 'backup_manage' },
     { name: 'Company Settings', href: '/settings', icon: Settings, moduleKey: 'settings', permission: 'settings_manage' }

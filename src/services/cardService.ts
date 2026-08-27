@@ -297,7 +297,7 @@ export class CardService {
       cardId: card.id,
       date: new Date().toISOString(),
       previousStatus: card.status,
-      newStatus: currentUser?.role === 'super_admin' ? 'active' : 'pending',
+      newStatus: 'active',
       changedBy: currentUser?.fullName || 'Front Desk',
       reason: `Card renewed for ${additionalMonths} months. Valid until ${card.expiryDate}. (Fee: ₹${feeCollected})`
     });
@@ -333,7 +333,7 @@ export class CardService {
       membershipId: oldCard.membershipId,
       issueDate: now.split('T')[0],
       expiryDate: oldCard.expiryDate,
-      status: currentUser?.role === 'super_admin' ? 'active' : 'pending',
+      status: 'active',
       cvv: generateCardCvv(),
       verificationCode: generateVerificationCode(),
       designConfig: { ...oldCard.designConfig },
@@ -344,8 +344,8 @@ export class CardService {
           id: generateUuid(),
           cardId: newCardId,
           date: now,
-          previousStatus: 'pending',
-          newStatus: currentUser?.role === 'super_admin' ? 'active' : 'pending',
+          previousStatus: 'active',
+          newStatus: 'active',
           changedBy: currentUser?.fullName || 'Operator',
           reason: `Replaced card ${oldCard.cardNumber}. Reason: ${reason}`
         }

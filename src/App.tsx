@@ -29,6 +29,7 @@ import { ActivityLogPage } from './pages/activity/ActivityLogPage';
 import { BackupRestorePage } from './pages/backup/BackupRestorePage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { IntegrationsPage } from './pages/integrations/IntegrationsPage';
+import { GmailIntegrationPage } from './pages/integrations/GmailIntegrationPage';
 import { WebsiteCmsPage } from './pages/cms/WebsiteCmsPage';
 import { CashDeskBillVouchersPage } from './pages/vouchers/CashDeskBillVouchersPage';
 import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
@@ -277,6 +278,7 @@ export const App: React.FC = () => {
                   <Route path="/activity" element={<ModuleGuard moduleKey="activity"><ActivityLogPage /></ModuleGuard>} />
                   <Route path="/backup" element={<SuperAdminGuard><ModuleGuard moduleKey="backup"><BackupRestorePage /></ModuleGuard></SuperAdminGuard>} />
                   <Route path="/integrations" element={<ModuleGuard moduleKey="integrations"><IntegrationsPage /></ModuleGuard>} />
+                  <Route path="/gmail-integration" element={<ModuleGuard moduleKey="integrations"><GmailIntegrationPage /></ModuleGuard>} />
                   <Route path="/settings" element={<ModuleGuard moduleKey="settings"><SettingsPage /></ModuleGuard>} />
 
                   {/* Super Admin Security Portal */}
