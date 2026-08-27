@@ -18,6 +18,7 @@ import { DEFAULT_MEMBERSHIPS } from '../constants/memberships';
 
 import { GoogleDriveService } from './googleDriveService';
 import { getGoogleAccessToken } from './googleAuth';
+import { ApiSyncService } from './apiSyncService';
 
 export const STORAGE_KEYS = {
   USERS: 'labmedix_users_v1',
@@ -912,6 +913,7 @@ export class StorageService {
   }
   public static saveUsers(users: User[]): void {
     this.setItem(STORAGE_KEYS.USERS, users);
+    ApiSyncService.syncUsers(users).catch(() => {});
   }
   public static getCurrentUser(): User | null {
     return this.getItem<User | null>(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
@@ -926,6 +928,7 @@ export class StorageService {
   }
   public static savePatients(patients: Patient[]): void {
     this.setItem(STORAGE_KEYS.PATIENTS, patients);
+    ApiSyncService.syncPatients(patients).catch(() => {});
   }
 
   // Health Cards
@@ -945,6 +948,7 @@ export class StorageService {
       cvv: this.encrypt(c.cvv)
     }));
     this.setItem(STORAGE_KEYS.CARDS, encrypted);
+    ApiSyncService.syncCards(cards).catch(() => {});
   }
 
   // Memberships
@@ -953,6 +957,7 @@ export class StorageService {
   }
   public static saveMemberships(memberships: Membership[]): void {
     this.setItem(STORAGE_KEYS.MEMBERSHIPS, memberships);
+    ApiSyncService.syncMemberships(memberships).catch(() => {});
   }
 
   // Families
@@ -961,6 +966,7 @@ export class StorageService {
   }
   public static saveFamilies(families: FamilyGroup[]): void {
     this.setItem(STORAGE_KEYS.FAMILIES, families);
+    ApiSyncService.syncFamilies(families).catch(() => {});
   }
 
   // Wallets
@@ -969,6 +975,7 @@ export class StorageService {
   }
   public static saveWallets(wallets: Wallet[]): void {
     this.setItem(STORAGE_KEYS.WALLETS, wallets);
+    ApiSyncService.syncWallets(wallets).catch(() => {});
   }
 
   // Transactions
@@ -977,6 +984,7 @@ export class StorageService {
   }
   public static saveTransactions(txns: WalletTransaction[]): void {
     this.setItem(STORAGE_KEYS.TRANSACTIONS, txns);
+    ApiSyncService.syncTransactions(txns).catch(() => {});
   }
 
   // Audit Logs
@@ -985,6 +993,7 @@ export class StorageService {
   }
   public static saveAuditLogs(logs: AuditLog[]): void {
     this.setItem(STORAGE_KEYS.AUDIT_LOGS, logs);
+    ApiSyncService.syncAuditLogs(logs).catch(() => {});
   }
 
   // Company Profile

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../../services/storage';
 import { BackupService } from '../../services/backupService';
+import { ApiSyncService } from '../../services/apiSyncService';
+import { Patient, HealthCard, Membership, Wallet, WalletTransaction, AuditLog, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useToast } from '../../context/ToastContext';
@@ -16,7 +18,7 @@ import { formatCurrency, formatDate, formatDateTime } from '../../utils/formatte
 import {
   Users,
   CreditCard,
-  Wallet,
+  Wallet as WalletIcon,
   AlertTriangle,
   Award,
   PlusCircle,
@@ -59,13 +61,55 @@ export const DashboardPage: React.FC = () => {
   const [lookupResult, setLookupResult] = useState<any>(null);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
-  const patients = StorageService.getPatients().filter(p => !p.isDeleted);
-  const cards = StorageService.getCards();
-  const memberships = StorageService.getMemberships();
-  const wallets = StorageService.getWallets();
-  const transactions = StorageService.getTransactions();
-  const auditLogs = StorageService.getAuditLogs().slice(0, 6);
-  const users = StorageService.getUsers();
+  const [patientsList, setPatientsList] = useState<Patient[]>(() => StorageService.getPatients());
+  const [cardsList, setCardsList] = useState<HealthCard[]>(() => StorageService.getCards());
+  const [membershipsList, setMembershipsList] = useState<Membership[]>(() => StorageService.getMemberships());
+  const [walletsList, setWalletsList] = useState<Wallet[]>(() => StorageService.getWallets());
+  const [transactionsList, setTransactionsList] = useState<WalletTransaction[]>(() => StorageService.getTransactions());
+  const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>(() => StorageService.getAuditLogs());
+  const [usersList, setUsersList] = useState<User[]>(() => StorageService.getUsers());
+
+  useEffect(() => {
+    const unsubPatients = ApiSyncService.subscribeToCollection<Patient>('patients', (items) => {
+      if (items && items.length > 0) setPatientsList(items);
+    });
+    const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
+      if (items && items.length > 0) setCardsList(items);
+    });
+    const unsubMemberships = ApiSyncService.subscribeToCollection<Membership>('memberships', (items) => {
+      if (items && items.length > 0) setMembershipsList(items);
+    });
+    const unsubWallets = ApiSyncService.subscribeToCollection<Wallet>('wallets', (items) => {
+      if (items && items.length > 0) setWalletsList(items);
+    });
+    const unsubTransactions = ApiSyncService.subscribeToCollection<WalletTransaction>('transactions', (items) => {
+      if (items && items.length > 0) setTransactionsList(items);
+    });
+    const unsubAudit = ApiSyncService.subscribeToCollection<AuditLog>('auditLogs', (items) => {
+      if (items && items.length > 0) setAuditLogsList(items);
+    });
+    const unsubUsers = ApiSyncService.subscribeToCollection<User>('users', (items) => {
+      if (items && items.length > 0) setUsersList(items);
+    });
+
+    return () => {
+      unsubPatients();
+      unsubCards();
+      unsubMemberships();
+      unsubWallets();
+      unsubTransactions();
+      unsubAudit();
+      unsubUsers();
+    };
+  }, []);
+
+  const patients = patientsList.filter(p => !p.isDeleted);
+  const cards = cardsList;
+  const memberships = membershipsList;
+  const wallets = walletsList;
+  const transactions = transactionsList;
+  const auditLogs = auditLogsList.slice(0, 6);
+  const users = usersList;
 
   const totalPatients = patients.length;
   const activeCards = cards.filter(c => c.status === 'active').length;
@@ -288,7 +332,7 @@ export const DashboardPage: React.FC = () => {
           title="Total Health Wallet Balance"
           value={formatCurrency(totalWalletBalance)}
           subtitle="Patient ledger float"
-          icon={<Wallet className="w-6 h-6" />}
+          icon={<WalletIcon className="w-6 h-6" />}
           trend="Secured float"
           trendType="positive"
           color="purple"

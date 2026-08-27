@@ -17,7 +17,9 @@ import {
   CashDeskVoucher, 
   User, 
   Membership,
-  AuditLog 
+  AuditLog,
+  Wallet,
+  FamilyGroup
 } from '../types';
 
 export class ApiSyncService {
@@ -117,6 +119,46 @@ export class ApiSyncService {
     for (const tx of txns) {
       if (tx.id) {
         await this.saveDocument('transactions', tx.id, tx);
+      }
+    }
+  }
+
+  public static async syncWallets(wallets: Wallet[]): Promise<void> {
+    for (const w of wallets) {
+      if (w.id) {
+        await this.saveDocument('wallets', w.id, w);
+      }
+    }
+  }
+
+  public static async syncFamilies(families: FamilyGroup[]): Promise<void> {
+    for (const f of families) {
+      if (f.id) {
+        await this.saveDocument('families', f.id, f);
+      }
+    }
+  }
+
+  public static async syncAuditLogs(logs: AuditLog[]): Promise<void> {
+    for (const l of logs) {
+      if (l.id) {
+        await this.saveDocument('auditLogs', l.id, l);
+      }
+    }
+  }
+
+  public static async syncUsers(users: User[]): Promise<void> {
+    for (const u of users) {
+      if (u.id) {
+        await this.saveDocument('users', u.id, u);
+      }
+    }
+  }
+
+  public static async syncMemberships(memberships: Membership[]): Promise<void> {
+    for (const m of memberships) {
+      if (m.id) {
+        await this.saveDocument('memberships', m.id, m);
       }
     }
   }

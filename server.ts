@@ -20,8 +20,13 @@ let nextScheduledBackup: string | null = null;
 let activeGoogleToken: string | null = null;
 let cachedFolderId: string | null = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID || null;
 
+const isMockToken = (token: string | null) => {
+  if (!token) return true;
+  return token.startsWith('GDRIVE_') || token.startsWith('GOOGLE_LOCKED_');
+};
+
 const getDriveAuth = (token: string | null) => {
-  if (!token) return null;
+  if (!token || isMockToken(token)) return null;
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: token });
   return google.drive({ version: 'v3', auth: oauth2Client });
@@ -57,8 +62,8 @@ const getOrCreateBackupFolder = async (drive: any): Promise<string> => {
 const processBackupQueue = async () => {
   if (isBackingUp) return;
   
-  // If Google Drive is not logged in, ensure local backup is marked safe and protected
-  if (!activeGoogleToken) {
+  // If Google Drive is not logged in or token is mock, ensure local backup is marked safe and protected
+  if (!activeGoogleToken || isMockToken(activeGoogleToken)) {
     lastSuccessfulBackup = lastSuccessfulBackup || new Date().toISOString();
     failedAttempts = 0;
     lastError = null;
@@ -135,11 +140,11 @@ const processBackupQueue = async () => {
   } catch (error: any) {
     console.error('Google Drive Backup warning/error:', error.message || error);
     
-    // Check if authentication expired
+    // Check if authentication expired or invalid
     const errStr = String(error.message || error);
-    if (errStr.includes('invalid_grant') || errStr.includes('Invalid Credentials') || errStr.includes('401') || errStr.includes('Authentication')) {
+    if (errStr.includes('invalid_grant') || errStr.includes('Invalid Credentials') || errStr.includes('401') || errStr.includes('Authentication') || errStr.includes('invalid authentication credentials')) {
       activeGoogleToken = null; // Reset invalid token
-      lastError = 'Google Drive OAuth token expired. Local backup is active.';
+      lastError = 'Google Drive OAuth token expired or invalid. Local backup is active.';
       failedAttempts = 0; // Keep system status protected via local backup
       backupQueue = null;
     } else {
@@ -148,7 +153,7 @@ const processBackupQueue = async () => {
     }
   } finally {
     isBackingUp = false;
-    if (backupQueue && activeGoogleToken) {
+    if (backupQueue && activeGoogleToken && !isMockToken(activeGoogleToken)) {
       nextScheduledBackup = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     } else {
       nextScheduledBackup = null;
@@ -499,7 +504,7 @@ app.get('/api/backup/status', (req, res) => {
 
 app.get('/api/backup/history', async (req, res) => {
   try {
-    if (!activeGoogleToken) {
+    if (!activeGoogleToken || isMockToken(activeGoogleToken)) {
       return res.json({ success: true, backups: [], googleDriveConnected: false });
     }
     const drive = getDriveAuth(activeGoogleToken);
@@ -530,14 +535,14 @@ app.post('/api/backup/trigger', async (req, res) => {
   try {
     const store = getCentralStore();
     backupQueue = store;
-    if (activeGoogleToken) {
+    if (activeGoogleToken && !isMockToken(activeGoogleToken)) {
       await processBackupQueue();
     } else {
       lastSuccessfulBackup = new Date().toISOString();
     }
     res.json({
       success: true,
-      message: activeGoogleToken ? 'Full Central Database backup successfully created and verified on Google Drive' : 'Central Database snapshot verified and stored locally in container vault',
+      message: (activeGoogleToken && !isMockToken(activeGoogleToken)) ? 'Full Central Database backup successfully created and verified on Google Drive' : 'Central Database snapshot verified and stored locally in container vault',
       lastSuccessfulBackup
     });
   } catch (e: any) {
@@ -551,8 +556,8 @@ app.post('/api/backup/restore-drive', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing fileId parameter' });
   }
   try {
-    if (!activeGoogleToken) {
-      return res.status(401).json({ success: false, error: 'Google Drive is not connected' });
+    if (!activeGoogleToken || isMockToken(activeGoogleToken)) {
+      return res.status(401).json({ success: false, error: 'Google Drive is not connected with a valid OAuth token' });
     }
     const drive = getDriveAuth(activeGoogleToken);
     if (!drive) {
