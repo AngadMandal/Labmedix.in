@@ -1,0 +1,239 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { AuthService } from '../../services/authService';
+import { StorageService } from '../../services/storage';
+import { DoctorMasterService, DoctorMasterItem } from '../../services/doctorMasterService';
+import { LabMedixLogo } from '../../components/common/LabMedixLogo';
+import { Button } from '../../components/common/Button';
+import { Input } from '../../components/common/Input';
+import { triggerCelebrationFireworks } from '../../utils/confetti';
+import {
+  Stethoscope,
+  Lock,
+  User,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  CheckCircle,
+  Building2,
+  Calendar,
+  Phone,
+  FileText
+} from 'lucide-react';
+
+export const DoctorLoginPage: React.FC = () => {
+  const { login } = useAuth();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [doctorsList, setDoctorsList] = useState<DoctorMasterItem[]>([]);
+
+  useEffect(() => {
+    const docs = DoctorMasterService.getAllDoctors().filter(d => d.status === 'active');
+    setDoctorsList(docs);
+    const currentUser = StorageService.getCurrentUser();
+    if (currentUser && currentUser.role === 'doctor') {
+      navigate('/doctor-dashboard', { replace: true });
+    }
+  }, [navigate]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!username.trim()) {
+      setError('Please enter your Doctor Username or Staff ID.');
+      return;
+    }
+
+    setIsLoading(true);
+    const validation = AuthService.validateCredentials(username.trim(), password || '1234');
+    setIsLoading(false);
+
+    if (!validation.success || !validation.user) {
+      setError(validation.error || 'Invalid Doctor Username or Password.');
+      return;
+    }
+
+    const res = login(validation.user.username);
+    if (res.success || StorageService.getCurrentUser()) {
+      triggerCelebrationFireworks();
+      showToast('success', `Welcome, ${validation.user.fullName}`, 'Signed into Doctor Clinical Portal successfully.');
+      navigate('/doctor-dashboard');
+    } else {
+      StorageService.setCurrentUser(validation.user);
+      triggerCelebrationFireworks();
+      showToast('success', `Welcome, ${validation.user.fullName}`, 'Signed into Doctor Clinical Portal.');
+      navigate('/doctor-dashboard');
+      window.location.reload();
+    }
+  };
+
+  const handleQuickDoctorSelect = (doc: DoctorMasterItem) => {
+    setUsername(doc.username);
+    setPassword(doc.pinCode || '1234');
+    const res = login(doc.username);
+    if (res.success || StorageService.getCurrentUser()) {
+      triggerCelebrationFireworks();
+      showToast('success', `Welcome, ${doc.name}`, `Authenticated as ${doc.department}.`);
+      navigate('/doctor-dashboard');
+    } else {
+      const user = StorageService.getUsers().find(u => u.username === doc.username);
+      if (user) {
+        StorageService.setCurrentUser(user);
+        triggerCelebrationFireworks();
+        showToast('success', `Welcome, ${doc.name}`, `Authenticated as ${doc.department}.`);
+        navigate('/doctor-dashboard');
+        window.location.reload();
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Glow Elements */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="flex justify-center mb-4">
+          <div className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-400 shadow-xl shadow-teal-500/10">
+            <Stethoscope className="w-10 h-10" />
+          </div>
+        </div>
+        <h2 className="text-center text-3xl font-black tracking-tight text-white">
+          Doctor Clinical Portal
+        </h2>
+        <p className="mt-2 text-center text-xs text-slate-400">
+          LABMEDIX Health Card & EMR Central Workspace
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="bg-slate-900/90 py-8 px-6 shadow-2xl rounded-3xl border border-slate-800 sm:px-10">
+          <form className="space-y-5" onSubmit={handleLogin}>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Doctor Username or ID
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="e.g. dr.subhashish"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Password / Secure PIN
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-12 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs font-bold text-center">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-sm font-black shadow-lg shadow-teal-600/20 transition-all active:scale-[0.99] disabled:opacity-50"
+              >
+                <span>{isLoading ? 'Authenticating...' : 'Sign In to Doctor Portal'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+
+          {/* Quick Doctor Profiles Selector */}
+          {doctorsList.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
+                  Quick Doctor Login (Demo / Instant)
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">1-Click Access</span>
+              </div>
+              <div className="space-y-2">
+                {doctorsList.map((doc) => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => handleQuickDoctorSelect(doc)}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-950 hover:bg-teal-950/30 border border-slate-800 hover:border-teal-500/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold text-xs shrink-0 border border-teal-500/30">
+                        👨‍⚕️
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-white block truncate group-hover:text-teal-300">
+                          {doc.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block truncate">
+                          {doc.department} ({doc.regNumber})
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] px-2 py-1 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/30 font-mono shrink-0 group-hover:bg-teal-500 group-hover:text-white transition-colors">
+                      Enter →
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 text-center">
+            <Link
+              to="/login"
+              className="text-xs text-slate-400 hover:text-teal-400 transition-colors font-medium"
+            >
+              ← Return to Standard Staff Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+export default DoctorLoginPage;

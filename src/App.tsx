@@ -20,6 +20,8 @@ import { FamilyListPage } from './pages/families/FamilyListPage';
 import { WalletDashboardPage } from './pages/wallet/WalletDashboardPage';
 import { DoctorEMRPage } from './pages/emr/DoctorEMRPage';
 import { DoctorMasterPage } from './pages/doctors/DoctorMasterPage';
+import { DoctorLoginPage } from './pages/doctors/DoctorLoginPage';
+import { DoctorDashboardPage } from './pages/doctors/DoctorDashboardPage';
 import { TestMasterPage } from './pages/catalog/TestMasterPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { UserListPage } from './pages/users/UserListPage';
@@ -217,6 +219,7 @@ export const App: React.FC = () => {
 
                 {/* Staff Login */}
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/doctor-login" element={<DoctorLoginPage />} />
 
                 {/* Protected Staff Operational Workspace */}
                 <Route
@@ -250,6 +253,7 @@ export const App: React.FC = () => {
 
                   {/* Doctor EMR & Clinical Prescriptions (Exclusive to Doctor Role) */}
                   <Route path="/emr" element={<DoctorRouteGuard><DoctorEMRPage /></DoctorRouteGuard>} />
+                  <Route path="/doctor-dashboard" element={<DoctorRouteGuard><DoctorDashboardPage /></DoctorRouteGuard>} />
 
                   {/* Doctor Master & Commission Governance (Super Admin) */}
                   <Route path="/doctor-master" element={<ModuleGuard moduleKey="doctor_master"><DoctorMasterPage /></ModuleGuard>} />
