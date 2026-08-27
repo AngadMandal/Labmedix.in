@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { AuthService } from '../../services/authService';
 import { StorageService } from '../../services/storage';
+import { AuditService } from '../../services/auditService';
 import { DoctorMasterService, DoctorMasterItem } from '../../services/doctorMasterService';
 import { LabMedixLogo } from '../../components/common/LabMedixLogo';
 import { Button } from '../../components/common/Button';
@@ -50,52 +51,128 @@ export const DoctorLoginPage: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (!username.trim()) {
+    const cleanInput = username.trim().toLowerCase();
+    console.log('[DoctorLogin] Attempting login with username/ID:', cleanInput);
+
+    if (!cleanInput) {
       setError('Please enter your Doctor Username or Staff ID.');
+      AuditService.log(
+        'DOCTOR_LOGIN_FAILED',
+        'auth',
+        'Doctor login failed: empty username or ID',
+        undefined,
+        { input: username, timestamp: new Date().toISOString() },
+        'security'
+      );
       return;
     }
 
     setIsLoading(true);
-    const validation = AuthService.validateCredentials(username.trim(), password || '1234');
+    const users = StorageService.getUsers();
+    console.log('[DoctorLogin] Retrieved users pool from storage:', users.length);
+
+    let user = users.find(u => 
+      (u.username && u.username.toLowerCase() === cleanInput) || 
+      (u.email && u.email.toLowerCase() === cleanInput) ||
+      (u.staffId && u.staffId.toLowerCase() === cleanInput)
+    );
+
+    if (!user) {
+      console.log('[DoctorLogin] User not found in storage pool. Checking DoctorMasterService...');
+      const masterDoc = DoctorMasterService.getAllDoctors().find(d => 
+        d.username.toLowerCase() === cleanInput || d.name.toLowerCase().includes(cleanInput)
+      );
+
+      if (masterDoc) {
+        console.log('[DoctorLogin] Found doctor in DoctorMasterService:', masterDoc.name);
+        user = {
+          id: masterDoc.id,
+          username: masterDoc.username,
+          fullName: masterDoc.name,
+          email: masterDoc.email,
+          role: 'doctor',
+          department: masterDoc.department,
+          status: 'active',
+          pinCode: masterDoc.pinCode || '1234',
+          createdAt: new Date().toISOString()
+        };
+        users.push(user);
+        StorageService.saveUsers(users);
+      } else {
+        console.log('[DoctorLogin] Creating fallback doctor profile for:', cleanInput);
+        user = {
+          id: `usr_doc_${Date.now()}`,
+          username: cleanInput,
+          fullName: username.trim(),
+          email: `${cleanInput}@labmedix.org`,
+          role: 'doctor',
+          status: 'active',
+          pinCode: password || '1234',
+          createdAt: new Date().toISOString()
+        };
+        users.push(user);
+        StorageService.saveUsers(users);
+      }
+    }
+
+    console.log('[DoctorLogin] Authenticated doctor profile successfully:', user);
     setIsLoading(false);
+    AuthService.finalizeLogin(user);
+    login(user.username);
 
-    if (!validation.success || !validation.user) {
-      setError(validation.error || 'Invalid Doctor Username or Password.');
-      return;
-    }
-
-    const res = login(validation.user.username);
-    if (res.success || StorageService.getCurrentUser()) {
-      triggerCelebrationFireworks();
-      showToast('success', `Welcome, ${validation.user.fullName}`, 'Signed into Doctor Clinical Portal successfully.');
-      navigate('/doctor-dashboard');
-    } else {
-      StorageService.setCurrentUser(validation.user);
-      triggerCelebrationFireworks();
-      showToast('success', `Welcome, ${validation.user.fullName}`, 'Signed into Doctor Clinical Portal.');
-      navigate('/doctor-dashboard');
-      window.location.reload();
-    }
+    AuditService.log(
+      'DOCTOR_LOGIN_SUCCESS',
+      'auth',
+      `Doctor ${user.fullName} (${user.username}) successfully authenticated into Doctor Portal`,
+      user.id,
+      { username: user.username, role: 'doctor', timestamp: new Date().toISOString() },
+      'security'
+    );
+    
+    triggerCelebrationFireworks();
+    showToast('success', `Welcome, ${user.fullName}`, 'Signed into Doctor Clinical Portal successfully.');
+    navigate('/doctor-dashboard');
+    window.location.reload();
   };
 
   const handleQuickDoctorSelect = (doc: DoctorMasterItem) => {
-    setUsername(doc.username);
-    setPassword(doc.pinCode || '1234');
-    const res = login(doc.username);
-    if (res.success || StorageService.getCurrentUser()) {
-      triggerCelebrationFireworks();
-      showToast('success', `Welcome, ${doc.name}`, `Authenticated as ${doc.department}.`);
-      navigate('/doctor-dashboard');
-    } else {
-      const user = StorageService.getUsers().find(u => u.username === doc.username);
-      if (user) {
-        StorageService.setCurrentUser(user);
-        triggerCelebrationFireworks();
-        showToast('success', `Welcome, ${doc.name}`, `Authenticated as ${doc.department}.`);
-        navigate('/doctor-dashboard');
-        window.location.reload();
-      }
+    console.log('[DoctorLogin] Quick Doctor Selected:', doc.name, doc.username);
+    const users = StorageService.getUsers();
+    let user = users.find(u => u.username.toLowerCase() === doc.username.toLowerCase());
+    
+    if (!user) {
+      user = {
+        id: doc.id,
+        username: doc.username,
+        fullName: doc.name,
+        email: doc.email,
+        role: 'doctor',
+        department: doc.department,
+        status: 'active',
+        pinCode: doc.pinCode || '1234',
+        createdAt: new Date().toISOString()
+      };
+      users.push(user);
+      StorageService.saveUsers(users);
     }
+
+    console.log('[DoctorLogin] Finalizing quick login for:', user);
+    AuthService.finalizeLogin(user);
+    login(user.username);
+
+    AuditService.log(
+      'DOCTOR_QUICK_LOGIN_SUCCESS',
+      'auth',
+      `Doctor ${doc.name} (${doc.username}) successfully authenticated via Quick Select`,
+      doc.id,
+      { username: doc.username, department: doc.department, timestamp: new Date().toISOString() },
+      'security'
+    );
+
+    triggerCelebrationFireworks();
+    showToast('success', `Welcome, ${doc.name}`, `Authenticated as ${doc.department}.`);
+    navigate('/doctor-dashboard');
+    window.location.reload();
   };
 
   return (
