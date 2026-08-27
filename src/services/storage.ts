@@ -742,20 +742,53 @@ export class StorageService {
       }
     } catch { }
 
-    // 3. Register page unload and visibility change listeners to flush writes
+    // 3. Register page unload, visibility change and window focus listeners to flush writes and instant-pull sync
     window.addEventListener('beforeunload', () => {
       StorageService.forceSyncToIndexedDB().catch(() => {});
     });
     window.addEventListener('pagehide', () => {
       StorageService.forceSyncToIndexedDB().catch(() => {});
     });
+    window.addEventListener('focus', async () => {
+      try {
+        const res = await fetch('/api/sync/store');
+        if (res.ok) {
+          const body = await res.json();
+          const serverStore = body.store;
+          if (serverStore && typeof serverStore === 'object') {
+            for (const [key, val] of Object.entries(serverStore)) {
+              if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) continue;
+              StorageService.memoryCache.set(key, val);
+              try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
+            }
+          }
+        }
+      } catch {}
+    });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         StorageService.forceSyncToIndexedDB().catch(() => {});
+      } else if (document.visibilityState === 'visible') {
+        // Instant pull on tab visibility
+        fetch('/api/sync/store').then(async res => {
+          if (res.ok) {
+            const body = await res.json();
+            const serverStore = body.store;
+            if (serverStore && typeof serverStore === 'object') {
+              for (const [key, val] of Object.entries(serverStore)) {
+                if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) continue;
+                StorageService.memoryCache.set(key, val);
+                try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
+              }
+            }
+          }
+        }).catch(() => {});
       }
     });
 
-    // 4. Real-Time Central Server Data Polling for Cross-Device Synchronization (e.g., Mobile 2 -> Mobile 1)
+    // 4. Real-Time Central Server Data Polling for Cross-Device Synchronization (Every 1 second for ultra-fast multi-device sync)
     setInterval(async () => {
       try {
         const res = await fetch('/api/sync/store');
@@ -776,7 +809,7 @@ export class StorageService {
           }
         }
       } catch {}
-    }, 2500);
+    }, 1000);
 
     // 5. Auto-Periodic deep sync every 3 minutes
     setInterval(() => {
@@ -804,6 +837,63 @@ export class StorageService {
       }
     } catch (e) {
       console.warn('[LABMEDIX] Central store hydration warning:', e);
+    }
+
+    // 1.5 Cloud Firestore Cross-Device Hydration (Ensures seamless multi-device login data sync)
+    try {
+      const [cloudPatients, cloudCards, cloudApps, cloudWallets, cloudTxns, cloudAudit, cloudUsers, cloudMemberships] = await Promise.all([
+        ApiSyncService.fetchCollection<Patient>('patients').catch(() => []),
+        ApiSyncService.fetchCollection<HealthCard>('cards').catch(() => []),
+        ApiSyncService.fetchCollection<any>('cardApplications').catch(() => []),
+        ApiSyncService.fetchCollection<Wallet>('wallets').catch(() => []),
+        ApiSyncService.fetchCollection<WalletTransaction>('transactions').catch(() => []),
+        ApiSyncService.fetchCollection<AuditLog>('auditLogs').catch(() => []),
+        ApiSyncService.fetchCollection<User>('users').catch(() => []),
+        ApiSyncService.fetchCollection<Membership>('memberships').catch(() => [])
+      ]);
+
+      if (cloudPatients.length > 0) {
+        const existing = StorageService.getItem<Patient[]>(STORAGE_KEYS.PATIENTS, []);
+        const merged = [...cloudPatients, ...existing.filter(e => !cloudPatients.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.PATIENTS, merged);
+      }
+      if (cloudCards.length > 0) {
+        const existing = StorageService.getItem<HealthCard[]>(STORAGE_KEYS.CARDS, []);
+        const merged = [...cloudCards, ...existing.filter(e => !cloudCards.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.CARDS, merged);
+      }
+      if (cloudApps.length > 0) {
+        const existing = StorageService.getItem<any[]>(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []);
+        const merged = [...cloudApps, ...existing.filter(e => !cloudApps.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, merged);
+      }
+      if (cloudWallets.length > 0) {
+        const existing = StorageService.getItem<Wallet[]>(STORAGE_KEYS.WALLETS, []);
+        const merged = [...cloudWallets, ...existing.filter(e => !cloudWallets.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.WALLETS, merged);
+      }
+      if (cloudTxns.length > 0) {
+        const existing = StorageService.getItem<WalletTransaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
+        const merged = [...cloudTxns, ...existing.filter(e => !cloudTxns.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.TRANSACTIONS, merged);
+      }
+      if (cloudAudit.length > 0) {
+        const existing = StorageService.getItem<AuditLog[]>(STORAGE_KEYS.AUDIT_LOGS, []);
+        const merged = [...cloudAudit, ...existing.filter(e => !cloudAudit.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.AUDIT_LOGS, merged);
+      }
+      if (cloudUsers.length > 0) {
+        const existing = StorageService.getItem<User[]>(STORAGE_KEYS.USERS, []);
+        const merged = [...cloudUsers, ...existing.filter(e => !cloudUsers.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.USERS, merged);
+      }
+      if (cloudMemberships.length > 0) {
+        const existing = StorageService.getItem<Membership[]>(STORAGE_KEYS.MEMBERSHIPS, []);
+        const merged = [...cloudMemberships, ...existing.filter(e => !cloudMemberships.some(c => c.id === e.id))];
+        StorageService.setItem(STORAGE_KEYS.MEMBERSHIPS, merged);
+      }
+    } catch (e) {
+      console.warn('[LABMEDIX] Cloud Firestore cross-device sync hydration warning:', e);
     }
 
     // Active live migration: Purge legacy demo patient identities from storage

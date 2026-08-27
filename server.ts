@@ -498,6 +498,11 @@ app.post('/api/admin/approve-card-application', async (req, res) => {
   }
 });
 
+app.get('/api/download/storage', (req, res) => {
+  const filePath = path.join(process.cwd(), 'src/services/storage.ts');
+  res.download(filePath, 'storage.ts');
+});
+
 app.post('/api/sync/key/:key', (req, res) => {
   const { value } = req.body;
   const key = decodeURIComponent(req.params.key);
