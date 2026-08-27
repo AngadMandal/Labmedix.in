@@ -1,15 +1,5 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
-
-// Initialize Firebase only if config has project id
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// Enforce permanent browser local persistence so users stay logged in across refreshes and restarts
-setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn('Firebase setPersistence warning:', err);
-});
+import { auth } from './firebaseService';
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/drive.file'); 

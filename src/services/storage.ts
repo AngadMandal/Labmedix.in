@@ -961,15 +961,16 @@ export class StorageService {
     if (!localStorage.getItem(STORAGE_KEYS.COMPANY_PROFILE)) {
       this.setItem(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
     } else {
-      // Safely merge fallback defaults into existing profile without overwriting user-updated fields
       const existing = this.getItem<CompanyProfile>(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
+      const forcedName = (!existing.name || existing.name === 'LABMEDIX' || !existing.name.includes('MULTI-SPECIALITY'))
+        ? DEFAULT_COMPANY_PROFILE.name
+        : existing.name;
       const merged = {
         ...DEFAULT_COMPANY_PROFILE,
-        ...existing
+        ...existing,
+        name: forcedName
       };
-      if (JSON.stringify(existing) !== JSON.stringify(merged)) {
-        this.setItem(STORAGE_KEYS.COMPANY_PROFILE, merged);
-      }
+      this.setItem(STORAGE_KEYS.COMPANY_PROFILE, merged);
     }
     if (!localStorage.getItem(STORAGE_KEYS.PATIENTS)) {
       this.setItem(STORAGE_KEYS.PATIENTS, []);
@@ -1088,7 +1089,15 @@ export class StorageService {
 
   // Company Profile
   public static getCompanyProfile(): CompanyProfile {
-    const profile = this.getItem<CompanyProfile>(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
+    let profile = this.getItem<CompanyProfile>(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
+    let updated = false;
+
+    // Force official unified company name if short/outdated/generic across all devices
+    if (!profile.name || profile.name === 'LABMEDIX' || !profile.name.includes('MULTI-SPECIALITY')) {
+      profile.name = 'LABMEDIX MULTI-SPECIALITY HEALTHCARE & DIAGNOSTIC CENTRE';
+      updated = true;
+    }
+
     // Ensure official verified merchant VPA is always 7047108226@okbizaxis
     if (!profile.upiSettings || profile.upiSettings.merchantVpa === 'labmedix.health@icici' || !profile.upiSettings.merchantVpa) {
       profile.upiSettings = {
@@ -1097,11 +1106,18 @@ export class StorageService {
         merchantVpa: '7047108226@okbizaxis',
         merchantName: 'LABMEDIX MULTI-SPECIALITY CENTRE'
       };
+      updated = true;
+    }
+
+    if (updated) {
       this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
     }
     return profile;
   }
   public static saveCompanyProfile(profile: CompanyProfile): void {
+    if (!profile.name || profile.name === 'LABMEDIX' || !profile.name.includes('MULTI-SPECIALITY')) {
+      profile.name = 'LABMEDIX MULTI-SPECIALITY HEALTHCARE & DIAGNOSTIC CENTRE';
+    }
     this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
   }
 

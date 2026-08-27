@@ -213,8 +213,6 @@ const processBackupQueue = async () => {
     console.log('Google Drive Backup completed successfully.');
     
   } catch (error: any) {
-    console.error('Google Drive Backup warning/error:', error.message || error);
-    
     // Check if authentication expired or invalid
     const errStr = String(error.message || error);
     if (errStr.includes('invalid_grant') || errStr.includes('Invalid Credentials') || errStr.includes('401') || errStr.includes('Authentication') || errStr.includes('invalid authentication credentials')) {
@@ -222,9 +220,11 @@ const processBackupQueue = async () => {
       lastError = 'Google Drive OAuth token expired or invalid. Local backup is active.';
       failedAttempts = 0; // Keep system status protected via local backup
       backupQueue = null;
+      console.info('[Google Drive] Unauthenticated or expired token detected. Google Drive sync paused until re-authentication.');
     } else {
+      console.error('Google Drive Backup warning/error:', errStr);
       failedAttempts++;
-      lastError = error.message || 'Drive backup failed';
+      lastError = errStr;
     }
   } finally {
     isBackingUp = false;

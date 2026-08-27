@@ -39,8 +39,13 @@ export class GoogleDriveService {
           await this.uploadBackupToDrive(activeToken);
           console.info('[LABMEDIX LIVE SYNC] Google Drive live cloud backup completed successfully.');
         }
-      } catch (err) {
-        console.warn('[LABMEDIX LIVE SYNC] Auto Google Drive backup notification:', err);
+      } catch (err: any) {
+        const msg = String(err?.message || err);
+        if (msg.includes('401') || msg.includes('invalid') || msg.includes('Credentials') || msg.includes('authentication')) {
+          this.cachedAccessToken = null;
+        } else {
+          console.warn('[LABMEDIX LIVE SYNC] Auto Google Drive backup notification:', err);
+        }
       }
     }, 2000); // 2 second fast debounce
   }
