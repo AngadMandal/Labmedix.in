@@ -4,6 +4,7 @@ import { EMRService } from './emrService';
 import { PatientService } from './patientService';
 import { FamilyService } from './familyService';
 import { AuditService } from './auditService';
+import { ApiSyncService } from './apiSyncService';
 import { PatientAppointment, CardApplicationRequest, CardApplicationHistoryItem } from '../types';
 import { generateUuid } from '../utils/idGenerator';
 
@@ -155,6 +156,7 @@ export class PortalService {
 
     all.unshift(newBooking);
     StorageService.setItem(this.LAB_BOOKINGS_KEY, all);
+    ApiSyncService.syncLabBookings(all).catch(() => {});
     AuditService.log('LAB_BOOKING_CREATED', 'clinical', `Live Blood Test Order #${newBooking.bookingNo} (${newBooking.testName}) registered for Card: ${newBooking.cardNo || 'N/A'} (${newBooking.patientName})`);
     return newBooking;
   }
@@ -171,6 +173,7 @@ export class PortalService {
     };
 
     StorageService.setItem(this.LAB_BOOKINGS_KEY, all);
+    ApiSyncService.syncLabBookings(all).catch(() => {});
     return all[index];
   }
 
@@ -285,6 +288,7 @@ export class PortalService {
 
     all.unshift(newOrder);
     StorageService.setItem(this.PHARMACY_ORDERS_KEY, all);
+    ApiSyncService.syncPharmacyOrders(all).catch(() => {});
     AuditService.log('PHARMACY_ORDER_CREATED', 'clinical', `Live Pharmacy Medicine Order #${newOrder.orderNo} (${newOrder.items.length} items) registered for Card: ${patientCard?.cardNumber || 'N/A'} (${newOrder.patientName})`);
     return newOrder;
   }
@@ -300,6 +304,7 @@ export class PortalService {
     };
 
     StorageService.setItem(this.PHARMACY_ORDERS_KEY, all);
+    ApiSyncService.syncPharmacyOrders(all).catch(() => {});
     return all[index];
   }
 
@@ -369,6 +374,7 @@ export class PortalService {
 
     all.unshift(newApp);
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+    ApiSyncService.syncCardApplications(all).catch(() => {});
 
     AuditService.log(
       'CARD_APPLICATION_SUBMITTED',
@@ -385,6 +391,48 @@ export class PortalService {
     approvedBy: string = 'Super Administrator'
   ): Promise<{ success: boolean; application?: CardApplicationRequest; patient?: any; card?: any; error?: string }> {
     try {
+      // Execute atomic Firestore transaction validating PENDING_APPROVAL status & preventing duplicate cards
+      const txResult = await ApiSyncService.approveApplicationTransaction(applicationId, approvedBy);
+
+      if (txResult.success && txResult.application) {
+        // Update local application list cache
+        const all = this.getCardApplications();
+        const idx = all.findIndex(a => a.id === applicationId || a.trackingId === applicationId);
+        if (idx !== -1) {
+          all[idx] = txResult.application;
+          StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+        } else {
+          all.unshift(txResult.application);
+          StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+        }
+
+        // Update local patients and cards cache
+        if (txResult.patient) {
+          const patients = StorageService.getPatients();
+          if (!patients.some(p => p.id === txResult.patient.id)) {
+            patients.unshift(txResult.patient);
+            StorageService.savePatients(patients);
+          }
+        }
+        if (txResult.card) {
+          const cards = StorageService.getCards();
+          if (!cards.some(c => c.id === txResult.card.id)) {
+            cards.unshift(txResult.card);
+            StorageService.saveCards(cards);
+          }
+        }
+
+        AuditService.log(
+          'CARD_APPLICATION_APPROVED',
+          'card',
+          `Atomic transaction approved card application for ${txResult.application.fullName}. Minted Card ${txResult.application.approvedCardNumber} [Patient ID: ${txResult.application.approvedPatientId}].`,
+          txResult.application.id
+        );
+
+        return { success: true, application: txResult.application, patient: txResult.patient, card: txResult.card };
+      }
+
+      // Fallback to Express backend endpoint if Firestore transaction failed or offline
       const response = await fetch('/api/admin/approve-card-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -393,14 +441,13 @@ export class PortalService {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Update local application list cache
         const all = this.getCardApplications();
         const idx = all.findIndex(a => a.id === applicationId || a.trackingId === applicationId);
         if (idx !== -1 && data.application) {
           all[idx] = data.application;
           StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+          ApiSyncService.syncCardApplications(all).catch(() => {});
         }
-        // Update local patients and cards cache
         if (data.patient) {
           const patients = StorageService.getPatients();
           if (!patients.some(p => p.id === data.patient.id)) {
@@ -417,11 +464,11 @@ export class PortalService {
         }
         return { success: true, application: data.application, patient: data.patient, card: data.card };
       } else {
-        return { success: false, error: data.error || 'Server-side transaction failed to verify PENDING_APPROVAL status or minted card.' };
+        return { success: false, error: txResult.error || data.error || 'Server-side transaction failed to verify PENDING_APPROVAL status or minted card.' };
       }
     } catch (e: any) {
-      console.error('Approve card application network error:', e);
-      return { success: false, error: e?.message || 'Network error communicating with server-side approval transaction.' };
+      console.error('Approve card application transaction error:', e);
+      return { success: false, error: e?.message || 'Transaction error during card application approval.' };
     }
   }
 
@@ -451,6 +498,7 @@ export class PortalService {
     });
 
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+    ApiSyncService.syncCardApplications(all).catch(() => {});
 
     AuditService.log(
       'CARD_APPLICATION_REJECTED',

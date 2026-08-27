@@ -80,9 +80,46 @@ export const GmailIntegrationPage: React.FC = () => {
 
   const handleSendSamplePrescription = async () => {
     setRecipient('patient.angad@labmedix.org');
-    setSubject('[LabMedix AutoHealth] Official Clinical Prescription - Aarav Sharma');
-    setBody('Dear Aarav Sharma,\n\nHere is your official digital prescription issued by Dr. Subhashish Roy.\nDiagnosis: Essential Hypertension\nRx: Amlodipine 5mg Daily\n\nStay healthy!\nLabMedix Clinical Operations');
-    showToast('info', 'Prescription Template Loaded', 'Review fields and click Send Official Email.');
+    setSubject('[LabMedix AutoHealth Enterprise] Comprehensive Clinical Prescription & Health Card Record - Aarav Sharma');
+    setBody(
+      `========================================================================\n` +
+      `LABMEDIX AUTOHEALTH ENTERPRISE - OFFICIAL MEDICAL & HEALTH CARD REPORT\n` +
+      `========================================================================\n\n` +
+      `A. PATIENT & MEMBERSHIP IDENTIFICATION:\n` +
+      `- Patient Full Name: Aarav Sharma\n` +
+      `- Patient ID: LMDX-P-8821\n` +
+      `- Mobile / WhatsApp: +91 98765 43210\n` +
+      `- Registered Email: patient.angad@labmedix.org\n` +
+      `- Health Card Number: LHC-2026-994102\n` +
+      `- Membership Tier: Gold Platinum VIP\n` +
+      `- Health Wallet Float Balance: ₹2,500.00 (Prepaid Cashless)\n\n` +
+      `B. CONSULTATION & CLINICAL METADATA:\n` +
+      `- Attending Physician: Dr. Subhashish Roy (General & Internal Medicine)\n` +
+      `- Consultation Token / ID: DR-04 (Priority Slot)\n` +
+      `- Examination Timestamp: ${new Date().toLocaleString()}\n` +
+      `- Patient Vitals Recorded: BP: 120/80 mmHg | Pulse: 78 bpm | SpO2: 98% | Temp: 98.4°F | BMI: 23.4\n\n` +
+      `C. CLINICAL DIAGNOSIS & ASSESSMENT:\n` +
+      `Essential Hypertension with mild tachycardia and elevated systolic blood pressure readings. Advised dietary sodium restriction and regular cardiac monitoring.\n\n` +
+      `D. PRESCRIBED MEDICATION REGIMEN (RX):\n` +
+      `1. Amlodipine 5mg - 1 tablet daily morning after breakfast (30 Days)\n` +
+      `2. Telmisartan 40mg - 1 tablet daily evening (30 Days)\n` +
+      `3. Multivitamin & Omega-3 supplement - 1 capsule daily with lunch\n\n` +
+      `E. RECOMMENDED LABORATORY INVESTIGATIONS & PATHOLOGY:\n` +
+      `1. Complete Blood Count (CBC) with ESR\n` +
+      `2. Fasting Blood Glucose & HbA1c\n` +
+      `3. Lipid Profile Comprehensive\n` +
+      `4. Serum Creatinine & Electrolytes\n\n` +
+      `========================================================================\n` +
+      `SECURE PORTAL & VERIFICATION:\n` +
+      `You can access your complete electronic medical records, lab diagnostic reports, and cashless health wallet anytime via the Patient Portal:\n` +
+      `URL: https://ais-dev-gkcl2ngsp4jo5ytchft3rk-329217030006.asia-southeast1.run.app\n` +
+      `Verification QR Code ID: LMDX-SECURE-VERIFY-994102\n` +
+      `========================================================================\n\n` +
+      `Best regards,\n` +
+      `LabMedix AutoHealth Clinical Operations & Intelligence Hub\n` +
+      `(Automated Dispatch via Google Workspace Gmail API Integration)`
+    );
+    showToast('info', 'Comprehensive Template Loaded', 'All recommended patient, card, clinical, and wallet details are populated. Click Send Official Email.');
   };
 
   return (

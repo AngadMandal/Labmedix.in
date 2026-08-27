@@ -6,31 +6,105 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.role == 'super_admin') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin')
+      );
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        (request.auth.token.role in ['super_admin', 'admin', 'staff', 'receptionist', 'doctor']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super_admin', 'admin', 'staff', 'receptionist', 'doctor'])
+      );
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    // Application Requests (Card Applications) - Only authenticated staff can read
+    match /cardApplications/{appId} {
+      allow read: if isStaff();
+      allow create: if isSignedIn() && isValidId(appId);
+      allow update, delete: if isStaff();
+    }
+
+    match /applicationRequests/{appId} {
+      allow read: if isStaff();
+      allow create: if isSignedIn() && isValidId(appId);
+      allow update, delete: if isStaff();
+    }
+
+    // Health Cards Collection - Only super_admin can create or modify, read restricted to authorized staff members only
+    match /cards/{cardId} {
+      allow read: if isStaff();
+      allow create, update, delete: if isSuperAdmin() && isValidId(cardId);
+    }
+
+    match /healthCards/{cardId} {
+      allow read: if isStaff();
+      allow create, update, delete: if isSuperAdmin() && isValidId(cardId);
+    }
+
     // Patients Collection
     match /patients/{patientId} {
-      allow read: if isSignedIn();
+      allow read: if isStaff();
       allow create, update: if isSignedIn() && isValidId(patientId);
-      allow delete: if isSignedIn();
+      allow delete: if isStaff();
     }
 
-    // Health Cards Collection
-    match /healthCards/{cardId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidId(cardId);
-      allow delete: if isSignedIn();
+    // Wallets & Transactions
+    match /wallets/{walletId} {
+      allow read: if isStaff();
+      allow create, update: if isSignedIn();
+      allow delete: if isStaff();
     }
 
-    // Audit Logs Collection
+    match /transactions/{txnId} {
+      allow read: if isStaff();
+      allow create: if isSignedIn();
+      allow update, delete: if isStaff();
+    }
+
+    // Memberships, Families, Appointments, Vouchers, Users
+    match /memberships/{membershipId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /families/{familyId} {
+      allow read: if isStaff();
+      allow write: if isSignedIn();
+    }
+
+    match /appointments/{aptId} {
+      allow read: if isStaff();
+      allow write: if isSignedIn();
+    }
+
+    match /vouchers/{voucherId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /users/{userId} {
+      allow read: if isStaff();
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // Audit Logs Collection - Append only
     match /auditLogs/{logId} {
-      allow read: if isSignedIn();
+      allow read: if isStaff();
       allow create: if isSignedIn() && isValidId(logId);
       allow update, delete: if false;
     }

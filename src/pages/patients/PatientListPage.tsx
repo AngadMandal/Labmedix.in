@@ -4,6 +4,7 @@ import { PatientService } from '../../services/patientService';
 import { StorageService } from '../../services/storage';
 import { PortalService, BloodTestBooking, MedicineOrder, PatientReceiptData } from '../../services/portalService';
 import { EMRService } from '../../services/emrService';
+import { ApiSyncService } from '../../services/apiSyncService';
 import { useAuth } from '../../context/AuthContext';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { Button } from '../../components/common/Button';
@@ -16,7 +17,7 @@ import { CardApplicationReviewModal } from '../../components/card/CardApplicatio
 import { PatientRealMoneyTopUpModal } from '../../components/portal/PatientRealMoneyTopUpModal';
 import { DirectLabAndPackageBookingModal } from '../../components/portal/DirectLabAndPackageBookingModal';
 import { DirectMedicineOrderModal } from '../../components/portal/DirectMedicineOrderModal';
-import { Patient, PatientAppointment, CardApplicationRequest } from '../../types';
+import { Patient, PatientAppointment, CardApplicationRequest, HealthCard, Membership, Wallet } from '../../types';
 import { formatDate, formatDateTime, formatCurrency } from '../../utils/formatters';
 import {
   Users,
@@ -54,7 +55,7 @@ import {
   TrendingUp,
   MapPin,
   Stethoscope,
-  Wallet,
+  Wallet as WalletIcon,
   FileCheck,
   Zap,
   Filter,
@@ -93,12 +94,12 @@ export const PatientListPage: React.FC = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  // Core Data
+  // Core Data & Real-time Subscriptions
   const [patients, setPatients] = useState<Patient[]>(() => PatientService.getAll(true));
-  const cards = StorageService.getCards();
-  const memberships = StorageService.getMemberships();
+  const [cards, setCards] = useState<HealthCard[]>(() => StorageService.getCards());
+  const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getMemberships());
   const company = StorageService.getCompanyProfile();
-  const wallets = StorageService.getWallets();
+  const [wallets, setWallets] = useState<Wallet[]>(() => StorageService.getWallets());
 
   // Live Cardholder Portal Requests & Applications
   const [labBookings, setLabBookings] = useState<BloodTestBooking[]>(() => PortalService.getLabBookings());
@@ -108,6 +109,9 @@ export const PatientListPage: React.FC = () => {
 
   const refreshList = () => {
     setPatients(PatientService.getAll(true));
+    setCards(StorageService.getCards());
+    setMemberships(StorageService.getMemberships());
+    setWallets(StorageService.getWallets());
     setLabBookings(PortalService.getLabBookings());
     setPharmacyOrders(PortalService.getPharmacyOrders());
     setAppointments(EMRService.getAllAppointments());
@@ -116,9 +120,37 @@ export const PatientListPage: React.FC = () => {
   };
 
   useEffect(() => {
+    const unsubPatients = ApiSyncService.subscribeToCollection<Patient>('patients', (items) => {
+      if (items && items.length > 0) setPatients(items);
+    });
+    const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
+      if (items && items.length > 0) setCards(items);
+    });
+    const unsubMemberships = ApiSyncService.subscribeToCollection<Membership>('memberships', (items) => {
+      if (items && items.length > 0) setMemberships(items);
+    });
+    const unsubWallets = ApiSyncService.subscribeToCollection<Wallet>('wallets', (items) => {
+      if (items && items.length > 0) setWallets(items);
+    });
+    const unsubLab = ApiSyncService.subscribeToCollection<BloodTestBooking>('labBookings', (items) => {
+      if (items && items.length > 0) setLabBookings(items);
+    });
+    const unsubPharmacy = ApiSyncService.subscribeToCollection<MedicineOrder>('pharmacyOrders', (items) => {
+      if (items && items.length > 0) setPharmacyOrders(items);
+    });
+    const unsubAppointments = ApiSyncService.subscribeToCollection<PatientAppointment>('appointments', (items) => {
+      if (items && items.length > 0) setAppointments(items);
+    });
+    const unsubCardApps = ApiSyncService.subscribeToCollection<CardApplicationRequest>('cardApplications', (items) => {
+      if (items && items.length > 0) setCardApplications(items);
+    });
+
     const handleSync = (e: any) => {
       if (!e.detail || ['labmedix_patients_v1', 'labmedix_portal_card_applications_v1', 'labmedix_portal_lab_bookings_v1', 'labmedix_portal_pharmacy_orders_v1'].includes(e.detail.key)) {
         setPatients(PatientService.getAll(true));
+        setCards(StorageService.getCards());
+        setMemberships(StorageService.getMemberships());
+        setWallets(StorageService.getWallets());
         setLabBookings(PortalService.getLabBookings());
         setPharmacyOrders(PortalService.getPharmacyOrders());
         setAppointments(EMRService.getAllAppointments());
@@ -126,7 +158,18 @@ export const PatientListPage: React.FC = () => {
       }
     };
     window.addEventListener('labmedix_data_synced', handleSync as EventListener);
-    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+
+    return () => {
+      unsubPatients();
+      unsubCards();
+      unsubMemberships();
+      unsubWallets();
+      unsubLab();
+      unsubPharmacy();
+      unsubAppointments();
+      unsubCardApps();
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    };
   }, []);
 
   const handleSoftDelete = (id: string, name: string) => {
@@ -712,7 +755,7 @@ export const PatientListPage: React.FC = () => {
               title="Deposit Real Money to Health Wallet"
               onClick={() => setActivePatientForTopUp(p)}
             >
-              <Wallet className="w-4 h-4 text-emerald-600" />
+              <WalletIcon className="w-4 h-4 text-emerald-600" />
             </Button>
 
             <Button
@@ -1664,7 +1707,7 @@ export const PatientListPage: React.FC = () => {
                         title="Top Up Wallet"
                         onClick={() => setActivePatientForTopUp(p)}
                       >
-                        <Wallet className="w-3 h-3 mr-1" />
+                        <WalletIcon className="w-3 h-3 mr-1" />
                         Top-Up
                       </Button>
 
