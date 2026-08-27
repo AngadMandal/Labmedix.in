@@ -156,6 +156,22 @@ const processBackupQueue = async () => {
   }
 };
 
+// Independent Server-Side Periodic Backup Process (runs every 5 minutes independently of browser session)
+setInterval(async () => {
+  if (activeGoogleToken) {
+    try {
+      const store = getCentralStore();
+      if (store && Object.keys(store).length > 0) {
+        backupQueue = store;
+        await processBackupQueue();
+        console.log('[ServerBackup] Independent periodic backup executed successfully.');
+      }
+    } catch (e: any) {
+      console.error('[ServerBackup] Independent periodic backup error:', e?.message || e);
+    }
+  }
+}, 300000);
+
 // Run backup queue check every 2 minutes
 setInterval(processBackupQueue, 120000);
 
