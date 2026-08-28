@@ -27,6 +27,7 @@ export const DEFAULT_COMPANY_PROFILE: CompanyProfile = {
   cardFooterNotice: 'Present this card or digital QR at LABMEDIX front desk to redeem medical discounts.',
   cardSecurityWatermark: 'LABMEDIX SECURE HEALTHCARE • AngadMandal/Labmedix.in',
   currencySymbol: '₹',
+  sessionTimeoutMinutes: 15,
   isLocked: true,
   lockedBy: 'Super Administrator',
   services: [

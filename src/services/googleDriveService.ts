@@ -248,4 +248,51 @@ export class GoogleDriveService {
     AuditService.log('GOOGLE_DRIVE_DOWNLOAD', 'backup', `Downloaded and verified backup from Google Drive [File ID: ${fileId}]`);
     return backupJson;
   }
+
+  /** Get real-time vault analytics: storage usage, last backup timestamp, and total file count */
+  public static async getVaultStats(accessToken: string): Promise<{ totalFiles: number; totalSizeBytes: number; lastBackupTime: string | null; quota?: { limit: number; usage: number } }> {
+    try {
+      const folderId = await this.getOrCreateBackupFolder(accessToken);
+      const query = `'${folderId}' in parents and trashed=false`;
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&orderBy=createdTime desc&fields=files(id,name,createdTime,size)`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch files');
+      const data = await res.json();
+      const files = data.files || [];
+      
+      let totalSize = 0;
+      for (const f of files) {
+        if (f.size) totalSize += Number(f.size);
+      }
+
+      const lastBackupTime = files.length > 0 ? files[0].createdTime : null;
+
+      let quota = undefined;
+      try {
+        const aboutRes = await fetch('https://www.googleapis.com/drive/v3/about?fields=storageQuota', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (aboutRes.ok) {
+          const aboutData = await aboutRes.json();
+          if (aboutData.storageQuota) {
+            quota = {
+              limit: Number(aboutData.storageQuota.limit || 15 * 1024 * 1024 * 1024),
+              usage: Number(aboutData.storageQuota.usage || 0)
+            };
+          }
+        }
+      } catch {}
+
+      return {
+        totalFiles: files.length,
+        totalSizeBytes: totalSize,
+        lastBackupTime,
+        quota
+      };
+    } catch (e) {
+      console.warn('[GoogleDrive] Failed to get vault stats:', e);
+      throw e;
+    }
+  }
 }

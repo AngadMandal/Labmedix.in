@@ -1,11 +1,21 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import configFile from '../../firebase-applet-config.json';
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const config = {
+  ...configFile,
+  apiKey: "AIzaSyBNaCHTH6cWJ1AdygG42bKugjtHNRg05ys",
+  authDomain: "gen-lang-client-0076489895.firebaseapp.com",
+  projectId: "gen-lang-client-0076489895",
+  storageBucket: "gen-lang-client-0076489895.firebasestorage.app",
+  messagingSenderId: "451271134982",
+  appId: "1:451271134982:web:defaee0de0069f4732d887"
+};
+
+const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
 export const auth = getAuth(app);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || 'ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8');
+export const db = getFirestore(app, (config as any).firestoreDatabaseId || 'ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8');
 
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.warn('Firebase setPersistence warning:', err);

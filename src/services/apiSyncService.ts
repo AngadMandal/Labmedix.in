@@ -43,25 +43,30 @@ export class ApiSyncService {
   }
 
   /** Generic save or update document in Firestore */
-  public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<void> {
+  public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<boolean> {
     try {
       const docRef = doc(db, collectionName, id);
+      const sanitized = JSON.parse(JSON.stringify(data));
       await setDoc(docRef, {
-        ...data,
+        ...sanitized,
         updatedAt: new Date().toISOString()
       }, { merge: true });
+      return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `${collectionName}/${id}`);
+      console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id} (Operating offline or permission restricted):`, error);
+      return false;
     }
   }
 
   /** Generic delete document from Firestore */
-  public static async deleteDocument(collectionName: string, id: string): Promise<void> {
+  public static async deleteDocument(collectionName: string, id: string): Promise<boolean> {
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
+      return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${id}`);
+      console.warn(`[ApiSync] Firestore delete notice for ${collectionName}/${id}:`, error);
+      return false;
     }
   }
 
@@ -145,7 +150,8 @@ export class ApiSyncService {
         }
       } else if (config.type === 'doc' && typeof value === 'object') {
         const docRef = doc(db, config.path);
-        await setDoc(docRef, { ...value, updatedAt: new Date().toISOString() }, { merge: true });
+        const sanitized = JSON.parse(JSON.stringify(value));
+        await setDoc(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
       }
     } catch (e) {
       console.warn(`[ApiSync] Firestore sync failed for ${key}:`, e);
@@ -439,4 +445,92 @@ export class ApiSyncService {
       return { success: false, error: error.message || 'Transaction failed' };
     }
   }
+
+  /** 🔄 Real-Time Multi-Device Cloud Sync Engine: Keeps all devices synchronized in 1 unified cloud store */
+  public static initLiveCloudListeners(onDataSynced?: (collectionName: string, items: any[]) => void): () => void {
+    const unsubscribers: (() => void)[] = [];
+
+    const syncTargets = [
+      { col: 'patients', storageKey: 'labmedix_patients_v1' },
+      { col: 'cards', storageKey: 'labmedix_cards_v1' },
+      { col: 'wallets', storageKey: 'labmedix_wallets_v1' },
+      { col: 'transactions', storageKey: 'labmedix_transactions_v1' },
+      { col: 'vouchers', storageKey: 'LABMEDIX_CASH_DESK_VOUCHERS_V1' },
+      { col: 'auditLogs', storageKey: 'labmedix_audit_logs_v1' },
+      { col: 'families', storageKey: 'labmedix_families_v1' },
+      { col: 'memberships', storageKey: 'labmedix_memberships_v1' }
+    ];
+
+    for (const target of syncTargets) {
+      try {
+        const unsub = this.subscribeToCollection<any>(target.col, (items) => {
+          if (items && items.length > 0) {
+            try {
+              localStorage.setItem(target.storageKey, JSON.stringify(items));
+              if (onDataSynced) onDataSynced(target.col, items);
+            } catch (e) {
+              console.warn(`[ApiSync] Failed to update local storage for ${target.col}:`, e);
+            }
+          }
+        });
+        unsubscribers.push(unsub);
+      } catch (e) {
+        console.warn(`[ApiSync] Failed to setup live listener for ${target.col}:`, e);
+      }
+    }
+
+    return () => {
+      for (const unsub of unsubscribers) {
+        try { unsub(); } catch {}
+      }
+    };
+  }
+
+  /** ⚡ Advanced Background Worker Queue & Automated Timeline Sync Engine */
+  private static workerQueue: Array<{ collection: string; id: string; data: any; retries: number }> = [];
+  private static workerRunning = false;
+  private static lastTimelineSyncTime = new Date().toISOString();
+  private static processedQueueCount = 0;
+
+  public static enqueueWorkerTask(collection: string, id: string, data: any) {
+    this.workerQueue.push({ collection, id, data, retries: 0 });
+    this.triggerWorkerExecution();
+  }
+
+  public static async triggerWorkerExecution(): Promise<void> {
+    if (this.workerRunning || this.workerQueue.length === 0) return;
+    this.workerRunning = true;
+
+    while (this.workerQueue.length > 0) {
+      const task = this.workerQueue.shift();
+      if (!task) break;
+
+      try {
+        const success = await this.saveDocument(task.collection, task.id, task.data);
+        if (success) {
+          this.processedQueueCount++;
+          this.lastTimelineSyncTime = new Date().toISOString();
+        } else if (task.retries < 3) {
+          task.retries++;
+          this.workerQueue.push(task); // Re-queue for retry
+        }
+      } catch (err) {
+        console.warn(`[BackgroundWorker] Task failed for ${task.collection}/${task.id}:`, err);
+      }
+    }
+
+    this.workerRunning = false;
+  }
+
+  public static getWorkerMetrics() {
+    return {
+      pendingQueueSize: this.workerQueue.length,
+      processedCount: this.processedQueueCount,
+      lastSyncTime: this.lastTimelineSyncTime,
+      isWorking: this.workerRunning,
+      projectId: "gen-lang-client-0076489895",
+      databaseId: "ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8"
+    };
+  }
 }
+

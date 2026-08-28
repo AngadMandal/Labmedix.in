@@ -353,6 +353,9 @@ export interface AuditLog {
   userAgent?: string;
   prevHash?: string;
   hash?: string;
+  digitalSignature?: string;
+  merkleRoot?: string;
+  nonce?: number;
   metadata?: Record<string, any>;
 }
 
@@ -406,6 +409,7 @@ export interface CompanyProfile {
   cardFooterNotice?: string;
   cardSecurityWatermark?: string;
   currencySymbol?: string;
+  sessionTimeoutMinutes?: number;
   isLocked?: boolean;
   lockedAt?: string;
   lockedBy?: string;

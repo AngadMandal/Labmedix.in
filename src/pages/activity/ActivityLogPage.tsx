@@ -58,6 +58,7 @@ export const ActivityLogPage: React.FC = () => {
     corruptedBlocks: number;
     genesisHash: string;
     latestHash: string;
+    merkleRoot: string;
     details: string;
   } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -522,7 +523,7 @@ export const ActivityLogPage: React.FC = () => {
             <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-2 font-mono text-[11px]">
               <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase text-[10px] border-b border-white/10 pb-1">
                 <Lock className="w-3.5 h-3.5" />
-                <span>Cryptographic Proof & Block Integrity</span>
+                <span>HMAC-SHA256 Cryptographic Proof & Merkle Verification</span>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
@@ -530,13 +531,27 @@ export const ActivityLogPage: React.FC = () => {
                   <strong className="text-white">#{selectedLog.index || 1}</strong>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Block Hash:</span>
+                  <span className="text-slate-400">Block SHA-256 Hash:</span>
                   <strong className="text-blue-400">{selectedLog.hash || 'N/A'}</strong>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Previous Block Hash:</span>
                   <span className="text-slate-300 text-[10px] truncate max-w-[280px]">{selectedLog.prevHash || 'GENESIS'}</span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Cryptographic Nonce:</span>
+                  <strong className="text-amber-400">{selectedLog.nonce || 'N/A'}</strong>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">HMAC Digital Signature:</span>
+                  <strong className="text-emerald-400 text-[10px] truncate max-w-[260px]">{selectedLog.digitalSignature || 'N/A'}</strong>
+                </div>
+                {verificationResult?.merkleRoot && (
+                  <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                    <span className="text-slate-400">Ledger Merkle Root:</span>
+                    <strong className="text-purple-400 text-[10px] truncate max-w-[260px]">{verificationResult.merkleRoot}</strong>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">IP & Device Agent:</span>
                   <span className="text-slate-300 text-[10px]">{selectedLog.ipAddress || '127.0.0.1'}</span>

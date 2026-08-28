@@ -29,7 +29,7 @@ export const IdleSessionWarningModal: React.FC = () => {
           </h3>
 
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            You have been inactive for nearly 15 minutes. To protect sensitive clinical data and patient privacy, your session will automatically terminate in:
+            You have been inactive. To protect sensitive clinical data and patient privacy in accordance with hospital security protocols, your session will automatically log out in:
           </p>
 
           <div className="py-2">

@@ -2,13 +2,25 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { User, Role, Permission } from '../types';
 import { AuthService } from '../services/authService';
 import { StorageService } from '../services/storage';
+import { ApiSyncService } from '../services/apiSyncService';
 import { AuditService } from '../services/auditService';
 import { checkUserPermission, checkUserModuleAccess, SystemModuleKey } from '../constants/roles';
 
-// 15 Minutes Inactivity Limit (in milliseconds)
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
-// Warning Threshold (1 minute before timeout)
-const IDLE_WARNING_MS = 14 * 60 * 1000;
+// Dynamic Session Timeout from Company Profile (default 15 minutes)
+const getIdleTimeouts = () => {
+  try {
+    const profile = StorageService.getCompanyProfile();
+    const mins = profile.sessionTimeoutMinutes || 15;
+    const timeout = mins * 60 * 1000;
+    return {
+      timeoutMs: timeout,
+      warningMs: Math.max(0, timeout - 60000),
+      mins
+    };
+  } catch {
+    return { timeoutMs: 15 * 60 * 1000, warningMs: 14 * 60 * 1000, mins: 15 };
+  }
+};
 const LAST_ACTIVITY_KEY = 'labmedix_last_active_ts';
 
 interface AuthContextType {
@@ -65,14 +77,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       setCurrentUser(user);
       recordActivity();
+      try {
+        localStorage.setItem('labmedix_auth_locked_user', JSON.stringify(user));
+      } catch {}
     }
+
+    // 🔄 Cross-tab session sync listener
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'labmedix_current_user_v1' || e.key === 'labmedix_auth_locked_user') {
+        const updatedUser = StorageService.getCurrentUser();
+        setCurrentUser(updatedUser);
+      }
+      if (e.key === 'labmedix_screen_locked_v1') {
+        setIsLocked(StorageService.isScreenLocked());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     // 🔒 SECURE STORAGE: Force-sync all data to IndexedDB backup on startup
     StorageService.forceSyncToIndexedDB().catch(() => {});
-    // 🔄 AUTO-SYNC every 5 minutes (protects mobile users from browser eviction)
+    // 🔄 LIVE CLOUD MULTI-DEVICE SYNC ENGINE
+    const unsubscribeCloud = ApiSyncService.initLiveCloudListeners();
+
+    // 🔄 AUTO-SYNC every 3 minutes (protects mobile users from browser eviction)
     const syncInterval = setInterval(() => {
       StorageService.forceSyncToIndexedDB().catch(() => {});
-    }, 5 * 60 * 1000);
-    return () => clearInterval(syncInterval);
+    }, 3 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      unsubscribeCloud();
+      clearInterval(syncInterval);
+    };
   }, [recordActivity]);
 
   // ─────────────────────────────────────────────────────────────
@@ -105,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check inactivity every 2 seconds
     idleCheckIntervalRef.current = setInterval(() => {
+      const { timeoutMs, warningMs, mins } = getIdleTimeouts();
       const now = Date.now();
       let storedLast = now;
       try {
@@ -117,21 +154,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const effectiveLastActivity = Math.max(lastActivityRef.current, storedLast);
       const elapsed = now - effectiveLastActivity;
 
-      if (elapsed >= IDLE_TIMEOUT_MS) {
-        // Inactivity limit reached: Lock screen to preserve permanent login session while protecting data
+      if (elapsed >= timeoutMs) {
+        // Inactivity limit reached: Automatic logout for sensitive clinical data security compliance
         clearInterval(idleCheckIntervalRef.current);
         AuditService.log(
-          'SECURE_SESSION_LOCKED_IDLE',
+          'AUTOMATIC_SESSION_TIMEOUT_LOGOUT',
           'security',
-          `Automated Screen Lock activated: User ${currentUser.username} (${currentUser.fullName}) was inactive for 15 minutes. Session protected behind Screen Lock.`,
+          `Automated Session Logout: User ${currentUser.username} (${currentUser.fullName}) was inactive for ${mins} minutes. Session terminated to secure sensitive patient records.`,
           currentUser.id
         );
-        setIsLocked(true);
-        StorageService.setScreenLocked(true);
+        logout();
         setIsIdleWarningOpen(false);
-      } else if (elapsed >= IDLE_WARNING_MS) {
+      } else if (elapsed >= warningMs) {
         // 60-second warning state
-        const remainingSeconds = Math.max(0, Math.ceil((IDLE_TIMEOUT_MS - elapsed) / 1000));
+        const remainingSeconds = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
         setIdleSecondsRemaining(remainingSeconds);
         setIsIdleWarningOpen(true);
       } else {
@@ -171,6 +207,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(res.user);
       setIsLocked(false);
       StorageService.setScreenLocked(false);
+      try {
+        localStorage.setItem('labmedix_auth_locked_user', JSON.stringify(res.user));
+      } catch {}
       recordActivity();
       return { success: true };
     }
