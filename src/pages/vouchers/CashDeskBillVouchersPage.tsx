@@ -83,6 +83,16 @@ export const CashDeskBillVouchersPage: React.FC = () => {
     setVouchers(CashDeskVoucherService.getPublicVouchers());
   };
 
+  React.useEffect(() => {
+    const handleSync = () => {
+      refreshVouchers();
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => {
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    };
+  }, []);
+
   const metrics = useMemo(() => CashDeskVoucherService.getVoucherMetrics(), [vouchers]);
 
   // Filtered vouchers

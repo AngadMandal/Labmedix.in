@@ -1,5 +1,5 @@
 import { BackupData, SnapshotRecord } from '../types';
-import { StorageService } from './storage';
+import { StorageService, STORAGE_KEYS } from './storage';
 import { AuditService } from './auditService';
 import { generateUuid } from '../utils/idGenerator';
 
@@ -49,6 +49,21 @@ export class BackupService {
     const companyProfile = StorageService.getCompanyProfile();
     const users = StorageService.getUsers();
 
+    // Comprehensive Module Datasets
+    const appointments = StorageService.getItem(STORAGE_KEYS.APPOINTMENTS, []);
+    const emrEncounters = StorageService.getItem(STORAGE_KEYS.EMR_ENCOUNTERS, []);
+    const doctors = StorageService.getItem(STORAGE_KEYS.DOCTORS, []);
+    const doctorPayouts = StorageService.getItem(STORAGE_KEYS.DOCTOR_PAYOUTS, []);
+    const labTests = StorageService.getItem(STORAGE_KEYS.LAB_TESTS, []);
+    const healthPackages = StorageService.getItem(STORAGE_KEYS.HEALTH_PACKAGES, []);
+    const portalLabBookings = StorageService.getItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []);
+    const portalPharmacyOrders = StorageService.getItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []);
+    const portalCardApplications = StorageService.getItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []);
+    const websiteCms = StorageService.getItem(STORAGE_KEYS.WEBSITE_CMS, null);
+    const integrations = StorageService.getItem(STORAGE_KEYS.INTEGRATIONS, null);
+    const cashVouchers = StorageService.getItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, []);
+    const recoveryVault = StorageService.getItem(STORAGE_KEYS.RECOVERY_VAULT, []);
+
     const dataPayload = {
       patients,
       healthCards,
@@ -58,7 +73,20 @@ export class BackupService {
       walletTransactions,
       auditLogs,
       companyProfile,
-      users
+      users,
+      appointments,
+      emrEncounters,
+      doctors,
+      doctorPayouts,
+      labTests,
+      healthPackages,
+      portalLabBookings,
+      portalPharmacyOrders,
+      portalCardApplications,
+      websiteCms,
+      integrations,
+      cashVouchers,
+      recoveryVault
     };
 
     const rawStr = JSON.stringify(dataPayload);
@@ -368,7 +396,7 @@ export class BackupService {
         this.createSnapshot(`Pre-Restore Fallback Point (${new Date().toLocaleTimeString()})`, 'pre-restore');
       }
 
-      const d = backup.data;
+      const d = backup.data as any;
       if (d.patients) StorageService.savePatients(d.patients);
       if (d.healthCards) StorageService.saveCards(d.healthCards);
       if (d.memberships) StorageService.saveMemberships(d.memberships);
@@ -377,6 +405,19 @@ export class BackupService {
       if (d.walletTransactions) StorageService.saveTransactions(d.walletTransactions);
       if (d.companyProfile) StorageService.saveCompanyProfile(d.companyProfile);
       if (d.users) StorageService.saveUsers(d.users);
+      if (d.appointments) StorageService.setItem(STORAGE_KEYS.APPOINTMENTS, d.appointments);
+      if (d.emrEncounters) StorageService.setItem(STORAGE_KEYS.EMR_ENCOUNTERS, d.emrEncounters);
+      if (d.doctors) StorageService.setItem(STORAGE_KEYS.DOCTORS, d.doctors);
+      if (d.doctorPayouts) StorageService.setItem(STORAGE_KEYS.DOCTOR_PAYOUTS, d.doctorPayouts);
+      if (d.labTests) StorageService.setItem(STORAGE_KEYS.LAB_TESTS, d.labTests);
+      if (d.healthPackages) StorageService.setItem(STORAGE_KEYS.HEALTH_PACKAGES, d.healthPackages);
+      if (d.portalLabBookings) StorageService.setItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, d.portalLabBookings);
+      if (d.portalPharmacyOrders) StorageService.setItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, d.portalPharmacyOrders);
+      if (d.portalCardApplications) StorageService.setItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, d.portalCardApplications);
+      if (d.websiteCms) StorageService.setItem(STORAGE_KEYS.WEBSITE_CMS, d.websiteCms);
+      if (d.integrations) StorageService.setItem(STORAGE_KEYS.INTEGRATIONS, d.integrations);
+      if (d.cashVouchers) StorageService.setItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, d.cashVouchers);
+      if (d.recoveryVault) StorageService.setItem(STORAGE_KEYS.RECOVERY_VAULT, d.recoveryVault);
 
       AuditService.log('BACKUP_RESTORED', 'backup', `Successfully restored backup dated ${backup.createdDate} (Records: ${backup.recordCounts?.patients || 0} Patients, ${backup.recordCounts?.healthCards || 0} Cards)`);
       return { success: true, message: 'Database restored successfully with pre-flight safety snapshot created!' };

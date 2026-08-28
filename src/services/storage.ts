@@ -530,9 +530,12 @@ export class StorageService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value })
       }).catch(() => {});
+
+      // 7. Direct Firestore Cloud Database Sync for second-by-second multi-device sync
+      ApiSyncService.syncKeyToFirestore(key, value).catch(() => {});
     }
 
-    // 7. Trigger Live Backup to Google Drive if configured
+    // 8. Trigger Live Backup to Google Drive if configured
     GoogleDriveService.triggerAutoBackup();
   }
 
@@ -811,7 +814,23 @@ export class StorageService {
       } catch {}
     }, 1000);
 
-    // 5. Auto-Periodic deep sync every 3 minutes
+    // 5. Real-Time Cloud Firestore Listener Subscription (Second-by-second websocket push across all devices)
+    try {
+      ApiSyncService.subscribeToAll((key, val) => {
+        if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) return;
+        const currentValStr = localStorage.getItem(key);
+        const newValStr = JSON.stringify(val);
+        if (currentValStr !== newValStr) {
+          StorageService.memoryCache.set(key, val);
+          try { localStorage.setItem(key, newValStr); } catch {}
+          window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
+        }
+      });
+    } catch (e) {
+      console.warn('[LABMEDIX] Realtime Firestore subscribe error:', e);
+    }
+
+    // 6. Auto-Periodic deep sync every 3 minutes
     setInterval(() => {
       StorageService.forceSyncToIndexedDB().catch(() => {});
     }, 180000);
@@ -841,7 +860,20 @@ export class StorageService {
 
     // 1.5 Cloud Firestore Cross-Device Hydration (Ensures seamless multi-device login data sync)
     try {
-      const [cloudPatients, cloudCards, cloudApps, cloudWallets, cloudTxns, cloudAudit, cloudUsers, cloudMemberships] = await Promise.all([
+      const [
+        cloudPatients,
+        cloudCards,
+        cloudApps,
+        cloudWallets,
+        cloudTxns,
+        cloudAudit,
+        cloudUsers,
+        cloudMemberships,
+        cloudAppointments,
+        cloudLabBookings,
+        cloudPharmacyOrders,
+        cloudVouchers
+      ] = await Promise.all([
         ApiSyncService.fetchCollection<Patient>('patients').catch(() => []),
         ApiSyncService.fetchCollection<HealthCard>('cards').catch(() => []),
         ApiSyncService.fetchCollection<any>('cardApplications').catch(() => []),
@@ -849,49 +881,38 @@ export class StorageService {
         ApiSyncService.fetchCollection<WalletTransaction>('transactions').catch(() => []),
         ApiSyncService.fetchCollection<AuditLog>('auditLogs').catch(() => []),
         ApiSyncService.fetchCollection<User>('users').catch(() => []),
-        ApiSyncService.fetchCollection<Membership>('memberships').catch(() => [])
+        ApiSyncService.fetchCollection<Membership>('memberships').catch(() => []),
+        ApiSyncService.fetchCollection<any>('appointments').catch(() => []),
+        ApiSyncService.fetchCollection<any>('labBookings').catch(() => []),
+        ApiSyncService.fetchCollection<any>('pharmacyOrders').catch(() => []),
+        ApiSyncService.fetchCollection<any>('vouchers').catch(() => [])
       ]);
 
-      if (cloudPatients.length > 0) {
-        const existing = StorageService.getItem<Patient[]>(STORAGE_KEYS.PATIENTS, []);
-        const merged = [...cloudPatients, ...existing.filter(e => !cloudPatients.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.PATIENTS, merged);
-      }
-      if (cloudCards.length > 0) {
-        const existing = StorageService.getItem<HealthCard[]>(STORAGE_KEYS.CARDS, []);
-        const merged = [...cloudCards, ...existing.filter(e => !cloudCards.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.CARDS, merged);
-      }
-      if (cloudApps.length > 0) {
-        const existing = StorageService.getItem<any[]>(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []);
-        const merged = [...cloudApps, ...existing.filter(e => !cloudApps.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, merged);
-      }
-      if (cloudWallets.length > 0) {
-        const existing = StorageService.getItem<Wallet[]>(STORAGE_KEYS.WALLETS, []);
-        const merged = [...cloudWallets, ...existing.filter(e => !cloudWallets.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.WALLETS, merged);
-      }
-      if (cloudTxns.length > 0) {
-        const existing = StorageService.getItem<WalletTransaction[]>(STORAGE_KEYS.TRANSACTIONS, []);
-        const merged = [...cloudTxns, ...existing.filter(e => !cloudTxns.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.TRANSACTIONS, merged);
-      }
-      if (cloudAudit.length > 0) {
-        const existing = StorageService.getItem<AuditLog[]>(STORAGE_KEYS.AUDIT_LOGS, []);
-        const merged = [...cloudAudit, ...existing.filter(e => !cloudAudit.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.AUDIT_LOGS, merged);
-      }
-      if (cloudUsers.length > 0) {
-        const existing = StorageService.getItem<User[]>(STORAGE_KEYS.USERS, []);
-        const merged = [...cloudUsers, ...existing.filter(e => !cloudUsers.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.USERS, merged);
-      }
-      if (cloudMemberships.length > 0) {
-        const existing = StorageService.getItem<Membership[]>(STORAGE_KEYS.MEMBERSHIPS, []);
-        const merged = [...cloudMemberships, ...existing.filter(e => !cloudMemberships.some(c => c.id === e.id))];
-        StorageService.setItem(STORAGE_KEYS.MEMBERSHIPS, merged);
-      }
+      const syncEntity = <T>(cloudItems: T[], key: string) => {
+        if (cloudItems && cloudItems.length > 0) {
+          StorageService.memoryCache.set(key, cloudItems);
+          try { localStorage.setItem(key, JSON.stringify(cloudItems)); } catch {}
+          window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: cloudItems } }));
+        } else {
+          const localItems = StorageService.getItem<T[]>(key, []);
+          if (localItems && localItems.length > 0) {
+            ApiSyncService.syncKeyToFirestore(key, localItems).catch(() => {});
+          }
+        }
+      };
+
+      syncEntity(cloudPatients, STORAGE_KEYS.PATIENTS);
+      syncEntity(cloudCards, STORAGE_KEYS.CARDS);
+      syncEntity(cloudApps, STORAGE_KEYS.PORTAL_CARD_APPLICATIONS);
+      syncEntity(cloudWallets, STORAGE_KEYS.WALLETS);
+      syncEntity(cloudTxns, STORAGE_KEYS.TRANSACTIONS);
+      syncEntity(cloudAudit, STORAGE_KEYS.AUDIT_LOGS);
+      syncEntity(cloudUsers, STORAGE_KEYS.USERS);
+      syncEntity(cloudMemberships, STORAGE_KEYS.MEMBERSHIPS);
+      syncEntity(cloudAppointments, STORAGE_KEYS.APPOINTMENTS);
+      syncEntity(cloudLabBookings, STORAGE_KEYS.PORTAL_LAB_BOOKINGS);
+      syncEntity(cloudPharmacyOrders, STORAGE_KEYS.PORTAL_PHARMACY_ORDERS);
+      syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
     } catch (e) {
       console.warn('[LABMEDIX] Cloud Firestore cross-device sync hydration warning:', e);
     }

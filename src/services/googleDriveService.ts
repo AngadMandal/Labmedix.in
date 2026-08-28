@@ -124,6 +124,9 @@ export class GoogleDriveService {
     const fileMeta = await uploadRes.json();
     AuditService.log('GOOGLE_DRIVE_UPLOAD', 'backup', `Successfully uploaded database backup to Google Drive: ${fileName}`);
 
+    // Update single master unified database file in-place on Google Drive
+    await this.syncMasterDatabase(accessToken, folderId, backupData);
+
     // Manage rolling backups (Keep only latest 5)
     await this.pruneOldBackups(accessToken, folderId);
 
@@ -132,6 +135,57 @@ export class GoogleDriveService {
       fileName,
       size: new Blob([jsonString]).size
     };
+  }
+
+  /** Update or initialize single consolidated master database file on Google Drive */
+  private static async syncMasterDatabase(accessToken: string, folderId: string, backupData: BackupData) {
+    try {
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const masterName = 'LABMEDIX_MASTER_DATABASE.json';
+      const query = `'${folderId}' in parents and name='${masterName}' and trashed=false`;
+      
+      const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      if (!searchRes.ok) return;
+      const searchData = await searchRes.json();
+      
+      const metadata = {
+        name: masterName,
+        description: `LABMEDIX Unified Master Cloud Database Vault (Last Updated: ${new Date().toISOString()})`,
+        mimeType: 'application/json'
+      };
+
+      if (searchData.files && searchData.files.length > 0) {
+        // Update existing single master file in-place on Google Drive
+        const existingMasterId = searchData.files[0].id;
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', new Blob([jsonString], { type: 'application/json' }));
+
+        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingMasterId}?uploadType=multipart`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form
+        });
+        console.info('[Google Drive Sync] Unified master cloud database (LABMEDIX_MASTER_DATABASE.json) updated in-place.');
+      } else {
+        // Create new single master file inside folder
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify({ ...metadata, parents: [folderId] })], { type: 'application/json' }));
+        form.append('file', new Blob([jsonString], { type: 'application/json' }));
+
+        await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form
+        });
+        console.info('[Google Drive Sync] Unified master cloud database (LABMEDIX_MASTER_DATABASE.json) initialized.');
+      }
+    } catch (err) {
+      console.warn('[Google Drive Sync] Failed to update master database file on Drive:', err);
+    }
   }
 
   /** Delete older backups, keeping only the most recent 5 */

@@ -140,6 +140,16 @@ export const DoctorEMRPage: React.FC = () => {
     if (queue.length > 0 && !queue.some(q => q.patientId === selectedPatientId)) {
       setSelectedPatientId(queue[0].patientId);
     }
+
+    const handleSync = () => {
+      setEncounters(EMRService.getAllEncounters());
+      setWaitingQueue(EMRService.getWaitingQueue(activeDoctorName));
+      setAppointments(EMRService.getAllAppointments());
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => {
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    };
   }, [activeDoctorName, currentUser?.username]);
 
   const activeQueueItem = useMemo(() => {

@@ -185,7 +185,42 @@ const processBackupQueue = async () => {
       throw new Error('Integrity verification failed: Backup file is empty or invalid.');
     }
     
-    // 3. Mark successful & get existing backups
+    // 3. Update single master file LABMEDIX_MASTER_DATABASE.json in Google Drive
+    try {
+      const masterSearch = await drive.files.list({
+        q: `'${folderId}' in parents and name = 'LABMEDIX_MASTER_DATABASE.json' and trashed = false`,
+        fields: 'files(id, name)'
+      });
+
+      if (masterSearch.data.files && masterSearch.data.files.length > 0) {
+        const masterId = masterSearch.data.files[0].id;
+        await drive.files.update({
+          fileId: masterId,
+          media: {
+            mimeType: 'application/json',
+            body: fileContent
+          }
+        });
+        console.log('[Google Drive Server Sync] Single Master file LABMEDIX_MASTER_DATABASE.json updated successfully.');
+      } else {
+        await drive.files.create({
+          requestBody: {
+            name: 'LABMEDIX_MASTER_DATABASE.json',
+            parents: [folderId],
+            description: 'LABMEDIX Unified Master Cloud Database Vault'
+          },
+          media: {
+            mimeType: 'application/json',
+            body: fileContent
+          }
+        });
+        console.log('[Google Drive Server Sync] Single Master file LABMEDIX_MASTER_DATABASE.json initialized.');
+      }
+    } catch (mErr) {
+      console.warn('[Google Drive Server Sync] Master database update warning:', mErr);
+    }
+
+    // 4. Mark successful & get existing backups
     const response = await drive.files.list({
       q: `'${folderId}' in parents and name contains 'Labmedix_Backup_' and trashed = false`,
       orderBy: 'createdTime desc',

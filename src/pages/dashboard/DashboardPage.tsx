@@ -92,6 +92,17 @@ export const DashboardPage: React.FC = () => {
       if (items && items.length > 0) setUsersList(items);
     });
 
+    const handleSync = () => {
+      setPatientsList(StorageService.getPatients());
+      setCardsList(StorageService.getCards());
+      setMembershipsList(StorageService.getMemberships());
+      setWalletsList(StorageService.getWallets());
+      setTransactionsList(StorageService.getTransactions());
+      setAuditLogsList(StorageService.getAuditLogs());
+      setUsersList(StorageService.getUsers());
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+
     return () => {
       unsubPatients();
       unsubCards();
@@ -100,6 +111,7 @@ export const DashboardPage: React.FC = () => {
       unsubTransactions();
       unsubAudit();
       unsubUsers();
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
     };
   }, []);
 

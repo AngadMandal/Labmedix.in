@@ -119,6 +119,16 @@ export const WalletDashboardPage: React.FC = () => {
     setTransactions(WalletService.getTransactions());
   };
 
+  React.useEffect(() => {
+    const handleSync = () => {
+      refreshData();
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => {
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    };
+  }, []);
+
   // 3D Card Search Engine Execution
   const handlePerform3DCardSearch = (term: string) => {
     const q = term.trim().toLowerCase();

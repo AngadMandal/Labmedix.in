@@ -86,6 +86,111 @@ export class ApiSyncService {
   }
 
   /** Specific sync helpers for core entities */
+  private static KEY_TO_FIRESTORE_MAP: Record<string, { type: 'collection' | 'doc'; path: string }> = {
+    'labmedix_users_v1': { type: 'collection', path: 'users' },
+    'labmedix_patients_v1': { type: 'collection', path: 'patients' },
+    'labmedix_cards_v1': { type: 'collection', path: 'cards' },
+    'labmedix_memberships_v1': { type: 'collection', path: 'memberships' },
+    'labmedix_families_v1': { type: 'collection', path: 'families' },
+    'labmedix_wallets_v1': { type: 'collection', path: 'wallets' },
+    'labmedix_transactions_v1': { type: 'collection', path: 'transactions' },
+    'labmedix_audit_logs_v1': { type: 'collection', path: 'auditLogs' },
+    'labmedix_clinical_encounters': { type: 'collection', path: 'emrEncounters' },
+    'labmedix_patient_appointments_v1': { type: 'collection', path: 'appointments' },
+    'labmedix_doctor_master_records_v1': { type: 'collection', path: 'doctors' },
+    'labmedix_doctor_commission_payouts_v1': { type: 'collection', path: 'doctorPayouts' },
+    'LABMEDIX_TEST_MASTER_LIST': { type: 'collection', path: 'labTests' },
+    'LABMEDIX_HEALTH_PACKAGES_LIST': { type: 'collection', path: 'healthPackages' },
+    'labmedix_portal_lab_bookings_v1': { type: 'collection', path: 'labBookings' },
+    'labmedix_portal_pharmacy_orders_v1': { type: 'collection', path: 'pharmacyOrders' },
+    'labmedix_portal_card_applications_v1': { type: 'collection', path: 'cardApplications' },
+    'LABMEDIX_CASH_DESK_VOUCHERS_V1': { type: 'collection', path: 'vouchers' },
+    'labmedix_sample_dispatches_v1': { type: 'collection', path: 'sampleDispatches' },
+    'labmedix_recovery_vault_v1': { type: 'collection', path: 'recoveryVault' },
+    'labmedix_company_profile_v1': { type: 'doc', path: 'settings/companyProfile' },
+    'LABMEDIX_WEBSITE_CMS_CONFIG': { type: 'doc', path: 'settings/websiteCms' },
+    'labmedix_integrations_v4': { type: 'doc', path: 'settings/integrations' }
+  };
+
+  /** Dynamically sync any STORAGE_KEY value to Firestore */
+  public static async syncKeyToFirestore(key: string, value: any): Promise<void> {
+    const config = this.KEY_TO_FIRESTORE_MAP[key];
+    if (!config || value === undefined || value === null) return;
+
+    try {
+      if (config.type === 'collection' && Array.isArray(value)) {
+        const newIdsSet = new Set<string>();
+        for (const item of value) {
+          if (item && item.id) {
+            newIdsSet.add(String(item.id));
+            await this.saveDocument(config.path, String(item.id), item);
+          }
+        }
+
+        // Clean up orphaned documents in Firestore that were deleted locally
+        try {
+          const snapshot = await getDocs(query(collection(db, config.path)));
+          const deletePromises: Promise<void>[] = [];
+          snapshot.forEach((docSnap) => {
+            if (!newIdsSet.has(docSnap.id)) {
+              deletePromises.push(deleteDoc(doc(db, config.path, docSnap.id)));
+            }
+          });
+          if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
+            console.info(`[ApiSync] Removed ${deletePromises.length} deleted items from Firestore ${config.path}`);
+          }
+        } catch (delErr) {
+          console.warn(`[ApiSync] Cleanup deleted docs error for ${config.path}:`, delErr);
+        }
+      } else if (config.type === 'doc' && typeof value === 'object') {
+        const docRef = doc(db, config.path);
+        await setDoc(docRef, { ...value, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    } catch (e) {
+      console.warn(`[ApiSync] Firestore sync failed for ${key}:`, e);
+    }
+  }
+
+  /** Subscribe to all Firestore collections for real-time second-by-second multi-device sync */
+  public static subscribeToAll(onUpdate: (key: string, value: any) => void): () => void {
+    const unsubs: (() => void)[] = [];
+
+    for (const [key, config] of Object.entries(this.KEY_TO_FIRESTORE_MAP)) {
+      try {
+        if (config.type === 'collection') {
+          const q = query(collection(db, config.path));
+          const unsub = onSnapshot(q, (snapshot) => {
+            const items: any[] = [];
+            snapshot.forEach((docSnap) => {
+              items.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            onUpdate(key, items);
+          }, (err) => {
+            console.warn(`[ApiSync] Realtime subscription error on ${config.path}:`, err);
+          });
+          unsubs.push(unsub);
+        } else if (config.type === 'doc') {
+          const docRef = doc(db, config.path);
+          const unsub = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+              onUpdate(key, docSnap.data());
+            }
+          }, (err) => {
+            console.warn(`[ApiSync] Realtime doc subscription error on ${config.path}:`, err);
+          });
+          unsubs.push(unsub);
+        }
+      } catch (e) {
+        console.warn(`[ApiSync] Failed to subscribe to ${config.path}:`, e);
+      }
+    }
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }
+
   public static async syncPatients(patients: Patient[]): Promise<void> {
     for (const p of patients) {
       if (p.id) {

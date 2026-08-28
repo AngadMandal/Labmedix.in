@@ -247,20 +247,32 @@ export const PatientPortalPage: React.FC = () => {
     return EMRService.getAllEncounters().filter(e => e.patientId === authenticatedPatient.id);
   }, [authenticatedPatient]);
 
+  const [dataSyncTick, setDataSyncTick] = useState(0);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setDataSyncTick(prev => prev + 1);
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => {
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    };
+  }, []);
+
   const labBookings = useMemo(() => {
     if (!authenticatedPatient) return [];
     return PortalService.getLabBookings(authenticatedPatient.id);
-  }, [authenticatedPatient, showBookLabModal]);
+  }, [authenticatedPatient, showBookLabModal, dataSyncTick]);
 
   const pharmacyOrders = useMemo(() => {
     if (!authenticatedPatient) return [];
     return PortalService.getPharmacyOrders(authenticatedPatient.id);
-  }, [authenticatedPatient, showOrderMedicineModal]);
+  }, [authenticatedPatient, showOrderMedicineModal, dataSyncTick]);
 
   const walletTransactions = useMemo(() => {
     if (!authenticatedPatient) return [];
     return WalletService.getTransactions(authenticatedPatient.id);
-  }, [authenticatedPatient, wallet, showTopUpModal]);
+  }, [authenticatedPatient, wallet, showTopUpModal, dataSyncTick]);
 
   const filteredWalletTransactions = useMemo(() => {
     return walletTransactions.filter((t) => {
