@@ -5,9 +5,10 @@ import {
   setDoc, 
   deleteDoc, 
   onSnapshot, 
-  query,
-  runTransaction,
-  getDoc
+  query, 
+  runTransaction, 
+  writeBatch,
+  getDoc 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebaseService';
 import { 
@@ -18,14 +19,32 @@ import {
   WalletTransaction, 
   CashDeskVoucher, 
   User, 
-  Membership,
-  AuditLog,
-  Wallet,
-  FamilyGroup
+  Membership, 
+  AuditLog, 
+  Wallet, 
+  FamilyGroup,
+  SampleDispatchRecord
 } from '../types';
 import { BloodTestBooking, MedicineOrder } from './portalService';
 
+export interface SyncHealthMetrics {
+  status: 'connected' | 'connecting' | 'offline';
+  projectId: string;
+  databaseId: string;
+  activeListenersCount: number;
+  lastSyncTime: string;
+  pendingQueueSize: number;
+  processedCount: number;
+  syncErrorsCount: number;
+  totalCollectionsMonitored: number;
+}
+
 export class ApiSyncService {
+  private static activeUnsubscribers: (() => void)[] = [];
+  private static syncErrors = 0;
+  private static lastSyncTimestamp = new Date().toISOString();
+  private static isConnected = true;
+
   /** Generic fetch collection from Firestore */
   public static async fetchCollection<T>(collectionName: string): Promise<T[]> {
     try {
@@ -35,8 +54,11 @@ export class ApiSyncService {
       snapshot.forEach((docSnap) => {
         items.push({ id: docSnap.id, ...docSnap.data() } as unknown as T);
       });
+      this.lastSyncTimestamp = new Date().toISOString();
+      this.isConnected = true;
       return items;
     } catch (error) {
+      this.syncErrors++;
       console.warn(`[ApiSync] Fallback for fetching ${collectionName} from local storage:`, error);
       return [];
     }
@@ -51,9 +73,12 @@ export class ApiSyncService {
         ...sanitized,
         updatedAt: new Date().toISOString()
       }, { merge: true });
+      this.lastSyncTimestamp = new Date().toISOString();
+      this.isConnected = true;
       return true;
     } catch (error) {
-      console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id} (Operating offline or permission restricted):`, error);
+      this.syncErrors++;
+      console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id}:`, error);
       return false;
     }
   }
@@ -63,10 +88,37 @@ export class ApiSyncService {
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
+      this.lastSyncTimestamp = new Date().toISOString();
       return true;
     } catch (error) {
+      this.syncErrors++;
       console.warn(`[ApiSync] Firestore delete notice for ${collectionName}/${id}:`, error);
       return false;
+    }
+  }
+
+  /** Purge entire collection in Firestore (Batch Deletion) */
+  public static async purgeCollection(collectionName: string): Promise<number> {
+    try {
+      const q = query(collection(db, collectionName));
+      const snapshot = await getDocs(q);
+      let deletedCount = 0;
+
+      const batch = writeBatch(db);
+      snapshot.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+        deletedCount++;
+      });
+
+      if (deletedCount > 0) {
+        await batch.commit();
+        console.info(`[ApiSync] Successfully batch purged ${deletedCount} documents from Firestore collection: ${collectionName}`);
+      }
+      this.lastSyncTimestamp = new Date().toISOString();
+      return deletedCount;
+    } catch (error) {
+      console.warn(`[ApiSync] Failed to purge collection ${collectionName}:`, error);
+      return 0;
     }
   }
 
@@ -79,19 +131,23 @@ export class ApiSyncService {
         snapshot.forEach((docSnap) => {
           items.push({ id: docSnap.id, ...docSnap.data() } as unknown as T);
         });
+        this.lastSyncTimestamp = new Date().toISOString();
+        this.isConnected = true;
         callback(items);
       }, (error) => {
+        this.syncErrors++;
         console.warn(`[ApiSync] Snapshot error on ${collectionName}:`, error);
       });
       return unsubscribe;
     } catch (e) {
+      this.syncErrors++;
       console.warn(`[ApiSync] Failed to subscribe to ${collectionName}:`, e);
       return () => {};
     }
   }
 
-  /** Specific sync helpers for core entities */
-  private static KEY_TO_FIRESTORE_MAP: Record<string, { type: 'collection' | 'doc'; path: string }> = {
+  /** Comprehensive Key-to-Firestore configuration map */
+  public static readonly KEY_TO_FIRESTORE_MAP: Record<string, { type: 'collection' | 'doc'; path: string }> = {
     'labmedix_users_v1': { type: 'collection', path: 'users' },
     'labmedix_patients_v1': { type: 'collection', path: 'patients' },
     'labmedix_cards_v1': { type: 'collection', path: 'cards' },
@@ -112,6 +168,7 @@ export class ApiSyncService {
     'LABMEDIX_CASH_DESK_VOUCHERS_V1': { type: 'collection', path: 'vouchers' },
     'labmedix_sample_dispatches_v1': { type: 'collection', path: 'sampleDispatches' },
     'labmedix_recovery_vault_v1': { type: 'collection', path: 'recoveryVault' },
+    'labmedix_snapshots_v1': { type: 'collection', path: 'snapshots' },
     'labmedix_company_profile_v1': { type: 'doc', path: 'settings/companyProfile' },
     'LABMEDIX_WEBSITE_CMS_CONFIG': { type: 'doc', path: 'settings/websiteCms' },
     'labmedix_integrations_v4': { type: 'doc', path: 'settings/integrations' }
@@ -132,7 +189,7 @@ export class ApiSyncService {
           }
         }
 
-        // Clean up orphaned documents in Firestore that were deleted locally
+        // Clean up documents in Firestore that were deleted or purged locally
         try {
           const snapshot = await getDocs(query(collection(db, config.path)));
           const deletePromises: Promise<void>[] = [];
@@ -143,24 +200,30 @@ export class ApiSyncService {
           });
           if (deletePromises.length > 0) {
             await Promise.all(deletePromises);
-            console.info(`[ApiSync] Removed ${deletePromises.length} deleted items from Firestore ${config.path}`);
+            console.info(`[ApiSync] Cleaned ${deletePromises.length} removed items from Firestore ${config.path}`);
           }
         } catch (delErr) {
-          console.warn(`[ApiSync] Cleanup deleted docs error for ${config.path}:`, delErr);
+          console.warn(`[ApiSync] Cleanup error for ${config.path}:`, delErr);
         }
       } else if (config.type === 'doc' && typeof value === 'object') {
         const docRef = doc(db, config.path);
         const sanitized = JSON.parse(JSON.stringify(value));
         await setDoc(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
       }
+      this.lastSyncTimestamp = new Date().toISOString();
     } catch (e) {
+      this.syncErrors++;
       console.warn(`[ApiSync] Firestore sync failed for ${key}:`, e);
     }
   }
 
-  /** Subscribe to all Firestore collections for real-time second-by-second multi-device sync */
+  /** Subscribe to all Firestore collections for real-time multi-device sync */
   public static subscribeToAll(onUpdate: (key: string, value: any) => void): () => void {
-    const unsubs: (() => void)[] = [];
+    // Unsubscribe existing listeners
+    this.activeUnsubscribers.forEach(u => {
+      try { u(); } catch {}
+    });
+    this.activeUnsubscribers = [];
 
     for (const [key, config] of Object.entries(this.KEY_TO_FIRESTORE_MAP)) {
       try {
@@ -171,134 +234,92 @@ export class ApiSyncService {
             snapshot.forEach((docSnap) => {
               items.push({ id: docSnap.id, ...docSnap.data() });
             });
+            this.lastSyncTimestamp = new Date().toISOString();
+            this.isConnected = true;
             onUpdate(key, items);
           }, (err) => {
+            this.syncErrors++;
             console.warn(`[ApiSync] Realtime subscription error on ${config.path}:`, err);
           });
-          unsubs.push(unsub);
+          this.activeUnsubscribers.push(unsub);
         } else if (config.type === 'doc') {
           const docRef = doc(db, config.path);
           const unsub = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
+              this.lastSyncTimestamp = new Date().toISOString();
+              this.isConnected = true;
               onUpdate(key, docSnap.data());
             }
           }, (err) => {
+            this.syncErrors++;
             console.warn(`[ApiSync] Realtime doc subscription error on ${config.path}:`, err);
           });
-          unsubs.push(unsub);
+          this.activeUnsubscribers.push(unsub);
         }
       } catch (e) {
+        this.syncErrors++;
         console.warn(`[ApiSync] Failed to subscribe to ${config.path}:`, e);
       }
     }
 
     return () => {
-      unsubs.forEach(u => u());
+      this.activeUnsubscribers.forEach(u => {
+        try { u(); } catch {}
+      });
+      this.activeUnsubscribers = [];
     };
   }
 
   public static async syncPatients(patients: Patient[]): Promise<void> {
-    for (const p of patients) {
-      if (p.id) {
-        await this.saveDocument('patients', p.id, p);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_patients_v1', patients);
   }
 
   public static async syncCards(cards: HealthCard[]): Promise<void> {
-    for (const c of cards) {
-      if (c.id) {
-        await this.saveDocument('cards', c.id, c);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_cards_v1', cards);
   }
 
   public static async syncCardApplications(apps: CardApplicationRequest[]): Promise<void> {
-    for (const app of apps) {
-      if (app.id) {
-        await this.saveDocument('cardApplications', app.id, app);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_portal_card_applications_v1', apps);
   }
 
   public static async syncAppointments(appointments: PatientAppointment[]): Promise<void> {
-    for (const apt of appointments) {
-      if (apt.id) {
-        await this.saveDocument('appointments', apt.id, apt);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_patient_appointments_v1', appointments);
   }
 
   public static async syncTransactions(txns: WalletTransaction[]): Promise<void> {
-    for (const tx of txns) {
-      if (tx.id) {
-        await this.saveDocument('transactions', tx.id, tx);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_transactions_v1', txns);
   }
 
   public static async syncWallets(wallets: Wallet[]): Promise<void> {
-    for (const w of wallets) {
-      if (w.id) {
-        await this.saveDocument('wallets', w.id, w);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_wallets_v1', wallets);
   }
 
   public static async syncFamilies(families: FamilyGroup[]): Promise<void> {
-    for (const f of families) {
-      if (f.id) {
-        await this.saveDocument('families', f.id, f);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_families_v1', families);
   }
 
   public static async syncAuditLogs(logs: AuditLog[]): Promise<void> {
-    for (const l of logs) {
-      if (l.id) {
-        await this.saveDocument('auditLogs', l.id, l);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_audit_logs_v1', logs);
   }
 
   public static async syncUsers(users: User[]): Promise<void> {
-    for (const u of users) {
-      if (u.id) {
-        await this.saveDocument('users', u.id, u);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_users_v1', users);
   }
 
   public static async syncMemberships(memberships: Membership[]): Promise<void> {
-    for (const m of memberships) {
-      if (m.id) {
-        await this.saveDocument('memberships', m.id, m);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_memberships_v1', memberships);
   }
 
   public static async syncVouchers(vouchers: CashDeskVoucher[]): Promise<void> {
-    for (const v of vouchers) {
-      if (v.id) {
-        await this.saveDocument('vouchers', v.id, v);
-      }
-    }
+    await this.syncKeyToFirestore('LABMEDIX_CASH_DESK_VOUCHERS_V1', vouchers);
   }
 
   public static async syncLabBookings(bookings: BloodTestBooking[]): Promise<void> {
-    for (const b of bookings) {
-      if (b.id) {
-        await this.saveDocument('labBookings', b.id, b);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_portal_lab_bookings_v1', bookings);
   }
 
   public static async syncPharmacyOrders(orders: MedicineOrder[]): Promise<void> {
-    for (const o of orders) {
-      if (o.id) {
-        await this.saveDocument('pharmacyOrders', o.id, o);
-      }
-    }
+    await this.syncKeyToFirestore('labmedix_portal_pharmacy_orders_v1', orders);
   }
 
   public static async approveApplicationTransaction(
@@ -316,10 +337,9 @@ export class ApiSyncService {
 
         const appData = appSnap.data() as any;
 
-        // Strict verification: PENDING_APPROVAL status & duplicate prevention
         const status = (appData.status || '').toLowerCase();
         if (status === 'approved' || status === 'issued' || appData.approvedCardNumber) {
-          throw new Error('Duplicate Prevention Error: Card has already been approved and issued for this application.');
+          throw new Error('Duplicate Prevention: Card has already been approved and issued for this application.');
         }
 
         if (status !== 'pending_approval' && status !== 'submitted') {
@@ -446,7 +466,7 @@ export class ApiSyncService {
     }
   }
 
-  /** 🔄 Real-Time Multi-Device Cloud Sync Engine: Keeps all devices synchronized in 1 unified cloud store */
+  /** Real-Time Multi-Device Cloud Sync Listeners */
   public static initLiveCloudListeners(onDataSynced?: (collectionName: string, items: any[]) => void): () => void {
     const unsubscribers: (() => void)[] = [];
 
@@ -458,16 +478,25 @@ export class ApiSyncService {
       { col: 'vouchers', storageKey: 'LABMEDIX_CASH_DESK_VOUCHERS_V1' },
       { col: 'auditLogs', storageKey: 'labmedix_audit_logs_v1' },
       { col: 'families', storageKey: 'labmedix_families_v1' },
-      { col: 'memberships', storageKey: 'labmedix_memberships_v1' }
+      { col: 'memberships', storageKey: 'labmedix_memberships_v1' },
+      { col: 'appointments', storageKey: 'labmedix_patient_appointments_v1' },
+      { col: 'emrEncounters', storageKey: 'labmedix_clinical_encounters' },
+      { col: 'doctors', storageKey: 'labmedix_doctor_master_records_v1' },
+      { col: 'labBookings', storageKey: 'labmedix_portal_lab_bookings_v1' },
+      { col: 'pharmacyOrders', storageKey: 'labmedix_portal_pharmacy_orders_v1' },
+      { col: 'cardApplications', storageKey: 'labmedix_portal_card_applications_v1' },
+      { col: 'sampleDispatches', storageKey: 'labmedix_sample_dispatches_v1' },
+      { col: 'snapshots', storageKey: 'labmedix_snapshots_v1' }
     ];
 
     for (const target of syncTargets) {
       try {
         const unsub = this.subscribeToCollection<any>(target.col, (items) => {
-          if (items && items.length > 0) {
+          if (Array.isArray(items)) {
             try {
               localStorage.setItem(target.storageKey, JSON.stringify(items));
               if (onDataSynced) onDataSynced(target.col, items);
+              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: target.storageKey, value: items } }));
             } catch (e) {
               console.warn(`[ApiSync] Failed to update local storage for ${target.col}:`, e);
             }
@@ -486,10 +515,9 @@ export class ApiSyncService {
     };
   }
 
-  /** ⚡ Advanced Background Worker Queue & Automated Timeline Sync Engine */
+  /** Background Worker Queue Engine */
   private static workerQueue: Array<{ collection: string; id: string; data: any; retries: number }> = [];
   private static workerRunning = false;
-  private static lastTimelineSyncTime = new Date().toISOString();
   private static processedQueueCount = 0;
 
   public static enqueueWorkerTask(collection: string, id: string, data: any) {
@@ -509,20 +537,18 @@ export class ApiSyncService {
         const success = await this.saveDocument(task.collection, task.id, task.data);
         if (success) {
           this.processedQueueCount++;
-          this.lastTimelineSyncTime = new Date().toISOString();
+          this.lastSyncTimestamp = new Date().toISOString();
         } else {
           throw new Error('Save returned false status');
         }
       } catch (err) {
         if (task.retries < 5) {
           task.retries++;
-          const backoffMs = Math.pow(2, task.retries) * 1000 + Math.random() * 500; // Exponential backoff with jitter
-          console.warn(`[BackgroundWorker] Task failed for ${task.collection}/${task.id} (Attempt ${task.retries}/5). Retrying in ${Math.round(backoffMs)}ms...`);
-          
-          // Wait for backoff duration before re-queuing or delaying next run
+          const backoffMs = Math.pow(2, task.retries) * 1000 + Math.random() * 500;
           await new Promise(resolve => setTimeout(resolve, backoffMs));
           this.workerQueue.push(task);
         } else {
+          this.syncErrors++;
           console.error(`[BackgroundWorker] Task permanently failed after 5 retries for ${task.collection}/${task.id}:`, err);
         }
       }
@@ -531,15 +557,28 @@ export class ApiSyncService {
     this.workerRunning = false;
   }
 
+  public static getSyncHealthMetrics(): SyncHealthMetrics {
+    return {
+      status: this.isConnected ? 'connected' : 'offline',
+      projectId: 'gen-lang-client-0076489895',
+      databaseId: 'ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8',
+      activeListenersCount: this.activeUnsubscribers.length || Object.keys(this.KEY_TO_FIRESTORE_MAP).length,
+      lastSyncTime: this.lastSyncTimestamp,
+      pendingQueueSize: this.workerQueue.length,
+      processedCount: this.processedQueueCount,
+      syncErrorsCount: this.syncErrors,
+      totalCollectionsMonitored: Object.keys(this.KEY_TO_FIRESTORE_MAP).length
+    };
+  }
+
   public static getWorkerMetrics() {
     return {
       pendingQueueSize: this.workerQueue.length,
       processedCount: this.processedQueueCount,
-      lastSyncTime: this.lastTimelineSyncTime,
+      lastSyncTime: this.lastSyncTimestamp,
       isWorking: this.workerRunning,
       projectId: "gen-lang-client-0076489895",
       databaseId: "ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8"
     };
   }
 }
-

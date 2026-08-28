@@ -36,11 +36,7 @@ export const DoctorLoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [doctorsList, setDoctorsList] = useState<DoctorMasterItem[]>([]);
-
   useEffect(() => {
-    const docs = DoctorMasterService.getAllDoctors().filter(d => d.status === 'active');
-    setDoctorsList(docs);
     const currentUser = StorageService.getCurrentUser();
     if (currentUser && currentUser.role === 'doctor') {
       navigate('/doctor-dashboard', { replace: true });
@@ -132,47 +128,6 @@ export const DoctorLoginPage: React.FC = () => {
     triggerCelebrationFireworks();
     showToast('success', `Welcome, ${user.fullName}`, 'Signed into Doctor Clinical Portal successfully.');
     navigate('/doctor-dashboard');
-    window.location.reload();
-  };
-
-  const handleQuickDoctorSelect = (doc: DoctorMasterItem) => {
-    console.log('[DoctorLogin] Quick Doctor Selected:', doc.name, doc.username);
-    const users = StorageService.getUsers();
-    let user = users.find(u => u.username.toLowerCase() === doc.username.toLowerCase());
-    
-    if (!user) {
-      user = {
-        id: doc.id,
-        username: doc.username,
-        fullName: doc.name,
-        email: doc.email,
-        role: 'doctor',
-        department: doc.department,
-        status: 'active',
-        pinCode: doc.pinCode || '1234',
-        createdAt: new Date().toISOString()
-      };
-      users.push(user);
-      StorageService.saveUsers(users);
-    }
-
-    console.log('[DoctorLogin] Finalizing quick login for:', user);
-    AuthService.finalizeLogin(user);
-    login(user.username);
-
-    AuditService.log(
-      'DOCTOR_QUICK_LOGIN_SUCCESS',
-      'auth',
-      `Doctor ${doc.name} (${doc.username}) successfully authenticated via Quick Select`,
-      doc.id,
-      { username: doc.username, department: doc.department, timestamp: new Date().toISOString() },
-      'security'
-    );
-
-    triggerCelebrationFireworks();
-    showToast('success', `Welcome, ${doc.name}`, `Authenticated as ${doc.department}.`);
-    navigate('/doctor-dashboard');
-    window.location.reload();
   };
 
   return (
@@ -260,45 +215,6 @@ export const DoctorLoginPage: React.FC = () => {
               </button>
             </div>
           </form>
-
-          {/* Quick Doctor Profiles Selector */}
-          {doctorsList.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
-                  Quick Doctor Login (Demo / Instant)
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono">1-Click Access</span>
-              </div>
-              <div className="space-y-2">
-                {doctorsList.map((doc) => (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    onClick={() => handleQuickDoctorSelect(doc)}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-950 hover:bg-teal-950/30 border border-slate-800 hover:border-teal-500/50 transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold text-xs shrink-0 border border-teal-500/30">
-                        👨‍⚕️
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-white block truncate group-hover:text-teal-300">
-                          {doc.name}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block truncate">
-                          {doc.department} ({doc.regNumber})
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] px-2 py-1 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/30 font-mono shrink-0 group-hover:bg-teal-500 group-hover:text-white transition-colors">
-                      Enter →
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="mt-6 text-center">
             <Link

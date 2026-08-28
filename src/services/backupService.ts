@@ -1,5 +1,6 @@
 import { BackupData, SnapshotRecord } from '../types';
 import { StorageService, STORAGE_KEYS } from './storage';
+import { ApiSyncService } from './apiSyncService';
 import { AuditService } from './auditService';
 import { generateUuid } from '../utils/idGenerator';
 
@@ -63,6 +64,7 @@ export class BackupService {
     const integrations = StorageService.getItem(STORAGE_KEYS.INTEGRATIONS, null);
     const cashVouchers = StorageService.getItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, []);
     const recoveryVault = StorageService.getItem(STORAGE_KEYS.RECOVERY_VAULT, []);
+    const sampleDispatches = StorageService.getItem(STORAGE_KEYS.SAMPLE_DISPATCHES, []);
 
     const dataPayload = {
       patients,
@@ -86,7 +88,8 @@ export class BackupService {
       websiteCms,
       integrations,
       cashVouchers,
-      recoveryVault
+      recoveryVault,
+      sampleDispatches
     };
 
     const rawStr = JSON.stringify(dataPayload);
@@ -418,6 +421,28 @@ export class BackupService {
       if (d.integrations) StorageService.setItem(STORAGE_KEYS.INTEGRATIONS, d.integrations);
       if (d.cashVouchers) StorageService.setItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, d.cashVouchers);
       if (d.recoveryVault) StorageService.setItem(STORAGE_KEYS.RECOVERY_VAULT, d.recoveryVault);
+      if (d.sampleDispatches) StorageService.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches);
+
+      // Trigger Cloud Firestore Synchronization for all restored collections
+      if (d.patients) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, d.patients).catch(() => { });
+      if (d.healthCards) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, d.healthCards).catch(() => { });
+      if (d.memberships) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.MEMBERSHIPS, d.memberships).catch(() => { });
+      if (d.families) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.FAMILIES, d.families).catch(() => { });
+      if (d.wallets) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, d.wallets).catch(() => { });
+      if (d.walletTransactions) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, d.walletTransactions).catch(() => { });
+      if (d.appointments) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.APPOINTMENTS, d.appointments).catch(() => { });
+      if (d.emrEncounters) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.EMR_ENCOUNTERS, d.emrEncounters).catch(() => { });
+      if (d.doctors) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTORS, d.doctors).catch(() => { });
+      if (d.doctorPayouts) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTOR_PAYOUTS, d.doctorPayouts).catch(() => { });
+      if (d.labTests) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.LAB_TESTS, d.labTests).catch(() => { });
+      if (d.healthPackages) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_PACKAGES, d.healthPackages).catch(() => { });
+      if (d.portalLabBookings) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, d.portalLabBookings).catch(() => { });
+      if (d.portalPharmacyOrders) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, d.portalPharmacyOrders).catch(() => { });
+      if (d.portalCardApplications) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, d.portalCardApplications).catch(() => { });
+      if (d.cashVouchers) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CASH_DESK_VOUCHERS, d.cashVouchers).catch(() => { });
+      if (d.sampleDispatches) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches).catch(() => { });
+
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'RESTORE_BACKUP' } }));
 
       AuditService.log('BACKUP_RESTORED', 'backup', `Successfully restored backup dated ${backup.createdDate} (Records: ${backup.recordCounts?.patients || 0} Patients, ${backup.recordCounts?.healthCards || 0} Cards)`);
       return { success: true, message: 'Database restored successfully with pre-flight safety snapshot created!' };

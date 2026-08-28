@@ -363,7 +363,7 @@ export class StorageService {
     if (this.backupSyncTimeout) {
       clearTimeout(this.backupSyncTimeout);
     }
-    
+
     // Fast 1.5-second debounce for live real-time site modifications
     this.backupSyncTimeout = setTimeout(() => {
       this.performServerBackupSync();
@@ -432,7 +432,7 @@ export class StorageService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data, googleToken: driveToken })
-      }).catch(() => {});
+      }).catch(() => { });
 
       // 4. Trigger direct client-side Google Drive upload
       GoogleDriveService.triggerAutoBackup();
@@ -498,11 +498,13 @@ export class StorageService {
       if (e?.name === 'QuotaExceededError' || e?.code === 22) {
         console.warn(`[LABMEDIX] localStorage quota exceeded for ${key}. Pruning old logs…`);
         StorageService.pruneOldAuditLogs();
-        try { localStorage.setItem(key, serialized);
-      // Only sync if it's a critical key (not theme/screen_locked)
-      if (![STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) {
-        this.triggerServerBackupSync();
-      } } catch { /* ignore */ }
+        try {
+          localStorage.setItem(key, serialized);
+          // Only sync if it's a critical key (not theme/screen_locked)
+          if (![STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) {
+            this.triggerServerBackupSync();
+          }
+        } catch { /* ignore */ }
       } else {
         console.error(`[LABMEDIX] localStorage write failed for ${key}:`, e);
       }
@@ -514,7 +516,7 @@ export class StorageService {
     } catch { /* session mirror failure is non-critical */ }
 
     // 4. Deep IndexedDB Persistence (Survives browser cache resets & low storage eviction)
-    StorageService.idbSet(key, serialized).catch(() => {});
+    StorageService.idbSet(key, serialized).catch(() => { });
 
     // 5. Cross-Tab Live Broadcast Sync
     try {
@@ -529,10 +531,10 @@ export class StorageService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value })
-      }).catch(() => {});
+      }).catch(() => { });
 
       // 7. Direct Firestore Cloud Database Sync for second-by-second multi-device sync
-      ApiSyncService.syncKeyToFirestore(key, value).catch(() => {});
+      ApiSyncService.syncKeyToFirestore(key, value).catch(() => { });
     }
 
     // 8. Trigger Live Backup to Google Drive if configured
@@ -572,12 +574,12 @@ export class StorageService {
     StorageService.idbGet(key).then(v => {
       if (v) {
         console.info(`[LABMEDIX] Healed ${key} from IndexedDB backup.`);
-        try { 
-          localStorage.setItem(key, v); 
+        try {
+          localStorage.setItem(key, v);
           StorageService.memoryCache.set(key, JSON.parse(v));
         } catch { }
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     StorageService.memoryCache.set(key, defaultValue);
     return defaultValue;
@@ -588,13 +590,13 @@ export class StorageService {
     StorageService.memoryCache.delete(key);
     try { localStorage.removeItem(key); } catch { }
     try { sessionStorage.removeItem(key); } catch { }
-    StorageService.idbRemove(key).catch(() => {});
+    StorageService.idbRemove(key).catch(() => { });
   }
 
   /* ── INTERNAL: IndexedDB helpers ── */
-  private static readonly IDB_NAME  = 'LABMEDIX_SECURE_DB';
+  private static readonly IDB_NAME = 'LABMEDIX_SECURE_DB';
   private static readonly IDB_STORE = 'labmedix_store';
-  private static readonly IDB_VER   = 1;
+  private static readonly IDB_VER = 1;
 
   private static openIDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -607,7 +609,7 @@ export class StorageService {
         }
       };
       req.onsuccess = () => resolve(req.result);
-      req.onerror   = () => reject(req.error);
+      req.onerror = () => reject(req.error);
     });
   }
 
@@ -615,11 +617,11 @@ export class StorageService {
     try {
       const db = await StorageService.openIDB();
       return new Promise((resolve, reject) => {
-        const tx    = db.transaction(StorageService.IDB_STORE, 'readwrite');
+        const tx = db.transaction(StorageService.IDB_STORE, 'readwrite');
         const store = tx.objectStore(StorageService.IDB_STORE);
-        const req   = store.put(value, key);
+        const req = store.put(value, key);
         req.onsuccess = () => resolve();
-        req.onerror   = () => reject(req.error);
+        req.onerror = () => reject(req.error);
       });
     } catch { }
   }
@@ -628,11 +630,11 @@ export class StorageService {
     try {
       const db = await StorageService.openIDB();
       return new Promise((resolve, reject) => {
-        const tx    = db.transaction(StorageService.IDB_STORE, 'readonly');
+        const tx = db.transaction(StorageService.IDB_STORE, 'readonly');
         const store = tx.objectStore(StorageService.IDB_STORE);
-        const req   = store.get(key);
+        const req = store.get(key);
         req.onsuccess = () => resolve(req.result ?? null);
-        req.onerror   = () => reject(req.error);
+        req.onerror = () => reject(req.error);
       });
     } catch {
       return null;
@@ -643,11 +645,11 @@ export class StorageService {
     try {
       const db = await StorageService.openIDB();
       return new Promise((resolve, reject) => {
-        const tx    = db.transaction(StorageService.IDB_STORE, 'readwrite');
+        const tx = db.transaction(StorageService.IDB_STORE, 'readwrite');
         const store = tx.objectStore(StorageService.IDB_STORE);
-        const req   = store.delete(key);
+        const req = store.delete(key);
         req.onsuccess = () => resolve();
-        req.onerror   = () => reject(req.error);
+        req.onerror = () => reject(req.error);
       });
     } catch { }
   }
@@ -669,7 +671,7 @@ export class StorageService {
     const keys = Object.values(STORAGE_KEYS);
     for (const key of keys) {
       const v = localStorage.getItem(key);
-      if (v) await StorageService.idbSet(key, v).catch(() => {});
+      if (v) await StorageService.idbSet(key, v).catch(() => { });
     }
     console.info('[LABMEDIX] All data force-synced to IndexedDB backup.');
   }
@@ -684,9 +686,9 @@ export class StorageService {
       } catch { }
     }
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
     a.download = `LABMEDIX_FULL_SECURE_BACKUP_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
@@ -720,8 +722,8 @@ export class StorageService {
       }
     } catch { }
     const totalKB = 5120; // ~5MB standard localStorage limit
-    const usedKB  = Math.round(used / 1024);
-    const pct     = Math.round((usedKB / totalKB) * 100);
+    const usedKB = Math.round(used / 1024);
+    const pct = Math.round((usedKB / totalKB) * 100);
     return { usedKB, totalKB, pct, safe: pct < 80 };
   }
 
@@ -740,81 +742,26 @@ export class StorageService {
         StorageService.syncChannel.onmessage = (event) => {
           if (event.data?.key) {
             StorageService.memoryCache.delete(event.data.key);
+            window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: event.data.key } }));
           }
         };
       }
     } catch { }
 
-    // 3. Register page unload, visibility change and window focus listeners to flush writes and instant-pull sync
+    // 3. Register page unload and visibility change to flush writes to IndexedDB
     window.addEventListener('beforeunload', () => {
-      StorageService.forceSyncToIndexedDB().catch(() => {});
+      StorageService.forceSyncToIndexedDB().catch(() => { });
     });
     window.addEventListener('pagehide', () => {
-      StorageService.forceSyncToIndexedDB().catch(() => {});
-    });
-    window.addEventListener('focus', async () => {
-      try {
-        const res = await fetch('/api/sync/store');
-        if (res.ok) {
-          const body = await res.json();
-          const serverStore = body.store;
-          if (serverStore && typeof serverStore === 'object') {
-            for (const [key, val] of Object.entries(serverStore)) {
-              if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) continue;
-              StorageService.memoryCache.set(key, val);
-              try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
-            }
-          }
-        }
-      } catch {}
+      StorageService.forceSyncToIndexedDB().catch(() => { });
     });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
-        StorageService.forceSyncToIndexedDB().catch(() => {});
-      } else if (document.visibilityState === 'visible') {
-        // Instant pull on tab visibility
-        fetch('/api/sync/store').then(async res => {
-          if (res.ok) {
-            const body = await res.json();
-            const serverStore = body.store;
-            if (serverStore && typeof serverStore === 'object') {
-              for (const [key, val] of Object.entries(serverStore)) {
-                if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) continue;
-                StorageService.memoryCache.set(key, val);
-                try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
-              }
-            }
-          }
-        }).catch(() => {});
+        StorageService.forceSyncToIndexedDB().catch(() => { });
       }
     });
 
-    // 4. Real-Time Central Server Data Polling for Cross-Device Synchronization (Every 1 second for ultra-fast multi-device sync)
-    setInterval(async () => {
-      try {
-        const res = await fetch('/api/sync/store');
-        if (res.ok) {
-          const body = await res.json();
-          const serverStore = body.store;
-          if (serverStore && typeof serverStore === 'object') {
-            for (const [key, val] of Object.entries(serverStore)) {
-              if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) continue;
-              const serverValStr = JSON.stringify(val);
-              const localValStr = localStorage.getItem(key);
-              if (localValStr !== serverValStr) {
-                StorageService.memoryCache.set(key, val);
-                try { localStorage.setItem(key, serverValStr); } catch {}
-                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
-              }
-            }
-          }
-        }
-      } catch {}
-    }, 1000);
-
-    // 5. Real-Time Cloud Firestore Listener Subscription (Second-by-second websocket push across all devices)
+    // 4. Real-Time Cloud Firestore Listener Subscription (Instant second-by-second pushes across all devices)
     try {
       ApiSyncService.subscribeToAll((key, val) => {
         if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) return;
@@ -822,43 +769,24 @@ export class StorageService {
         const newValStr = JSON.stringify(val);
         if (currentValStr !== newValStr) {
           StorageService.memoryCache.set(key, val);
-          try { localStorage.setItem(key, newValStr); } catch {}
+          try { localStorage.setItem(key, newValStr); } catch { }
           window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
         }
       });
     } catch (e) {
-      console.warn('[LABMEDIX] Realtime Firestore subscribe error:', e);
+      console.warn('[LABMEDIX] Realtime Firestore subscribe notice:', e);
     }
 
-    // 6. Auto-Periodic deep sync every 3 minutes
+    // 5. Auto-Periodic deep sync every 3 minutes
     setInterval(() => {
-      StorageService.forceSyncToIndexedDB().catch(() => {});
+      StorageService.forceSyncToIndexedDB().catch(() => { });
     }, 180000);
   }
 
   public static async initializeDatabase(): Promise<void> {
     StorageService.initPersistentEngine();
 
-    // 1. Initial Central Server Hydration (Ensures data across devices is loaded on boot)
-    try {
-      const res = await fetch('/api/sync/store');
-      if (res.ok) {
-        const body = await res.json();
-        const serverStore = body.store;
-        if (serverStore && typeof serverStore === 'object') {
-          for (const [key, val] of Object.entries(serverStore)) {
-            if (val !== undefined && val !== null) {
-              StorageService.memoryCache.set(key, val);
-              try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[LABMEDIX] Central store hydration warning:', e);
-    }
-
-    // 1.5 Cloud Firestore Cross-Device Hydration (Ensures seamless multi-device login data sync)
+    // 1. Cloud Firestore Cross-Device Hydration (Primary Source of Truth on startup)
     try {
       const [
         cloudPatients,
@@ -870,9 +798,16 @@ export class StorageService {
         cloudUsers,
         cloudMemberships,
         cloudAppointments,
+        cloudEncounters,
+        cloudDoctors,
+        cloudDoctorPayouts,
+        cloudLabTests,
+        cloudHealthPackages,
         cloudLabBookings,
         cloudPharmacyOrders,
-        cloudVouchers
+        cloudVouchers,
+        cloudDispatches,
+        cloudSnapshots
       ] = await Promise.all([
         ApiSyncService.fetchCollection<Patient>('patients').catch(() => []),
         ApiSyncService.fetchCollection<HealthCard>('cards').catch(() => []),
@@ -883,38 +818,47 @@ export class StorageService {
         ApiSyncService.fetchCollection<User>('users').catch(() => []),
         ApiSyncService.fetchCollection<Membership>('memberships').catch(() => []),
         ApiSyncService.fetchCollection<any>('appointments').catch(() => []),
+        ApiSyncService.fetchCollection<any>('emrEncounters').catch(() => []),
+        ApiSyncService.fetchCollection<any>('doctors').catch(() => []),
+        ApiSyncService.fetchCollection<any>('doctorPayouts').catch(() => []),
+        ApiSyncService.fetchCollection<any>('labTests').catch(() => []),
+        ApiSyncService.fetchCollection<any>('healthPackages').catch(() => []),
         ApiSyncService.fetchCollection<any>('labBookings').catch(() => []),
         ApiSyncService.fetchCollection<any>('pharmacyOrders').catch(() => []),
-        ApiSyncService.fetchCollection<any>('vouchers').catch(() => [])
+        ApiSyncService.fetchCollection<any>('vouchers').catch(() => []),
+        ApiSyncService.fetchCollection<SampleDispatchRecord>('sampleDispatches').catch(() => []),
+        ApiSyncService.fetchCollection<SnapshotRecord>('snapshots').catch(() => [])
       ]);
 
       const syncEntity = <T>(cloudItems: T[], key: string) => {
-        if (cloudItems && cloudItems.length > 0) {
+        if (Array.isArray(cloudItems)) {
           StorageService.memoryCache.set(key, cloudItems);
-          try { localStorage.setItem(key, JSON.stringify(cloudItems)); } catch {}
+          try { localStorage.setItem(key, JSON.stringify(cloudItems)); } catch { }
           window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: cloudItems } }));
-        } else {
-          const localItems = StorageService.getItem<T[]>(key, []);
-          if (localItems && localItems.length > 0) {
-            ApiSyncService.syncKeyToFirestore(key, localItems).catch(() => {});
-          }
         }
       };
 
-      syncEntity(cloudPatients, STORAGE_KEYS.PATIENTS);
-      syncEntity(cloudCards, STORAGE_KEYS.CARDS);
-      syncEntity(cloudApps, STORAGE_KEYS.PORTAL_CARD_APPLICATIONS);
-      syncEntity(cloudWallets, STORAGE_KEYS.WALLETS);
-      syncEntity(cloudTxns, STORAGE_KEYS.TRANSACTIONS);
-      syncEntity(cloudAudit, STORAGE_KEYS.AUDIT_LOGS);
-      syncEntity(cloudUsers, STORAGE_KEYS.USERS);
-      syncEntity(cloudMemberships, STORAGE_KEYS.MEMBERSHIPS);
-      syncEntity(cloudAppointments, STORAGE_KEYS.APPOINTMENTS);
-      syncEntity(cloudLabBookings, STORAGE_KEYS.PORTAL_LAB_BOOKINGS);
-      syncEntity(cloudPharmacyOrders, STORAGE_KEYS.PORTAL_PHARMACY_ORDERS);
-      syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
+      if (cloudPatients.length > 0) syncEntity(cloudPatients, STORAGE_KEYS.PATIENTS);
+      if (cloudCards.length > 0) syncEntity(cloudCards, STORAGE_KEYS.CARDS);
+      if (cloudApps.length > 0) syncEntity(cloudApps, STORAGE_KEYS.PORTAL_CARD_APPLICATIONS);
+      if (cloudWallets.length > 0) syncEntity(cloudWallets, STORAGE_KEYS.WALLETS);
+      if (cloudTxns.length > 0) syncEntity(cloudTxns, STORAGE_KEYS.TRANSACTIONS);
+      if (cloudAudit.length > 0) syncEntity(cloudAudit, STORAGE_KEYS.AUDIT_LOGS);
+      if (cloudUsers.length > 0) syncEntity(cloudUsers, STORAGE_KEYS.USERS);
+      if (cloudMemberships.length > 0) syncEntity(cloudMemberships, STORAGE_KEYS.MEMBERSHIPS);
+      if (cloudAppointments.length > 0) syncEntity(cloudAppointments, STORAGE_KEYS.APPOINTMENTS);
+      if (cloudEncounters.length > 0) syncEntity(cloudEncounters, STORAGE_KEYS.EMR_ENCOUNTERS);
+      if (cloudDoctors.length > 0) syncEntity(cloudDoctors, STORAGE_KEYS.DOCTORS);
+      if (cloudDoctorPayouts.length > 0) syncEntity(cloudDoctorPayouts, STORAGE_KEYS.DOCTOR_PAYOUTS);
+      if (cloudLabTests.length > 0) syncEntity(cloudLabTests, STORAGE_KEYS.LAB_TESTS);
+      if (cloudHealthPackages.length > 0) syncEntity(cloudHealthPackages, STORAGE_KEYS.HEALTH_PACKAGES);
+      if (cloudLabBookings.length > 0) syncEntity(cloudLabBookings, STORAGE_KEYS.PORTAL_LAB_BOOKINGS);
+      if (cloudPharmacyOrders.length > 0) syncEntity(cloudPharmacyOrders, STORAGE_KEYS.PORTAL_PHARMACY_ORDERS);
+      if (cloudVouchers.length > 0) syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
+      if (cloudDispatches.length > 0) syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
+      if (cloudSnapshots.length > 0) syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
     } catch (e) {
-      console.warn('[LABMEDIX] Cloud Firestore cross-device sync hydration warning:', e);
+      console.warn('[LABMEDIX] Cloud Firestore cross-device sync hydration notice:', e);
     }
 
     // Active live migration: Purge legacy demo patient identities from storage
@@ -1015,7 +959,7 @@ export class StorageService {
       this.setItem(STORAGE_KEYS.SNAPSHOTS, []);
     }
     if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-      this.setItem(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
+      this.setItem(STORAGE_KEYS.CURRENT_USER, null);
     }
   }
 
@@ -1025,10 +969,10 @@ export class StorageService {
   }
   public static saveUsers(users: User[]): void {
     this.setItem(STORAGE_KEYS.USERS, users);
-    ApiSyncService.syncUsers(users).catch(() => {});
+    ApiSyncService.syncUsers(users).catch(() => { });
   }
   public static getCurrentUser(): User | null {
-    return this.getItem<User | null>(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
+    return this.getItem<User | null>(STORAGE_KEYS.CURRENT_USER, null);
   }
   public static setCurrentUser(user: User | null): void {
     this.setItem(STORAGE_KEYS.CURRENT_USER, user);
@@ -1040,7 +984,7 @@ export class StorageService {
   }
   public static savePatients(patients: Patient[]): void {
     this.setItem(STORAGE_KEYS.PATIENTS, patients);
-    ApiSyncService.syncPatients(patients).catch(() => {});
+    ApiSyncService.syncPatients(patients).catch(() => { });
   }
 
   // Health Cards
@@ -1060,7 +1004,7 @@ export class StorageService {
       cvv: this.encrypt(c.cvv)
     }));
     this.setItem(STORAGE_KEYS.CARDS, encrypted);
-    ApiSyncService.syncCards(cards).catch(() => {});
+    ApiSyncService.syncCards(cards).catch(() => { });
   }
 
   // Memberships
@@ -1073,7 +1017,7 @@ export class StorageService {
   }
   public static saveMemberships(memberships: Membership[]): void {
     this.setItem(STORAGE_KEYS.MEMBERSHIPS, memberships);
-    ApiSyncService.syncMemberships(memberships).catch(() => {});
+    ApiSyncService.syncMemberships(memberships).catch(() => { });
   }
 
   // Families
@@ -1082,7 +1026,7 @@ export class StorageService {
   }
   public static saveFamilies(families: FamilyGroup[]): void {
     this.setItem(STORAGE_KEYS.FAMILIES, families);
-    ApiSyncService.syncFamilies(families).catch(() => {});
+    ApiSyncService.syncFamilies(families).catch(() => { });
   }
 
   // Wallets
@@ -1091,7 +1035,7 @@ export class StorageService {
   }
   public static saveWallets(wallets: Wallet[]): void {
     this.setItem(STORAGE_KEYS.WALLETS, wallets);
-    ApiSyncService.syncWallets(wallets).catch(() => {});
+    ApiSyncService.syncWallets(wallets).catch(() => { });
   }
 
   // Transactions
@@ -1100,7 +1044,7 @@ export class StorageService {
   }
   public static saveTransactions(txns: WalletTransaction[]): void {
     this.setItem(STORAGE_KEYS.TRANSACTIONS, txns);
-    ApiSyncService.syncTransactions(txns).catch(() => {});
+    ApiSyncService.syncTransactions(txns).catch(() => { });
   }
 
   // Audit Logs
@@ -1109,7 +1053,7 @@ export class StorageService {
   }
   public static saveAuditLogs(logs: AuditLog[]): void {
     this.setItem(STORAGE_KEYS.AUDIT_LOGS, logs);
-    ApiSyncService.syncAuditLogs(logs).catch(() => {});
+    ApiSyncService.syncAuditLogs(logs).catch(() => { });
   }
 
   // Company Profile
@@ -1152,6 +1096,8 @@ export class StorageService {
   }
   public static saveCashDeskVouchers(vouchers: CashDeskVoucher[]): void {
     this.setItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, vouchers);
+    ApiSyncService.syncVouchers(vouchers).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.CASH_DESK_VOUCHERS, value: vouchers } }));
   }
 
   // Cash Desk Voucher User Settings (Auto-print, default formats)
@@ -1172,6 +1118,8 @@ export class StorageService {
   }
   public static saveSnapshots(snapshots: SnapshotRecord[]): void {
     this.setItem(STORAGE_KEYS.SNAPSHOTS, snapshots);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SNAPSHOTS, snapshots).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.SNAPSHOTS, value: snapshots } }));
   }
 
   // Screen Lock
@@ -1199,53 +1147,13 @@ export class StorageService {
 
   // Sample Dispatch & Logistics Pipeline
   public static getSampleDispatches(): SampleDispatchRecord[] {
-    const defaultSamples: SampleDispatchRecord[] = [
-      {
-        id: 'SMP-001',
-        sampleBarcode: 'SMP-2026-88191',
-        patientId: 'PAT-1001',
-        patientName: 'Anindita Sharma',
-        patientPhone: '+91 98301 22334',
-        testNames: ['HbA1c Glycated Hemoglobin', 'Fasting Blood Sugar', 'Lipid Profile'],
-        department: 'Pathology & Molecular Lab',
-        sampleType: 'Whole Blood (EDTA)',
-        vialColorCode: 'Lavender',
-        collectionTimestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
-        collectedBy: 'Priya Biswas (Phlebotomist)',
-        dispatchStatus: 'dispatched',
-        dispatchDestination: 'HQ Central NABL Molecular Lab, Kolkata',
-        courierTechnicianName: 'Rajesh Kumar (Express Dispatch)',
-        courierVehicleNo: 'WB-02-AK-4412',
-        dispatchedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-        expectedReportTime: 'Today, 06:00 PM',
-        notes: 'Cold chain container maintained at 4°C.'
-      },
-      {
-        id: 'SMP-002',
-        sampleBarcode: 'SMP-2026-88192',
-        patientId: 'PAT-1002',
-        patientName: 'Rajesh Mukherjee',
-        patientPhone: '+91 98312 44556',
-        testNames: ['Thyroid Panel Total (T3, T4, TSH)', 'Serum Creatinine'],
-        department: 'Biochemistry',
-        sampleType: 'Serum (Clot Activator)',
-        vialColorCode: 'Yellow/SST',
-        collectionTimestamp: new Date(Date.now() - 3600000 * 1.5).toISOString(),
-        collectedBy: 'Amit Banerjee (Phlebotomist)',
-        dispatchStatus: 'in_transit',
-        dispatchDestination: 'Park Street Diagnostic Hub',
-        courierTechnicianName: 'Suman Roy (Courier Rider)',
-        courierVehicleNo: 'WB-04-CX-8890',
-        dispatchedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-        expectedReportTime: 'Tomorrow, 10:00 AM',
-        notes: 'Fasting sample verified.'
-      }
-    ];
-    return this.getItem(STORAGE_KEYS.SAMPLE_DISPATCHES, defaultSamples);
+    return this.getItem(STORAGE_KEYS.SAMPLE_DISPATCHES, []);
   }
 
   public static saveSampleDispatches(dispatches: SampleDispatchRecord[]): void {
     this.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.SAMPLE_DISPATCHES, value: dispatches } }));
   }
 
   // Full Database Reset & Sample Data
@@ -1259,6 +1167,7 @@ export class StorageService {
     this.setItem(STORAGE_KEYS.TRANSACTIONS, INITIAL_TRANSACTIONS);
     this.setItem(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
     this.setItem(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'RESET_DEMO' } }));
   }
 
   public static clearAllData(): void {
@@ -1267,5 +1176,29 @@ export class StorageService {
     this.setItem(STORAGE_KEYS.FAMILIES, []);
     this.setItem(STORAGE_KEYS.WALLETS, []);
     this.setItem(STORAGE_KEYS.TRANSACTIONS, []);
+    this.setItem(STORAGE_KEYS.APPOINTMENTS, []);
+    this.setItem(STORAGE_KEYS.EMR_ENCOUNTERS, []);
+    this.setItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []);
+    this.setItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []);
+    this.setItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []);
+    this.setItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, []);
+    this.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, []);
+    this.setItem(STORAGE_KEYS.RECOVERY_VAULT, []);
+
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.FAMILIES, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.APPOINTMENTS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.EMR_ENCOUNTERS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CASH_DESK_VOUCHERS, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, []).catch(() => { });
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.RECOVERY_VAULT, []).catch(() => { });
+
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'CLEAR_ALL' } }));
   }
 }
