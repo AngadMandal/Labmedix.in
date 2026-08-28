@@ -532,32 +532,33 @@ export const SettingsPage: React.FC = () => {
     showToast('success', 'Settings Synchronized & Auto-Locked! 🔒', 'Executive branding, helpline numbers & CR80 templates saved and locked into read-only mode.');
   };
 
-  // Mock Patient & Live Card Setup for true-to-life 300 DPI Preview
-  const previewPatient: Patient = {
-    id: 'LMDX-2026-000001',
-    fullName: 'Sourav Roy',
-    dob: '1992-05-15',
-    age: 34,
+  // Dynamic Patient & Live Card Setup for true-to-life 300 DPI Preview
+  const actualPatients = StorageService.getPatients();
+  const previewPatient: Patient = actualPatients.length > 0 ? actualPatients[0] : {
+    id: 'LMDX-SAMPLE-001',
+    fullName: 'Cardholder Name Preview',
+    dob: '1995-01-01',
+    age: 30,
     gender: 'male',
-    mobile: '+91 98300 12345',
-    bloodGroup: 'B+',
-    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+    mobile: '+91 98000 00000',
+    bloodGroup: 'O+',
+    photoUrl: logoUrl || '/logo.jpg',
     address: {
-      villageArea: 'Diamond Harbour Road',
-      postOffice: postOffice || 'Behala P.O.',
-      policeStation: policeStation || 'Behala P.S.',
-      district: district || 'Kolkata',
+      villageArea: 'Main Healthcare Avenue',
+      postOffice: postOffice || 'Central P.O.',
+      policeStation: policeStation || 'Central P.S.',
+      district: district || 'Central District',
       state: stateVal || 'West Bengal',
-      pinCode: pinCode || '700034',
-      fullAddress: address || 'Diamond Harbour Road, Behala, Kolkata - 700034'
+      pinCode: pinCode || '700001',
+      fullAddress: address || 'Main Healthcare Avenue, Medical Square'
     },
     emergencyContact: {
-      name: 'Piyali Roy',
-      relationship: 'Spouse',
-      mobile: '+91 98300 12345'
+      name: 'Emergency Contact',
+      relationship: 'Family',
+      mobile: '+91 98000 00000'
     },
     medicalInfo: {
-      bloodGroup: 'B+',
+      bloodGroup: 'O+',
       allergies: 'None'
     },
     walletId: 'w_preview_01',

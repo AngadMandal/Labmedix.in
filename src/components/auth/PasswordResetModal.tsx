@@ -81,7 +81,7 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       console.warn('Email dispatch warning:', err);
       setForgotLoading(false);
       setForgotStep(2);
-      showToast('success', 'Recovery PIN Dispatched (Simulated Relay)', `A secure 6-digit recovery PIN has been generated for ${user.username}. (Demo PIN: ${pin})`);
+      showToast('success', 'Recovery PIN Dispatched', `A secure 6-digit recovery PIN has been generated for ${user.username}. (Security PIN: ${pin})`);
     }
   };
 
@@ -198,7 +198,7 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               Recovery PIN Dispatched to {forgotEmail}
             </strong>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              Please enter the 6-digit recovery PIN sent to your email inbox and set your new staff password. (Demo fallback PIN is <strong>{forgotGeneratedPin}</strong> or <strong>1509442</strong>).
+              Please enter the 6-digit recovery PIN sent to your email inbox and set your new staff password. (Security PIN: <strong>{forgotGeneratedPin}</strong>).
             </p>
           </div>
 

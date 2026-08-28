@@ -917,6 +917,36 @@ export class StorageService {
       this.setItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, sanitizedCardApps);
     }
 
+    const rawApps = this.getItem<any[]>(STORAGE_KEYS.APPOINTMENTS, []);
+    const sanitizedApps = rawApps.filter(a => {
+      const pId = (a.patientId || '').trim().toLowerCase();
+      const pName = (a.patientName || '').trim().toLowerCase();
+      return !DEMO_IDS.includes(pId) && !DEMO_NAMES.includes(pName);
+    });
+    if (rawApps.length !== sanitizedApps.length) {
+      this.setItem(STORAGE_KEYS.APPOINTMENTS, sanitizedApps);
+    }
+
+    const rawEncs = this.getItem<any[]>(STORAGE_KEYS.EMR_ENCOUNTERS, []);
+    const sanitizedEncs = rawEncs.filter(e => {
+      const pId = (e.patientId || '').trim().toLowerCase();
+      const pName = (e.patientName || '').trim().toLowerCase();
+      return !DEMO_IDS.includes(pId) && !DEMO_NAMES.includes(pName);
+    });
+    if (rawEncs.length !== sanitizedEncs.length) {
+      this.setItem(STORAGE_KEYS.EMR_ENCOUNTERS, sanitizedEncs);
+    }
+
+    const rawLabBookings = this.getItem<any[]>(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []);
+    const sanitizedLabBookings = rawLabBookings.filter(b => {
+      const pId = (b.patientId || '').trim().toLowerCase();
+      const pName = (b.patientName || '').trim().toLowerCase();
+      return !DEMO_IDS.includes(pId) && !DEMO_NAMES.includes(pName);
+    });
+    if (rawLabBookings.length !== sanitizedLabBookings.length) {
+      this.setItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, sanitizedLabBookings);
+    }
+
     if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
       this.setItem(STORAGE_KEYS.USERS, INITIAL_USERS);
     }

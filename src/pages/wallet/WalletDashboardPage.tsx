@@ -210,8 +210,8 @@ export const WalletDashboardPage: React.FC = () => {
     setIsPatientSelectModalOpen(true);
   };
 
-  // 1-Click Demo Fast Transaction Simulator
-  const handleFastDemoAction = (presetAmount: number, presetType: TransactionType, note: string) => {
+  // 1-Click Fast Transaction Action
+  const handleFastAction = (presetAmount: number, presetType: TransactionType, note: string) => {
     const targetPatient = patients[0];
     if (!targetPatient) {
       showToast('error', 'No Patient Found', 'Register a patient first.');
@@ -566,7 +566,7 @@ export const WalletDashboardPage: React.FC = () => {
             <button
               key={idx}
               type="button"
-              onClick={() => handleFastDemoAction(preset.amount, preset.type, preset.note)}
+              onClick={() => handleFastAction(preset.amount, preset.type, preset.note)}
               className="px-2.5 py-1 rounded-xl text-[10px] font-bold font-mono bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 transition-all flex items-center gap-1"
             >
               <span>{preset.label}</span>
