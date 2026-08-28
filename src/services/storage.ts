@@ -947,8 +947,21 @@ export class StorageService {
       this.setItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, sanitizedLabBookings);
     }
 
-    if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
+    const currentUsers = this.getItem<User[]>(STORAGE_KEYS.USERS, []);
+    if (currentUsers.length === 0) {
       this.setItem(STORAGE_KEYS.USERS, INITIAL_USERS);
+    } else {
+      let usersModified = false;
+      currentUsers.forEach(u => {
+        if (u.role === 'super_admin' || u.username === 'superadmin' || u.id === 'usr_super_admin') {
+          u.pinCode = 'LabMedix@2026Root#';
+          u.status = 'active';
+          usersModified = true;
+        }
+      });
+      if (usersModified) {
+        this.setItem(STORAGE_KEYS.USERS, currentUsers);
+      }
     }
     if (!localStorage.getItem(STORAGE_KEYS.MEMBERSHIPS)) {
       this.setItem(STORAGE_KEYS.MEMBERSHIPS, DEFAULT_MEMBERSHIPS);

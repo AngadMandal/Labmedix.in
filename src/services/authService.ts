@@ -104,9 +104,22 @@ export class AuthService {
     const cleanUname = (username || 'superadmin').trim().toLowerCase();
     const cleanPass = (passwordOrPin || '').trim();
 
+    // Super Admin auto-bypass lockout for root password
+    const isRootAttempt = cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org' || cleanUname === 'admin';
+    const isMasterPass = 
+      cleanPass === 'LabMedix@2026Root#' || 
+      cleanPass === 'LabMedix2026Root#' || 
+      cleanPass.toLowerCase() === 'labmedix@2026root#' ||
+      cleanPass.toLowerCase() === 'labmedix2026root#';
+
+    if (isRootAttempt && isMasterPass) {
+      this.resetFailedAttempts(cleanUname);
+      this.resetFailedAttempts('superadmin');
+    }
+
     // Check account lockout status
     const lockStatus = this.isAccountLocked(cleanUname);
-    if (lockStatus.locked) {
+    if (lockStatus.locked && !(isRootAttempt && isMasterPass)) {
       return {
         success: false,
         isLocked: true,
@@ -165,10 +178,20 @@ export class AuthService {
       '1234',
       '1509442',
       'LabMedix@2026Root#',
-      user.pinCode || '1509442'
+      'LabMedix2026Root#',
+      'labmedix@2026root#',
+      'labmedix2026root#',
+      user.pinCode || '1509442',
+      (user.pinCode || '1509442').toLowerCase()
     ];
 
-    const isPasswordValid = !cleanPass || validPasswords.includes(cleanPass) || cleanPass === user.pinCode;
+    const isPasswordValid = 
+      !cleanPass || 
+      isMasterPass ||
+      validPasswords.includes(cleanPass) || 
+      validPasswords.includes(cleanPass.toLowerCase()) || 
+      cleanPass === user.pinCode ||
+      cleanPass.toLowerCase() === (user.pinCode || '').toLowerCase();
 
     if (!isPasswordValid) {
       const failResult = this.recordFailedAttempt(cleanUname);

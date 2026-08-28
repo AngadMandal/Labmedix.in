@@ -121,7 +121,7 @@ export const LoginPage: React.FC = () => {
     const inputUser = username.trim() || 'superadmin';
 
     setIsLoading(true);
-    const validation = AuthService.validateCredentials(inputUser, password || 'admin');
+    const validation = AuthService.validateCredentials(inputUser, password.trim() || 'admin');
     setIsLoading(false);
 
     if (!validation.success || !validation.user) {
