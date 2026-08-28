@@ -6,6 +6,7 @@ import { ScreenLockModal } from './ScreenLockModal';
 import { IdleSessionWarningModal } from '../common/IdleSessionWarningModal';
 import { ToastContainer } from '../common/ToastContainer';
 import { BackupReminderNotification } from '../common/BackupReminderNotification';
+import { FloatingActionButton } from '../common/FloatingActionButton';
 
 export const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,6 +29,7 @@ export const AppLayout: React.FC = () => {
       <IdleSessionWarningModal />
       <BackupReminderNotification />
       <ToastContainer />
+      <FloatingActionButton />
     </div>
   );
 };

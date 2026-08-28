@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
+import { ThemeSelectorModal } from '../../components/layout/ThemeSelectorModal';
 import { triggerCelebrationFireworks } from '../../utils/confetti';
 import { StorageService } from '../../services/storage';
 import { Patient, HealthCard, Membership, CompanyProfile, CardThemePreset, CardMaterial } from '../../types';
@@ -66,7 +68,9 @@ import { AddressAutoPopupModal } from '../../components/common/AddressAutoPopupM
 
 export const SettingsPage: React.FC = () => {
   const { companyProfile, updateCompanyProfile } = useSettings();
+  const { theme, isDark, currentTimeString, isDaytime } = useTheme();
   const { showToast } = useToast();
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   const currentUser = StorageService.getCurrentUser();
   const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -1217,6 +1221,34 @@ export const SettingsPage: React.FC = () => {
             {/* TAB 5: Presets & Themes */}
             {activeTab === 'presets' && (
               <div className="space-y-6">
+                {/* System Theme & Auto-Schedule Section */}
+                <div className="p-5 rounded-3xl bg-gradient-to-r from-teal-900/90 via-slate-900 to-indigo-950 text-white shadow-xl border border-teal-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-[10px] uppercase font-extrabold border border-teal-400/30">
+                        UI Appearance
+                      </span>
+                      <span className="text-xs font-mono text-slate-300">
+                        {currentTimeString} ({isDaytime ? 'Daytime' : 'Nighttime'})
+                      </span>
+                    </div>
+                    <h3 className="text-base font-extrabold text-white mt-1 uppercase tracking-wide">
+                      Time-Based Automatic Theme Scheduler
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
+                      Currently running in <strong>{theme.mode.toUpperCase()}</strong> mode ({isDark ? '🌙 Dark Interface' : '☀️ Light Interface'}). Auto-schedules seamless transitions between daylight and dark mode.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setIsThemeModalOpen(true)}
+                    className="shrink-0 bg-teal-500 hover:bg-teal-400 text-slate-950 font-black shadow-lg"
+                  >
+                    Configure Theme & Schedule
+                  </Button>
+                </div>
+
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <Zap className="w-4 h-4 text-amber-500" />
@@ -2211,6 +2243,12 @@ export const SettingsPage: React.FC = () => {
           setPinCode(sel.pinCode);
           showToast('success', 'Address Applied via Popup 📍', `${sel.cityArea}, ${sel.district}, ${sel.state} (PIN: ${sel.pinCode})`);
         }}
+      />
+
+      {/* Application Theme Selector Modal */}
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
       />
     </div>
   );

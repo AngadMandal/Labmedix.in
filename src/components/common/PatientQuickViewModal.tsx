@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Patient, HealthCard, Membership, CompanyProfile } from '../../types';
 import { Modal } from './Modal';
 import { Button } from './Button';
-import { CR80CardFront } from '../card/CR80CardFront';
-import { formatDate } from '../../utils/formatters';
-import { CreditCard, Heart, MapPin, Phone, Calendar, ArrowRight, UserCheck } from 'lucide-react';
+import { FramerInteractiveHealthCard } from '../card/FramerInteractiveHealthCard';
+import { ArrowRight } from 'lucide-react';
 
 interface PatientQuickViewModalProps {
   isOpen: boolean;
@@ -51,14 +50,15 @@ export const PatientQuickViewModal: React.FC<PatientQuickViewModalProps> = ({
           </div>
         </div>
 
-        {/* Live Card Preview */}
-        {card && membership && (
-          <div className="flex flex-col items-center">
-            <div className="scale-90 sm:scale-95 origin-top">
-              <CR80CardFront patient={patient} card={card} membership={membership} company={company} />
-            </div>
-          </div>
-        )}
+        {/* Framer Motion Interactive Health Card with Flip Animation */}
+        <div className="flex flex-col items-center">
+          <FramerInteractiveHealthCard
+            patient={patient}
+            card={card}
+            membership={membership}
+            company={company}
+          />
+        </div>
 
         {/* Quick Address & Medical */}
         <div className="grid grid-cols-2 gap-3 text-xs">
@@ -68,7 +68,7 @@ export const PatientQuickViewModal: React.FC<PatientQuickViewModalProps> = ({
           </div>
           <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
             <span className="text-[10px] text-slate-400 uppercase font-bold block">Emergency Contact</span>
-            <p className="text-slate-700 dark:text-slate-300 mt-0.5">{patient.emergencyContact.name} ({patient.emergencyContact.mobile})</p>
+            <p className="text-slate-700 dark:text-slate-300 mt-0.5">{patient.emergencyContact?.name} ({patient.emergencyContact?.mobile})</p>
           </div>
         </div>
 

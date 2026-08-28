@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { ThemeConfig } from '../types';
+import { ThemeConfig, ThemeMode } from '../types';
 
 export interface ThemeContextType {
   theme: ThemeConfig;
   resolvedTheme: 'light' | 'dark';
   systemTheme: 'light' | 'dark';
+  timeBasedTheme: 'light' | 'dark';
   isDark: boolean;
-  setThemeMode: (mode: 'light' | 'dark' | 'system') => void;
+  isDaytime: boolean;
+  currentTimeString: string;
+  setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
+  updateAutoSchedule: (dayStartHour: number, nightStartHour: number) => void;
   setPrimaryColor: (color: string) => void;
   setAccentColor: (color: string) => void;
 }
@@ -15,10 +19,28 @@ export interface ThemeContextType {
 const THEME_MODE_KEY = 'labmedix_theme_mode';
 const THEME_CONFIG_KEY = 'labmedix_theme_v1';
 
+const DEFAULT_SCHEDULE = {
+  enabled: true,
+  dayStartHour: 7,   // 7:00 AM
+  nightStartHour: 19  // 7:00 PM (19:00)
+};
+
 const DEFAULT_THEME: ThemeConfig = {
   mode: 'system',
   primaryColor: '#0B4F9C',
-  accentColor: '#109B48'
+  accentColor: '#109B48',
+  autoSchedule: DEFAULT_SCHEDULE
+};
+
+/**
+ * Calculate if current local time falls in daytime or nighttime hours
+ */
+const getIsDaytimeNow = (dayStart: number = 7, nightStart: number = 19, date: Date = new Date()): boolean => {
+  const currentHour = date.getHours();
+  if (dayStart < nightStart) {
+    return currentHour >= dayStart && currentHour < nightStart;
+  }
+  return currentHour >= dayStart || currentHour < nightStart;
 };
 
 /**
@@ -40,22 +62,21 @@ const getInitialTheme = (): ThemeConfig => {
   }
 
   try {
-    // 1. Check full ThemeConfig JSON in storage
     const savedConfig = localStorage.getItem(THEME_CONFIG_KEY);
     if (savedConfig) {
       const parsed = JSON.parse(savedConfig);
-      if (parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system')) {
+      if (parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system' || parsed.mode === 'auto_schedule')) {
         return {
           mode: parsed.mode,
           primaryColor: parsed.primaryColor || DEFAULT_THEME.primaryColor,
-          accentColor: parsed.accentColor || DEFAULT_THEME.accentColor
+          accentColor: parsed.accentColor || DEFAULT_THEME.accentColor,
+          autoSchedule: parsed.autoSchedule || DEFAULT_SCHEDULE
         };
       }
     }
 
-    // 2. Check standalone theme mode string
-    const savedMode = localStorage.getItem(THEME_MODE_KEY);
-    if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') {
+    const savedMode = localStorage.getItem(THEME_MODE_KEY) as ThemeMode | null;
+    if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system' || savedMode === 'auto_schedule') {
       return {
         ...DEFAULT_THEME,
         mode: savedMode
@@ -65,7 +86,6 @@ const getInitialTheme = (): ThemeConfig => {
     console.warn('[ThemeContext] Failed to parse saved theme settings:', error);
   }
 
-  // 3. If no user preference saved, default to 'system' to automatically match OS
   return DEFAULT_THEME;
 };
 
@@ -74,14 +94,39 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<ThemeConfig>(getInitialTheme);
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemPreference);
+  const [nowDate, setNowDate] = useState<Date>(new Date());
+
+  // Interval timer to keep local time updated for auto-schedule evaluation
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowDate(new Date());
+    }, 15000); // Check every 15 seconds for smooth time transitions
+    return () => clearInterval(timer);
+  }, []);
+
+  const dayStartHour = theme.autoSchedule?.dayStartHour ?? DEFAULT_SCHEDULE.dayStartHour;
+  const nightStartHour = theme.autoSchedule?.nightStartHour ?? DEFAULT_SCHEDULE.nightStartHour;
+
+  const isDaytime = useMemo(() => {
+    return getIsDaytimeNow(dayStartHour, nightStartHour, nowDate);
+  }, [dayStartHour, nightStartHour, nowDate]);
+
+  const timeBasedTheme: 'light' | 'dark' = isDaytime ? 'light' : 'dark';
+
+  const currentTimeString = useMemo(() => {
+    return nowDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }, [nowDate]);
 
   // Compute resolved theme mode ('light' or 'dark')
   const resolvedTheme: 'light' | 'dark' = useMemo(() => {
+    if (theme.mode === 'auto_schedule') {
+      return timeBasedTheme;
+    }
     if (theme.mode === 'system') {
       return systemTheme;
     }
     return theme.mode;
-  }, [theme.mode, systemTheme]);
+  }, [theme.mode, timeBasedTheme, systemTheme]);
 
   const isDark = resolvedTheme === 'dark';
 
@@ -120,10 +165,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSystemTheme(newSystemTheme);
     };
 
-    // Initialize with current system state
     handleSystemThemeChange(mediaQuery);
 
-    // Modern and legacy event listener bindings
     if (mediaQuery.addEventListener) {
       mediaQuery.addEventListener('change', handleSystemThemeChange);
     } else if ((mediaQuery as any).addListener) {
@@ -155,14 +198,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === THEME_MODE_KEY && e.newValue) {
-        const mode = e.newValue as 'light' | 'dark' | 'system';
-        if (mode === 'light' || mode === 'dark' || mode === 'system') {
+        const mode = e.newValue as ThemeMode;
+        if (mode === 'light' || mode === 'dark' || mode === 'system' || mode === 'auto_schedule') {
           setTheme(prev => ({ ...prev, mode }));
         }
       } else if (e.key === THEME_CONFIG_KEY && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          if (parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system')) {
+          if (parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system' || parsed.mode === 'auto_schedule')) {
             setTheme(parsed);
           }
         } catch {
@@ -175,15 +218,29 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const setThemeMode = useCallback((mode: 'light' | 'dark' | 'system') => {
+  const setThemeMode = useCallback((mode: ThemeMode) => {
     setTheme(prev => ({ ...prev, mode }));
   }, []);
 
+  const updateAutoSchedule = useCallback((dStart: number, nStart: number) => {
+    setTheme(prev => ({
+      ...prev,
+      autoSchedule: {
+        enabled: true,
+        dayStartHour: Math.max(0, Math.min(23, dStart)),
+        nightStartHour: Math.max(0, Math.min(23, nStart))
+      }
+    }));
+  }, []);
+
   const toggleTheme = useCallback(() => {
-    // Toggle directly between opposite resolved states
+    // Cycle modes: system -> auto_schedule -> light -> dark -> system
     setTheme(prev => {
-      const currentResolved = prev.mode === 'system' ? getSystemPreference() : prev.mode;
-      const nextMode = currentResolved === 'dark' ? 'light' : 'dark';
+      let nextMode: ThemeMode = 'light';
+      if (prev.mode === 'light') nextMode = 'dark';
+      else if (prev.mode === 'dark') nextMode = 'system';
+      else if (prev.mode === 'system') nextMode = 'auto_schedule';
+      else if (prev.mode === 'auto_schedule') nextMode = 'light';
       return { ...prev, mode: nextMode };
     });
   }, []);
@@ -201,13 +258,30 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       theme,
       resolvedTheme,
       systemTheme,
+      timeBasedTheme,
       isDark,
+      isDaytime,
+      currentTimeString,
       setThemeMode,
       toggleTheme,
+      updateAutoSchedule,
       setPrimaryColor,
       setAccentColor
     }),
-    [theme, resolvedTheme, systemTheme, isDark, setThemeMode, toggleTheme, setPrimaryColor, setAccentColor]
+    [
+      theme,
+      resolvedTheme,
+      systemTheme,
+      timeBasedTheme,
+      isDark,
+      isDaytime,
+      currentTimeString,
+      setThemeMode,
+      toggleTheme,
+      updateAutoSchedule,
+      setPrimaryColor,
+      setAccentColor
+    ]
   );
 
   return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;

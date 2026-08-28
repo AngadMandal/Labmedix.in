@@ -11,6 +11,7 @@ import { AuditService } from '../../services/auditService';
 import { CardholderAuthService, CARDHOLDER_SESSION_KEY } from '../../services/cardholderAuthService';
 import { CR80CardFront } from '../../components/card/CR80CardFront';
 import { CR80CardBack } from '../../components/card/CR80CardBack';
+import { FramerInteractiveHealthCard } from '../../components/card/FramerInteractiveHealthCard';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Modal } from '../../components/common/Modal';
@@ -1733,24 +1734,14 @@ export const PatientPortalPage: React.FC = () => {
               </div>
 
               {patientCard && (
-                <>
-                  <div className="scale-90 sm:scale-100 origin-center my-2">
-                    {isFlipped ? (
-                      <CR80CardBack
-                        patient={authenticatedPatient}
-                        card={patientCard}
-                        membership={membership}
-                        company={company}
-                      />
-                    ) : (
-                      <CR80CardFront
-                        patient={authenticatedPatient}
-                        card={patientCard}
-                        membership={membership}
-                        company={company}
-                      />
-                    )}
-                  </div>
+                <div className="w-full flex flex-col items-center my-2">
+                  <FramerInteractiveHealthCard
+                    patient={authenticatedPatient}
+                    card={patientCard}
+                    membership={membership}
+                    company={company}
+                  />
+
                   <div className="grid grid-cols-2 gap-3 mt-4 w-[340px]">
                     <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
                       <span className="text-[10px] text-slate-400 uppercase block font-sans flex items-center gap-1">
@@ -1779,7 +1770,7 @@ export const PatientPortalPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                </>
+                </div>
               )}
               <p className="text-[11px] text-slate-400 text-center mt-2 font-mono">
                 Present this card QR code at hospital counter / diagnostics for instant cashless billing.

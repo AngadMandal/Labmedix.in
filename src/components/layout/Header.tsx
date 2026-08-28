@@ -9,6 +9,8 @@ import { QRScannerModal } from '../qr/QRScannerModal';
 import { CommandPaletteModal } from '../common/CommandPaletteModal';
 import { NotificationDrawer } from '../common/NotificationDrawer';
 import { SecurityShieldModal } from '../common/SecurityShieldModal';
+import { SyncHealthIndicator } from '../common/SyncHealthIndicator';
+import { ThemeSelectorModal } from './ThemeSelectorModal';
 import {
   Menu,
   Sun,
@@ -22,7 +24,9 @@ import {
   Bell,
   Command,
   Globe,
-  ShieldCheck
+  ShieldCheck,
+  Clock,
+  Laptop
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -38,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
   const [isSecurityShieldOpen, setIsSecurityShieldOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   const cards = StorageService.getCards();
   const expiredCount = cards.filter(c => c.status === 'expired' || new Date(c.expiryDate) < new Date()).length;
@@ -117,6 +122,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
           <span className="hidden md:inline">3D Website</span>
         </Link>
+
+        {/* Persistent Sync Health Traffic-Light Indicator */}
+        <SyncHealthIndicator />
 
         {/* Security Integrity Shield Button */}
         <button
@@ -258,13 +266,33 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           )}
         </div>
 
-        {/* Theme Toggle Button */}
+        {/* Theme Preference Button */}
         <button
-          onClick={toggleTheme}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          title={`Theme: ${theme.mode === 'system' ? `System (${isDark ? 'Dark' : 'Light'})` : theme.mode === 'dark' ? 'Dark' : 'Light'} - Click to toggle`}
+          onClick={() => setIsThemeModalOpen(true)}
+          className="relative p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1"
+          title={`Theme: ${
+            theme.mode === 'auto_schedule'
+              ? 'Auto Schedule (Time-based)'
+              : theme.mode === 'system'
+              ? `System OS (${isDark ? 'Dark' : 'Light'})`
+              : theme.mode === 'dark'
+              ? 'Dark'
+              : 'Light'
+          } - Click to customize`}
         >
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {theme.mode === 'auto_schedule' ? (
+            <Clock className="w-4 h-4 text-amber-500" />
+          ) : theme.mode === 'system' ? (
+            <Laptop className="w-4 h-4 text-blue-500" />
+          ) : isDark ? (
+            <Moon className="w-4 h-4 text-indigo-400" />
+          ) : (
+            <Sun className="w-4 h-4 text-amber-500" />
+          )}
+
+          {theme.mode === 'auto_schedule' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 absolute top-1 right-1 animate-pulse" />
+          )}
         </button>
 
         {/* Screen Lock Button */}
@@ -305,6 +333,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       <SecurityShieldModal
         isOpen={isSecurityShieldOpen}
         onClose={() => setIsSecurityShieldOpen(false)}
+      />
+
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
       />
     </header>
   );

@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Badge, CardStatusBadge } from '../../components/common/Badge';
 import { CR80CardFront } from '../../components/card/CR80CardFront';
+import { FramerInteractiveHealthCard } from '../../components/card/FramerInteractiveHealthCard';
 import { CardStudio } from '../../components/card/CardStudio';
 import { PatientVitalsModule } from '../../components/patients/PatientVitalsModule';
 import { PrescriptionPrintModal } from '../../components/emr/PrescriptionPrintModal';
@@ -784,13 +785,12 @@ export const PatientDetailPage: React.FC = () => {
                   </Button>
                 </div>
 
-                <div className="scale-90 sm:scale-100 origin-top">
-                  <CR80CardFront
+                <div className="w-full flex justify-center py-2">
+                  <FramerInteractiveHealthCard
                     patient={patient}
                     card={card}
                     membership={membership}
                     company={company}
-                    scale={1}
                   />
                 </div>
               </div>

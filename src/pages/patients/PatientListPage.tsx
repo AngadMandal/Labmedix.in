@@ -18,7 +18,27 @@ import { PatientRealMoneyTopUpModal } from '../../components/portal/PatientRealM
 import { DirectLabAndPackageBookingModal } from '../../components/portal/DirectLabAndPackageBookingModal';
 import { DirectMedicineOrderModal } from '../../components/portal/DirectMedicineOrderModal';
 import { Patient, PatientAppointment, CardApplicationRequest, HealthCard, Membership, Wallet } from '../../types';
+import { DEFAULT_MEMBERSHIPS } from '../../constants/memberships';
 import { formatDate, formatDateTime, formatCurrency } from '../../utils/formatters';
+
+const FALLBACK_MEMBERSHIP: Membership = DEFAULT_MEMBERSHIPS[0] || {
+  id: 'mem_gold',
+  name: 'Standard Gold',
+  color: '#0D9488',
+  registrationFee: 500,
+  opdDiscount: 25,
+  labDiscount: 30,
+  pharmacyDiscount: 15,
+  ipdDiscount: 10,
+  validityYears: 3,
+  description: 'Standard Membership'
+};
+
+const getMem = (membershipId: string | undefined, membershipsList: Membership[] = []): Membership => {
+  if (!membershipsList || membershipsList.length === 0) return FALLBACK_MEMBERSHIP;
+  const found = membershipsList.find(m => m.id === membershipId);
+  return found || membershipsList[0] || FALLBACK_MEMBERSHIP;
+};
 import {
   Users,
   Plus,
@@ -272,7 +292,7 @@ export const PatientListPage: React.FC = () => {
   const handlePrintLabBill = (booking: BloodTestBooking) => {
     const patient = patients.find(p => p.id === booking.patientId);
     const card = cards.find(c => c.patientId === booking.patientId || c.id === patient?.healthCardId);
-    const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+    const mem = getMem(card?.membershipId, memberships);
 
     setActiveReceiptToPrint({
       id: `rcp_lab_${booking.id}`,
@@ -299,7 +319,7 @@ export const PatientListPage: React.FC = () => {
   const handlePrintPharmacyBill = (order: MedicineOrder) => {
     const patient = patients.find(p => p.id === order.patientId);
     const card = cards.find(c => c.patientId === order.patientId || c.id === patient?.healthCardId);
-    const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+    const mem = getMem(card?.membershipId, memberships);
 
     setActiveReceiptToPrint({
       id: `rcp_phm_${order.id}`,
@@ -326,7 +346,7 @@ export const PatientListPage: React.FC = () => {
   const handlePrintAppointmentBill = (apt: PatientAppointment) => {
     const patient = patients.find(p => p.id === apt.patientId);
     const card = cards.find(c => c.patientId === apt.patientId || c.id === patient?.healthCardId);
-    const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+    const mem = getMem(card?.membershipId, memberships);
     const gross = apt.consultationFee / (1 - (mem.opdDiscount || 25) / 100);
     const discount = gross * ((mem.opdDiscount || 25) / 100);
 
@@ -353,7 +373,7 @@ export const PatientListPage: React.FC = () => {
 
   const handlePrintPatientCardSlip = (patient: Patient) => {
     const card = cards.find(c => c.id === patient.healthCardId || c.patientId === patient.id);
-    const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+    const mem = getMem(card?.membershipId, memberships);
     const wallet = wallets.find(w => w.patientId === patient.id);
     const regFee = mem.registrationFee || 500;
     const walletBal = wallet?.balance || 0;
@@ -496,7 +516,7 @@ export const PatientListPage: React.FC = () => {
       else if (a.status === 'in_consultation') badgeVar = 'purple';
       else if (a.status === 'completed') badgeVar = 'success';
 
-      const mem = memberships[0];
+      const mem = getMem(undefined, memberships);
       const gross = a.consultationFee / (1 - (mem.opdDiscount || 25) / 100);
       const discount = gross * ((mem.opdDiscount || 25) / 100);
 
@@ -640,7 +660,7 @@ export const PatientListPage: React.FC = () => {
       header: 'Health Card & Float',
       accessor: (p) => {
         const card = cards.find(c => c.id === p.healthCardId || c.patientId === p.id);
-        const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+        const mem = getMem(card?.membershipId, memberships);
         const wallet = wallets.find(w => w.patientId === p.id);
         if (!card) return <span className="text-xs text-slate-400">No Active Card</span>;
 
@@ -650,9 +670,9 @@ export const PatientListPage: React.FC = () => {
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
                 className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase font-mono inline-block"
-                style={{ backgroundColor: mem.color + '20', color: mem.color }}
+                style={{ backgroundColor: (mem.color || '#0D9488') + '20', color: mem.color || '#0D9488' }}
               >
-                {mem.name}
+                {mem.name || 'Standard Gold'}
               </span>
               <span className="text-[10px] font-mono text-emerald-600 font-bold">
                 ₹{wallet?.balance || 0}
@@ -736,7 +756,7 @@ export const PatientListPage: React.FC = () => {
       className: 'text-right',
       accessor: (p) => {
         const card = cards.find(c => c.id === p.healthCardId || c.patientId === p.id);
-        const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+        const mem = getMem(card?.membershipId, memberships);
 
         return (
           <div className="flex items-center justify-end gap-1">
@@ -1191,7 +1211,7 @@ export const PatientListPage: React.FC = () => {
               {filteredRequests.map((req) => {
                 const patient = patients.find(p => p.id === req.patientId);
                 const card = cards.find(c => c.patientId === req.patientId || c.id === patient?.healthCardId);
-                const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+                const mem = getMem(card?.membershipId, memberships);
 
                 return (
                   <div
@@ -1235,9 +1255,9 @@ export const PatientListPage: React.FC = () => {
                             <span>•</span>
                             <span
                               className="px-1.5 py-0.2 rounded text-[9.5px] font-black uppercase"
-                              style={{ backgroundColor: mem.color + '20', color: mem.color }}
+                              style={{ backgroundColor: (mem.color || '#0D9488') + '20', color: mem.color || '#0D9488' }}
                             >
-                              {mem.name}
+                              {mem.name || 'Standard Gold'}
                             </span>
                           </div>
                         </div>
@@ -1622,7 +1642,7 @@ export const PatientListPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPatients.map((p) => {
               const card = cards.find(c => c.id === p.healthCardId || c.patientId === p.id);
-              const mem = memberships.find(m => m.id === card?.membershipId) || memberships[0];
+              const mem = getMem(card?.membershipId, memberships);
               const patientReqs = unifiedRequests.filter(r => r.patientId === p.id);
               const wallet = wallets.find(w => w.patientId === p.id);
 
@@ -1669,9 +1689,9 @@ export const PatientListPage: React.FC = () => {
                         <span className="text-slate-400">Card Tier:</span>
                         <span
                           className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase font-mono"
-                          style={{ backgroundColor: mem.color + '20', color: mem.color }}
+                          style={{ backgroundColor: (mem.color || '#0D9488') + '20', color: mem.color || '#0D9488' }}
                         >
-                          {mem.name}
+                          {mem.name || 'Standard Gold'}
                         </span>
                       </div>
                       <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1">
@@ -1757,7 +1777,7 @@ export const PatientListPage: React.FC = () => {
           onClose={() => setQuickViewPatient(null)}
           patient={quickViewPatient}
           card={cards.find(c => c.id === quickViewPatient.healthCardId || c.patientId === quickViewPatient.id)}
-          membership={memberships.find(m => m.id === cards.find(c => c.id === quickViewPatient?.healthCardId)?.membershipId) || memberships[0]}
+          membership={getMem(cards.find(c => c.id === quickViewPatient?.healthCardId || c.patientId === quickViewPatient?.id)?.membershipId, memberships)}
           company={company}
         />
       )}
@@ -1822,7 +1842,7 @@ export const PatientListPage: React.FC = () => {
           patient={activePatientForTopUp}
           wallet={wallets.find(w => w.patientId === activePatientForTopUp.id)}
           card={cards.find(c => c.id === activePatientForTopUp.healthCardId || c.patientId === activePatientForTopUp.id)}
-          membership={memberships.find(m => m.id === cards.find(c => c.id === activePatientForTopUp.healthCardId)?.membershipId) || memberships[0]}
+          membership={getMem(cards.find(c => c.id === activePatientForTopUp.healthCardId || c.patientId === activePatientForTopUp.id)?.membershipId, memberships)}
           onSuccess={(receipt) => {
             refreshList();
             setActiveReceiptToPrint(receipt);
@@ -1836,7 +1856,7 @@ export const PatientListPage: React.FC = () => {
           isOpen={!!activePatientForLabBooking}
           onClose={() => setActivePatientForLabBooking(null)}
           patient={activePatientForLabBooking}
-          membership={memberships.find(m => m.id === cards.find(c => c.id === activePatientForLabBooking.healthCardId)?.membershipId) || memberships[0]}
+          membership={getMem(cards.find(c => c.id === activePatientForLabBooking.healthCardId || c.patientId === activePatientForLabBooking.id)?.membershipId, memberships)}
           walletBalance={wallets.find(w => w.patientId === activePatientForLabBooking.id)?.balance || 0}
           onBookingSuccess={(booking, receipt) => {
             refreshList();
@@ -1853,7 +1873,7 @@ export const PatientListPage: React.FC = () => {
           isOpen={!!activePatientForMedicineOrder}
           onClose={() => setActivePatientForMedicineOrder(null)}
           patient={activePatientForMedicineOrder}
-          membership={memberships.find(m => m.id === cards.find(c => c.id === activePatientForMedicineOrder.healthCardId)?.membershipId) || memberships[0]}
+          membership={getMem(cards.find(c => c.id === activePatientForMedicineOrder.healthCardId || c.patientId === activePatientForMedicineOrder.id)?.membershipId, memberships)}
           walletBalance={wallets.find(w => w.patientId === activePatientForMedicineOrder.id)?.balance || 0}
           onOrderSuccess={(order, receipt) => {
             refreshList();

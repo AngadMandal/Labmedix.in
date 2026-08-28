@@ -510,12 +510,21 @@ export class ApiSyncService {
         if (success) {
           this.processedQueueCount++;
           this.lastTimelineSyncTime = new Date().toISOString();
-        } else if (task.retries < 3) {
-          task.retries++;
-          this.workerQueue.push(task); // Re-queue for retry
+        } else {
+          throw new Error('Save returned false status');
         }
       } catch (err) {
-        console.warn(`[BackgroundWorker] Task failed for ${task.collection}/${task.id}:`, err);
+        if (task.retries < 5) {
+          task.retries++;
+          const backoffMs = Math.pow(2, task.retries) * 1000 + Math.random() * 500; // Exponential backoff with jitter
+          console.warn(`[BackgroundWorker] Task failed for ${task.collection}/${task.id} (Attempt ${task.retries}/5). Retrying in ${Math.round(backoffMs)}ms...`);
+          
+          // Wait for backoff duration before re-queuing or delaying next run
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          this.workerQueue.push(task);
+        } else {
+          console.error(`[BackgroundWorker] Task permanently failed after 5 retries for ${task.collection}/${task.id}:`, err);
+        }
       }
     }
 

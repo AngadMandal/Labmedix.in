@@ -446,10 +446,17 @@ export interface NFCSettings {
   enableWebNfcApi: boolean;
 }
 
+export type ThemeMode = 'light' | 'dark' | 'system' | 'auto_schedule';
+
 export interface ThemeConfig {
-  mode: 'light' | 'dark' | 'system';
+  mode: ThemeMode;
   primaryColor: string;
   accentColor: string;
+  autoSchedule?: {
+    enabled: boolean;
+    dayStartHour: number; // 0-23, default 7 (7:00 AM)
+    nightStartHour: number; // 0-23, default 19 (7:00 PM)
+  };
 }
 
 export interface BackupData {

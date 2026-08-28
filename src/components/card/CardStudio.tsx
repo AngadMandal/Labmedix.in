@@ -27,7 +27,11 @@ import {
   Sliders,
   Columns2,
   HelpCircle,
-  Users2
+  Users2,
+  Heart,
+  Activity,
+  AlertTriangle,
+  Copy
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -48,6 +52,21 @@ export const CardStudio: React.FC<CardStudioProps> = ({
 }) => {
   const [card, setCard] = useState<HealthCard>(initialCard);
   const [isFlipped, setIsFlipped] = useState(false);
+
+  const triggerHaptic = (pattern: number | number[] = [35, 25, 45]) => {
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch {
+        // Safe fallback
+      }
+    }
+  };
+
+  const handleCardFlip = () => {
+    triggerHaptic(isFlipped ? 30 : [40, 20, 50]);
+    setIsFlipped(prev => !prev);
+  };
   const [displayMode, setDisplayMode] = useState<'3d_flip' | 'dual_view'>('3d_flip');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [showBleedGuides, setShowBleedGuides] = useState(false);
@@ -263,7 +282,7 @@ export const CardStudio: React.FC<CardStudioProps> = ({
                 }}
                 transition={{ duration: isFlipped ? 0.6 : 0.05, ease: 'easeOut' }}
                 className="relative preserve-3d cursor-pointer"
-                onClick={() => setIsFlipped(!isFlipped)}
+                onClick={handleCardFlip}
               >
                 {/* Front Face */}
                 <div className={`backface-hidden ${isFlipped ? 'pointer-events-none' : ''}`}>
@@ -328,18 +347,69 @@ export const CardStudio: React.FC<CardStudioProps> = ({
 
           {/* Flip Toggle Bar in 3D Mode */}
           {displayMode === '3d_flip' && (
-            <div className="flex items-center gap-3 mt-6 z-10">
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<RotateCw className="w-4 h-4" />}
-                onClick={() => setIsFlipped(!isFlipped)}
-              >
-                Flip to {isFlipped ? 'Front Side' : 'Back Side'}
-              </Button>
-              <span className="text-xs font-mono text-slate-400">
-                Click card or button to flip in 3D. Move mouse to inspect lighting.
-              </span>
+            <div className="flex flex-col items-center gap-3 mt-6 z-10 w-full max-w-xl">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<RotateCw className="w-4 h-4" />}
+                  onClick={handleCardFlip}
+                >
+                  Flip to {isFlipped ? 'Front Side' : 'Back Side & Clinical Specs'}
+                </Button>
+                <span className="text-xs font-mono text-slate-400 hidden sm:inline">
+                  Click card or button to flip in 3D.
+                </span>
+              </div>
+
+              {/* Framer Motion Clinical Specs Reveal on Flip */}
+              {isFlipped && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.35 }}
+                  className="w-full p-4 rounded-2xl bg-slate-900/90 border border-teal-500/40 text-left text-xs space-y-2.5 shadow-xl"
+                >
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="font-extrabold text-teal-300 uppercase tracking-wider flex items-center gap-1.5 text-xs">
+                      <Activity className="w-4 h-4 text-emerald-400" />
+                      Revealed Patient Clinical Profile
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-black text-[10px] border border-rose-500/30 flex items-center gap-1">
+                      <Heart className="w-3 h-3 fill-current" />
+                      {patient.bloodGroup || 'O+ POSITIVE'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
+                    <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                      <span className="text-[9px] text-slate-400 block uppercase font-sans">BP</span>
+                      <strong className="text-emerald-400">{patient.vitalsAtReg?.bp || '120/80 mmHg'}</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                      <span className="text-[9px] text-slate-400 block uppercase font-sans">Pulse</span>
+                      <strong className="text-rose-400">{patient.vitalsAtReg?.pulse || 72} bpm</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                      <span className="text-[9px] text-slate-400 block uppercase font-sans">SpO2</span>
+                      <strong className="text-cyan-400">{patient.vitalsAtReg?.spo2 || 98}%</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                      <span className="text-[9px] text-slate-400 block uppercase font-sans">RBS</span>
+                      <strong className="text-amber-400">{patient.vitalsAtReg?.rbs || '105 mg/dL'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-rose-950/20 border border-rose-500/20 text-[11px]">
+                    <span className="text-rose-300 font-bold flex items-center gap-1 text-[10px] uppercase">
+                      <AlertTriangle className="w-3 h-3 text-rose-400" />
+                      Allergies & Alerts:
+                    </span>
+                    <p className="text-slate-300 mt-0.5">{patient.medicalInfo?.allergies || 'No Known Drug Allergies (NKDA)'}</p>
+                  </div>
+                </motion.div>
+              )}
             </div>
           )}
         </div>

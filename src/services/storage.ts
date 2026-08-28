@@ -1065,7 +1065,11 @@ export class StorageService {
 
   // Memberships
   public static getMemberships(): Membership[] {
-    return this.getItem<Membership[]>(STORAGE_KEYS.MEMBERSHIPS, DEFAULT_MEMBERSHIPS);
+    const memberships = this.getItem<Membership[]>(STORAGE_KEYS.MEMBERSHIPS, DEFAULT_MEMBERSHIPS);
+    if (!memberships || !Array.isArray(memberships) || memberships.length === 0) {
+      return DEFAULT_MEMBERSHIPS;
+    }
+    return memberships;
   }
   public static saveMemberships(memberships: Membership[]): void {
     this.setItem(STORAGE_KEYS.MEMBERSHIPS, memberships);

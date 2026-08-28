@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { formatCurrency } from '../../utils/formatters';
 import { LabMedixLogo } from '../common/LabMedixLogo';
 import { CompanyProfile } from '../../types';
-import { Wifi, Sparkles, ShieldCheck, QrCode, RotateCcw, Lock, CreditCard } from 'lucide-react';
+import { Wifi, ShieldCheck, RotateCcw, Heart, Activity, Phone, AlertCircle } from 'lucide-react';
 
 interface VirtualHealthCardWidgetProps {
   balance: number;
@@ -12,6 +13,8 @@ interface VirtualHealthCardWidgetProps {
   holderName?: string;
   patientId?: string;
   cardNumber?: string;
+  bloodGroup?: string;
+  emergencyPhone?: string;
 }
 
 export const VirtualHealthCardWidget: React.FC<VirtualHealthCardWidgetProps> = ({
@@ -21,20 +24,38 @@ export const VirtualHealthCardWidget: React.FC<VirtualHealthCardWidgetProps> = (
   company,
   holderName = 'LABMEDIX PREPAID FLOAT',
   patientId = 'LMDX-HQ-FLOAT',
-  cardNumber = '•••• •••• •••• 8842'
+  cardNumber = '•••• •••• •••• 8842',
+  bloodGroup = 'O+ POSITIVE',
+  emergencyPhone
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+
+  const triggerHaptic = (pattern: number | number[] = [35, 25, 45]) => {
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch {
+        // Safe fallback for environments without vibration permission
+      }
+    }
+  };
+
+  const handleCardFlip = () => {
+    triggerHaptic(isFlipped ? 30 : [40, 20, 50]);
+    setIsFlipped(prev => !prev);
+  };
 
   const companyName = company?.name || 'LABMEDIX';
   const logoUrl = company?.logoUrl;
   const tagline = company?.tagline || 'HEALTH WALLET • ESCROW';
 
   return (
-    <div className="relative w-full max-w-sm h-56 perspective-1000 select-none group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
-      <div
-        className={`w-full h-full relative preserve-3d transition-transform duration-700 ${
-          isFlipped ? 'rotate-y-180' : ''
-        }`}
+    <div className="relative w-full max-w-sm h-56 perspective-1200 select-none group cursor-pointer" onClick={handleCardFlip}>
+      <motion.div
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        initial={false}
+        transition={{ duration: 0.65, ease: [0.23, 1, 0.32, 1] }}
+        className="w-full h-full relative preserve-3d rounded-3xl shadow-2xl"
       >
         {/* ================= FRONT SIDE ================= */}
         <div className="absolute inset-0 backface-hidden rounded-3xl p-6 bg-gradient-to-tr from-slate-950 via-slate-900 to-teal-950 text-white shadow-2xl border-2 border-teal-500/50 overflow-hidden flex flex-col justify-between">
@@ -92,36 +113,45 @@ export const VirtualHealthCardWidget: React.FC<VirtualHealthCardWidgetProps> = (
               <span className="tracking-wider uppercase font-bold text-white truncate max-w-[170px]">
                 {holderName}
               </span>
-              <span className="text-teal-400 font-bold flex items-center gap-1">
-                <RotateCcw className="w-3 h-3" /> Tap to Flip
+              <span className="text-teal-400 font-bold flex items-center gap-1 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/20">
+                <RotateCcw className="w-3 h-3 animate-spin" /> Tap for Clinical Specs
               </span>
             </div>
           </div>
         </div>
 
         {/* ================= BACK SIDE ================= */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-3xl p-5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white shadow-2xl border-2 border-slate-700 overflow-hidden flex flex-col justify-between">
+        <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-3xl p-5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white shadow-2xl border-2 border-emerald-500/50 overflow-hidden flex flex-col justify-between">
           {/* HiCo Magnetic Stripe */}
-          <div className="w-full h-7 bg-black -mx-5 px-5 flex items-center justify-end">
-            <span className="text-[7.5px] font-mono text-slate-500">HiCo 4000 Oe • 256-BIT ENCRYPTED</span>
+          <div className="w-full h-7 bg-black -mx-5 px-5 flex items-center justify-between border-b border-slate-800">
+            <span className="text-[7.5px] font-mono text-emerald-400 font-bold uppercase flex items-center gap-1">
+              <Activity className="w-3 h-3 text-emerald-400" /> CLINICAL DETAILS & RECONCILED ESCROW
+            </span>
+            <span className="text-[7.5px] font-mono text-rose-300 font-bold flex items-center gap-0.5">
+              <Heart className="w-2.5 h-2.5 fill-current text-rose-400" /> {bloodGroup}
+            </span>
           </div>
 
-          {/* Security & Token Info */}
+          {/* Security & Clinical Specs */}
           <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+            <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-slate-800/80 border border-slate-700">
               <div>
                 <span className="text-[8px] text-slate-400 uppercase font-mono block">Patient Reference</span>
                 <strong className="text-xs font-mono text-teal-300">{patientId}</strong>
               </div>
               <div className="text-right">
-                <span className="text-[8px] text-slate-400 uppercase font-mono block">Security CVV</span>
-                <strong className="text-xs font-mono text-amber-300">•••</strong>
+                <span className="text-[8px] text-slate-400 uppercase font-mono block">Emergency Helpline</span>
+                <strong className="text-xs font-mono text-amber-300">{emergencyPhone || company?.helpline || '1800-889-9911'}</strong>
               </div>
             </div>
 
-            <div className="text-[8px] text-slate-400 leading-tight space-y-0.5">
-              <p>• Authorized for OPD consults, diagnostic tests, and pharmacy cashless settlement.</p>
-              <p>• 24x7 Emergency Helpline: <strong>{company?.helpline || '1800-889-9911'}</strong></p>
+            <div className="p-2 rounded-xl bg-teal-950/40 border border-teal-500/30 text-[9px] text-slate-200 leading-tight space-y-1">
+              <div className="flex items-center justify-between font-bold text-teal-300">
+                <span>🩺 Clinical Clearances:</span>
+                <span className="text-emerald-400">Cashless Verified</span>
+              </div>
+              <p>• Pre-approved OPD, Diagnostics & Pharmacy Escrow Settlement.</p>
+              <p>• Baseline Vitals: BP 120/80 mmHg | Pulse 72 bpm | SpO2 98%.</p>
             </div>
           </div>
 
@@ -130,10 +160,12 @@ export const VirtualHealthCardWidget: React.FC<VirtualHealthCardWidgetProps> = (
             <span className="flex items-center gap-1 text-emerald-400 font-bold">
               <ShieldCheck className="w-3.5 h-3.5" /> 100% Reconciled Escrow
             </span>
-            <span className="text-slate-500">Tap to Flip Back</span>
+            <span className="text-teal-300 font-bold flex items-center gap-1">
+              <RotateCcw className="w-3 h-3" /> Tap to Flip Back
+            </span>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
