@@ -219,9 +219,11 @@ export class AuthService {
     const users = StorageService.getUsers();
     users.forEach(u => {
       u.status = 'active';
-      if (!u.pinCode) u.pinCode = '1509442';
       if (u.role === 'super_admin' || u.username === 'superadmin') {
         u.status = 'active';
+        if (!u.pinCode || u.pinCode === '1509442') u.pinCode = 'LabMedix@2026Root#';
+      } else if (!u.pinCode) {
+        u.pinCode = '1509442';
       }
     });
     StorageService.saveUsers(users);
@@ -236,10 +238,13 @@ export class AuthService {
         email: 'superadmin@labmedix.org',
         role: 'super_admin',
         status: 'active',
-        pinCode: '1509442',
+        pinCode: 'LabMedix@2026Root#',
         createdAt: new Date().toISOString()
       };
       users.push(superAdminUser);
+      StorageService.saveUsers(users);
+    } else if (superAdminUser.pinCode === '1509442' || !superAdminUser.pinCode) {
+      superAdminUser.pinCode = 'LabMedix@2026Root#';
       StorageService.saveUsers(users);
     }
 

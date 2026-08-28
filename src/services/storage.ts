@@ -76,7 +76,7 @@ const INITIAL_USERS: User[] = [
     cardThemeWish: 'premium_medical',
     cardMaterialWish: 'gold_foil',
     status: 'active',
-    pinCode: '1509442',
+    pinCode: 'LabMedix@2026Root#',
     joiningDate: '2025-01-01',
     expiryDate: '2028-12-31',
     createdAt: '2025-01-01T00:00:00.000Z'

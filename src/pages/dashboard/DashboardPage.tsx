@@ -487,40 +487,58 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Security & Activity Audit Log */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-emerald-600" />
-              Live System Activity Trail
-            </h3>
-            <button
-              onClick={() => navigate('/activity')}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-            >
-              Full Log <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+        {/* System Access Audit Log - Last 5 Entries Summary Card */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-600" />
+                System Access Audit Log (Last 5 Entries)
+              </h3>
+              <button
+                onClick={() => navigate('/activity')}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                Full Log <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2 mb-4">
+              Real-time monitoring of security access, logins, and administrative actions.
+            </p>
           </div>
 
           <div className="space-y-3">
-            {auditLogs.map((log) => (
+            {auditLogsList.slice(0, 5).map((log) => (
               <div key={log.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      {log.action.replace('_', ' ')}
+                    <span className="text-xs font-bold text-slate-900 dark:text-white truncate uppercase font-mono">
+                      {log.action.replace(/_/g, ' ')}
                     </span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(log.timestamp).toLocaleTimeString()}
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {formatDateTime(log.timestamp)}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-1">
                     {log.description}
                   </p>
+                  <div className="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400 font-mono">
+                    <span className="bg-slate-200/60 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                      User: {log.userId}
+                    </span>
+                    <span className="bg-slate-200/60 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                      Module: {log.module}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
+            {auditLogsList.length === 0 && (
+              <div className="text-center py-8 text-slate-400 text-xs">
+                No system access logs recorded yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
