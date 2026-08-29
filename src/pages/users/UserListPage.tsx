@@ -1808,6 +1808,105 @@ Note: Keep these credentials confidential.`;
       {editingUser && (
         <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title={`Edit Staff Account (${editingUser.staffId || editingUser.username})`} maxWidth="xl">
           <form onSubmit={handleUpdateUser} className="space-y-4 text-xs max-h-[80vh] overflow-y-auto pr-1">
+            {/* 1-Click Recommended Templates */}
+            <div className="space-y-1.5 p-3 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800">
+              <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 uppercase tracking-wider block">
+                ⚡ Select from Recommended Fill-up Templates
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset({
+                    fullName: 'Dr. Subhashish Roy',
+                    username: 'subhashish.roy',
+                    email: 'subhashish.roy@labmedix.org',
+                    phone: '+91 98300 11223',
+                    workPhone: 'EXT-101 (Executive)',
+                    department: 'Clinical Administration',
+                    designation: 'Associate Medical Director',
+                    accessZone: 'Zone ROOT: Executive Board & OT Suites',
+                    nationalId: 'UID-8821-9940-1120',
+                    licenseNo: 'WBMC-DIR-0091',
+                    bloodGroup: 'A+',
+                    photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&auto=format&fit=crop&q=80',
+                    role: 'admin',
+                    pin: '1509442',
+                    themeWish: 'premium_medical'
+                  })}
+                  className="px-2.5 py-1 rounded-lg border text-[11px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 border-blue-200 hover:bg-blue-100"
+                >
+                  + Dr. Subhashish (Admin)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset({
+                    fullName: 'Priyanka Mukherjee',
+                    username: 'priyanka.m',
+                    email: 'priyanka.m@labmedix.org',
+                    phone: '+91 98311 44556',
+                    workPhone: 'EXT-104 (Front Desk)',
+                    department: 'Front Desk & Walk-In Care',
+                    designation: 'Senior Patient Desk Executive',
+                    accessZone: 'Zone C: Reception & Front Desk',
+                    nationalId: 'UID-5541-2290-7711',
+                    bloodGroup: 'B+',
+                    photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+                    role: 'reception',
+                    pin: '1509442',
+                    themeWish: 'premium_medical'
+                  })}
+                  className="px-2.5 py-1 rounded-lg border text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-200 hover:bg-emerald-100"
+                >
+                  + Priyanka (Reception)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset({
+                    fullName: 'Tanmoy Das',
+                    username: 'tanmoy.cards',
+                    email: 'tanmoy.cards@labmedix.org',
+                    phone: '+91 98322 77889',
+                    workPhone: 'EXT-107 (CR80 Studio)',
+                    department: 'CR80 PVC Card Studio',
+                    designation: 'Senior PVC Print Specialist',
+                    accessZone: 'Zone F: Card Production & Embossing',
+                    nationalId: 'UID-2219-5501-8833',
+                    bloodGroup: 'O+',
+                    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+                    role: 'card_operator',
+                    pin: '1509442',
+                    themeWish: 'executive_secure'
+                  })}
+                  className="px-2.5 py-1 rounded-lg border text-[11px] font-bold bg-cyan-50 dark:bg-cyan-950/40 text-cyan-800 dark:text-cyan-200 border-cyan-200 hover:bg-cyan-100"
+                >
+                  + Tanmoy (CR80 Operator)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPreset({
+                    fullName: 'Dr. Anita Sen',
+                    username: 'anita.pathology',
+                    email: 'anita.sen@labmedix.org',
+                    phone: '+91 98333 99001',
+                    workPhone: 'EXT-105 (Pathology Lab)',
+                    department: 'Pathology & Phlebotomy',
+                    designation: 'Lead Diagnostic Pathologist',
+                    accessZone: 'Zone D: Biochemistry Lab & Blood Bank',
+                    nationalId: 'UID-4412-8871-3310',
+                    licenseNo: 'WBMLT-CERT-8812',
+                    bloodGroup: 'AB+',
+                    photoUrl: 'https://images.unsplash.com/photo-1594824813586-53d7117df568?w=400&auto=format&fit=crop&q=80',
+                    role: 'lab_staff',
+                    pin: '1509442',
+                    themeWish: 'modern_healthcare'
+                  })}
+                  className="px-2.5 py-1 rounded-lg border text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 border-teal-200 hover:bg-teal-100"
+                >
+                  + Dr. Anita (Lab Staff)
+                </button>
+              </div>
+            </div>
+
             {/* Photo Management Box */}
             <div className="p-3.5 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2.5">
               <div className="flex items-center justify-between">

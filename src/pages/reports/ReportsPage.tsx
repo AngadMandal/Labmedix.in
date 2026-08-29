@@ -139,7 +139,65 @@ export const ReportsPage: React.FC = () => {
   const { showToast } = useToast();
   const [selectedBranch, setSelectedBranch] = useState<BranchId>('all');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('month');
-  const [activeViewTab, setActiveViewTab] = useState<'overview' | 'velocity' | 'wallet_float' | 'staff_productivity' | 'audit_ledger' | 'dept_collections' | 'doctor_referrals'>('overview');
+  const [activeViewTab, setActiveViewTab] = useState<'overview' | 'velocity' | 'wallet_float' | 'staff_productivity' | 'audit_ledger' | 'dept_collections' | 'doctor_referrals' | 'my_reports'>('overview');
+
+  // Database Access
+  const patients = StorageService.getPatients().filter(p => !p.isDeleted);
+  const cards = StorageService.getCards();
+  const memberships = StorageService.getMemberships();
+  const wallets = StorageService.getWallets();
+  const transactions = StorageService.getTransactions();
+  const auditLogs = StorageService.getAuditLogs();
+  const users = StorageService.getUsers();
+  const company = StorageService.getCompanyProfile();
+
+  // Current Logged-in User & Personal / Department Data
+  const currentUser = StorageService.getCurrentUser();
+  const myPatients = useMemo(() => {
+    if (!currentUser) return [];
+    return patients.filter(
+      p => p.createdBy === currentUser.fullName || p.createdBy === currentUser.username || p.createdBy === currentUser.id
+    );
+  }, [patients, currentUser]);
+
+  const myAuditLogs = useMemo(() => {
+    if (!currentUser) return [];
+    return auditLogs.filter(
+      l => l.userId === currentUser.id || l.userName === currentUser.fullName
+    );
+  }, [auditLogs, currentUser]);
+
+  const myDepartmentUsers = useMemo(() => {
+    if (!currentUser?.department) return users;
+    return users.filter(u => u.department === currentUser.department);
+  }, [users, currentUser]);
+
+  const handleExportMyReportCsv = () => {
+    if (!currentUser) return;
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const headers = ['User ID', 'Staff ID', 'Full Name', 'Role', 'Department', 'Designation', 'Patients Created', 'Audit Actions', 'Timestamp'];
+    const row = [
+      currentUser.id,
+      currentUser.staffId || 'N/A',
+      `"${currentUser.fullName}"`,
+      currentUser.role,
+      `"${currentUser.department || 'General'}"`,
+      `"${currentUser.designation || 'Staff'}"`,
+      myPatients.length,
+      myAuditLogs.length,
+      timestamp
+    ];
+    const csvContent = [headers.join(','), row.join(',')].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `LABMEDIX_MY_REPORT_${currentUser.username}_${timestamp}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    triggerCelebrationFireworks();
+    showToast('success', 'Personal Report Downloaded', 'Your live staff report CSV has been exported.');
+  };
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
   const [syncCountdown, setSyncCountdown] = useState(30);
 
@@ -151,16 +209,6 @@ export const ReportsPage: React.FC = () => {
   const [payoutMode, setPayoutMode] = useState<'Bank Transfer' | 'Cash' | 'Cheque' | 'Health Wallet UPI'>('Bank Transfer');
   const [payoutRefNo, setPayoutRefNo] = useState<string>('');
   const [payoutNotes, setPayoutNotes] = useState<string>('');
-
-  // Database Access
-  const patients = StorageService.getPatients().filter(p => !p.isDeleted);
-  const cards = StorageService.getCards();
-  const memberships = StorageService.getMemberships();
-  const wallets = StorageService.getWallets();
-  const transactions = StorageService.getTransactions();
-  const auditLogs = StorageService.getAuditLogs();
-  const users = StorageService.getUsers();
-  const company = StorageService.getCompanyProfile();
 
   // Auto-refresh countdown simulator
   useEffect(() => {
@@ -556,6 +604,7 @@ export const ReportsPage: React.FC = () => {
       <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-x-auto text-xs font-bold">
         {[
           { id: 'overview' as const, name: '📊 Operational Overview', icon: BarChart3 },
+          { id: 'my_reports' as const, name: '👤 My Personal & Dept Report', icon: Award },
           { id: 'dept_collections' as const, name: '🏥 Department Collections', icon: Building2 },
           { id: 'doctor_referrals' as const, name: '🩺 Doctor Recommendations & Referrals', icon: Stethoscope },
           { id: 'velocity' as const, name: '⚡ Registration Velocity', icon: Activity },
@@ -1381,6 +1430,159 @@ export const ReportsPage: React.FC = () => {
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* ================= TAB: MY PERSONAL & DEPT REPORT ================= */}
+      {activeViewTab === 'my_reports' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Award className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                Personal User & Department Live Audit Report ({currentUser?.fullName || 'Active Staff'})
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Real-time performance metrics, patient registrations, audit actions, and departmental logs tied to your secure staff ID ({currentUser?.staffId || currentUser?.username || 'ID'}).
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportMyReportCsv}
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export My Report (CSV)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintReport}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print My Report</span>
+              </button>
+            </div>
+          </div>
+
+          {/* User Profile Summary Card */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-teal-950 via-slate-900 to-slate-900 border border-teal-500/30 text-white space-y-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={currentUser?.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'}
+                  alt={currentUser?.fullName}
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-teal-400"
+                />
+                <div>
+                  <strong className="text-white font-bold block">{currentUser?.fullName || 'Active Operator'}</strong>
+                  <span className="text-[10px] text-teal-300 font-mono">{currentUser?.staffId || 'LMDX-STF-001'}</span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Assigned Role:</span>
+                <span className="font-bold text-teal-400 uppercase">{currentUser?.role || 'staff'}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Department:</span>
+                <span className="font-semibold text-white">{currentUser?.department || 'General Operations'}</span>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+              <span className="text-[11px] font-bold text-slate-500 uppercase font-mono">My Registered Patients</span>
+              <strong className="text-3xl font-black text-slate-900 dark:text-white block">
+                {myPatients.length}
+              </strong>
+              <p className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold mt-1">
+                Active patient intake records created by you
+              </p>
+            </div>
+
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+              <span className="text-[11px] font-bold text-slate-500 uppercase font-mono">Cryptographic Audit Actions</span>
+              <strong className="text-3xl font-black text-slate-900 dark:text-white block">
+                {myAuditLogs.length}
+              </strong>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                Secured tamper-proof security audit trails
+              </p>
+            </div>
+
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+              <span className="text-[11px] font-bold text-slate-500 uppercase font-mono">Department Colleagues</span>
+              <strong className="text-3xl font-black text-slate-900 dark:text-white block">
+                {myDepartmentUsers.length}
+              </strong>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-1">
+                Active staff in {currentUser?.department || 'Department'}
+              </p>
+            </div>
+          </div>
+
+          {/* Detailed Tables for My Patients & Audit Logs */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+              <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-teal-500" />
+                  Patients Registered By You ({myPatients.length})
+                </span>
+                <span className="text-[11px] text-slate-400 font-mono">Live Sync</span>
+              </h4>
+
+              {myPatients.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-mono text-xs">
+                  No patient records created by your account yet.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {myPatients.map((p) => (
+                    <div key={p.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                      <div>
+                        <strong className="text-slate-900 dark:text-white font-bold block">{p.fullName}</strong>
+                        <span className="text-[10px] text-slate-400 font-mono">UHID: {p.id} • {p.mobile}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">
+                        {p.bloodGroup || 'General'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+              <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  Your Recent Audit Trail Actions ({myAuditLogs.length})
+                </span>
+                <span className="text-[11px] text-slate-400 font-mono">Encrypted Hash</span>
+              </h4>
+
+              {myAuditLogs.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-mono text-xs">
+                  No security audit actions logged for your account yet.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {myAuditLogs.slice(0, 10).map((log) => (
+                    <div key={log.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-mono text-[10px] font-bold text-teal-600 dark:text-teal-400 block">{log.action}</span>
+                        <p className="text-[11px] text-slate-700 dark:text-slate-300">{log.description}</p>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
