@@ -363,8 +363,8 @@ Note: Keep these credentials confidential.`;
   };
 
   const resetForm = () => {
-    const randId = Math.floor(100 + Math.random() * 900);
-    setFullName('Dr. Subhashish Roy');
+    const randId = Math.floor(1000 + Math.random() * 9000);
+    setFullName('');
     setUsername(`staff_${randId}`);
     setEmail(`staff_${randId}@labmedix.org`);
     setPassword('Lmdx@2026!');
