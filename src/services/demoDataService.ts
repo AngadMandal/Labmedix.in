@@ -1,6 +1,7 @@
 import { StorageService, STORAGE_KEYS } from './storage';
 import { ApiSyncService } from './apiSyncService';
 import { AuditService } from './auditService';
+import { BackupService } from './backupService';
 import { Patient, HealthCard, Wallet, WalletTransaction } from '../types';
 
 export interface DemoPurgeProgress {
@@ -252,7 +253,14 @@ export class DemoDataService {
     onProgress?: (progress: DemoPurgeProgress) => void
   ): Promise<{ success: boolean; message: string }> {
     try {
-      onProgress?.({ stage: 'Initiating Factory Reset...', percent: 20, itemsRemoved: 0, completed: false });
+      onProgress?.({ stage: 'Taking Central Live Auto-Backup...', percent: 10, itemsRemoved: 0, completed: false });
+      try {
+        BackupService.createSnapshot(`Pre-Factory-Reset Central Live Auto-Backup (${new Date().toLocaleTimeString()})`, 'pre-restore');
+      } catch (e) {
+        console.warn('[DemoDataService] Failed to create pre-factory-reset auto-backup:', e);
+      }
+
+      onProgress?.({ stage: 'Initiating Factory Reset...', percent: 25, itemsRemoved: 0, completed: false });
 
       StorageService.savePatients([]);
       StorageService.saveCards([]);

@@ -48,10 +48,15 @@ export class ApiSyncService {
 
   private static checkQuotaError(error: unknown): boolean {
     const errStr = String(error || '').toLowerCase();
-    if (errStr.includes('resource-exhausted') || errStr.includes('quota exceeded') || errStr.includes('quota')) {
+    if (errStr.includes('resource-exhausted') || errStr.includes('quota exceeded') || errStr.includes('quota') || errStr.includes('maximum backoff')) {
       if (!this.quotaExceeded) {
         this.quotaExceeded = true;
         console.warn('[ApiSync] Firestore quota exhausted. Operating in high-performance local storage mode.');
+        // Cleanup all active unsubscribers immediately
+        this.activeUnsubscribers.forEach(u => {
+          try { u(); } catch {}
+        });
+        this.activeUnsubscribers = [];
       }
       return true;
     }
@@ -244,6 +249,8 @@ export class ApiSyncService {
 
   /** Subscribe to all Firestore collections for real-time multi-device sync */
   public static subscribeToAll(onUpdate: (key: string, value: any) => void): () => void {
+    if (this.quotaExceeded) return () => {};
+
     // Unsubscribe existing listeners
     this.activeUnsubscribers.forEach(u => {
       try { u(); } catch {}
@@ -251,10 +258,12 @@ export class ApiSyncService {
     this.activeUnsubscribers = [];
 
     for (const [key, config] of Object.entries(this.KEY_TO_FIRESTORE_MAP)) {
+      if (this.quotaExceeded) break;
       try {
         if (config.type === 'collection') {
           const q = query(collection(db, config.path));
           const unsub = onSnapshot(q, (snapshot) => {
+            if (this.quotaExceeded) return;
             const items: any[] = [];
             snapshot.forEach((docSnap) => {
               items.push({ id: docSnap.id, ...docSnap.data() });
@@ -263,6 +272,9 @@ export class ApiSyncService {
             this.isConnected = true;
             onUpdate(key, items);
           }, (err) => {
+            if (this.checkQuotaError(err)) {
+              return;
+            }
             this.syncErrors++;
             console.warn(`[ApiSync] Realtime subscription error on ${config.path}:`, err);
           });
@@ -270,18 +282,25 @@ export class ApiSyncService {
         } else if (config.type === 'doc') {
           const docRef = doc(db, config.path);
           const unsub = onSnapshot(docRef, (docSnap) => {
+            if (this.quotaExceeded) return;
             if (docSnap.exists()) {
               this.lastSyncTimestamp = new Date().toISOString();
               this.isConnected = true;
               onUpdate(key, docSnap.data());
             }
           }, (err) => {
+            if (this.checkQuotaError(err)) {
+              return;
+            }
             this.syncErrors++;
             console.warn(`[ApiSync] Realtime doc subscription error on ${config.path}:`, err);
           });
           this.activeUnsubscribers.push(unsub);
         }
       } catch (e) {
+        if (this.checkQuotaError(e)) {
+          break;
+        }
         this.syncErrors++;
         console.warn(`[ApiSync] Failed to subscribe to ${config.path}:`, e);
       }

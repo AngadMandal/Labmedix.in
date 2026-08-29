@@ -803,6 +803,9 @@ export class StorageService {
     return this.getItem<SnapshotRecord[]>(STORAGE_KEYS.SNAPSHOTS, []);
   }
   public static saveSnapshots(snapshots: SnapshotRecord[]): void {
+    if (snapshots.length > 30) {
+      snapshots = snapshots.slice(0, 30);
+    }
     this.setItem(STORAGE_KEYS.SNAPSHOTS, snapshots);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SNAPSHOTS, snapshots).catch(() => { });
     window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.SNAPSHOTS, value: snapshots } }));

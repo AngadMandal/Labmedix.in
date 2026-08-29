@@ -404,22 +404,41 @@ export class BackupService {
     }
   }
 
-  public static restoreBackup(backup: BackupData, createSafetySnapshot = true): { success: boolean; message: string } {
+  public static restoreBackup(backup: any, createSafetySnapshot = true): { success: boolean; message: string } {
     try {
-      // 1. Create automatic emergency snapshot before restoring
-      if (createSafetySnapshot) {
-        this.createSnapshot(`Pre-Restore Fallback Point (${new Date().toLocaleTimeString()})`, 'pre-restore');
+      if (typeof backup === 'string') {
+        try { backup = JSON.parse(backup); } catch {}
       }
 
-      const d = backup.data as any;
-      if (d.patients) StorageService.savePatients(d.patients);
-      if (d.healthCards) StorageService.saveCards(d.healthCards);
-      if (d.memberships) StorageService.saveMemberships(d.memberships);
-      if (d.families) StorageService.saveFamilies(d.families);
-      if (d.wallets) StorageService.saveWallets(d.wallets);
-      if (d.walletTransactions) StorageService.saveTransactions(d.walletTransactions);
-      if (d.companyProfile) StorageService.saveCompanyProfile(d.companyProfile);
-      if (d.users) StorageService.saveUsers(d.users);
+      // 1. Create automatic emergency snapshot before restoring
+      if (createSafetySnapshot) {
+        try {
+          this.createSnapshot(`Pre-Restore Fallback Point (${new Date().toLocaleTimeString()})`, 'pre-restore');
+        } catch (e) {
+          console.warn('[BackupService] Failed to create pre-restore snapshot:', e);
+        }
+      }
+
+      const d = (backup && backup.data && typeof backup.data === 'object') ? backup.data : (backup || {});
+      
+      const patients = d.patients || d.patientList || [];
+      const cards = d.healthCards || d.cards || [];
+      const memberships = d.memberships || [];
+      const families = d.families || [];
+      const wallets = d.wallets || [];
+      const transactions = d.walletTransactions || d.transactions || [];
+      const companyProfile = d.companyProfile || d.company || d.profile;
+      const users = d.users || d.staff || [];
+
+      if (patients.length > 0 || Array.isArray(d.patients)) StorageService.savePatients(patients);
+      if (cards.length > 0 || Array.isArray(d.healthCards)) StorageService.saveCards(cards);
+      if (memberships.length > 0 || Array.isArray(d.memberships)) StorageService.saveMemberships(memberships);
+      if (families.length > 0 || Array.isArray(d.families)) StorageService.saveFamilies(families);
+      if (wallets.length > 0 || Array.isArray(d.wallets)) StorageService.saveWallets(wallets);
+      if (transactions.length > 0 || Array.isArray(d.walletTransactions)) StorageService.saveTransactions(transactions);
+      if (companyProfile) StorageService.saveCompanyProfile(companyProfile);
+      if (users.length > 0 || Array.isArray(d.users)) StorageService.saveUsers(users);
+
       if (d.appointments) StorageService.setItem(STORAGE_KEYS.APPOINTMENTS, d.appointments);
       if (d.emrEncounters) StorageService.setItem(STORAGE_KEYS.EMR_ENCOUNTERS, d.emrEncounters);
       if (d.doctors) StorageService.setItem(STORAGE_KEYS.DOCTORS, d.doctors);
@@ -436,12 +455,12 @@ export class BackupService {
       if (d.sampleDispatches) StorageService.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches);
 
       // Trigger Cloud Firestore Synchronization for all restored collections
-      if (d.patients) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, d.patients).catch(() => { });
-      if (d.healthCards) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, d.healthCards).catch(() => { });
-      if (d.memberships) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.MEMBERSHIPS, d.memberships).catch(() => { });
-      if (d.families) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.FAMILIES, d.families).catch(() => { });
-      if (d.wallets) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, d.wallets).catch(() => { });
-      if (d.walletTransactions) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, d.walletTransactions).catch(() => { });
+      if (patients.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, patients).catch(() => { });
+      if (cards.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, cards).catch(() => { });
+      if (memberships.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.MEMBERSHIPS, memberships).catch(() => { });
+      if (families.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.FAMILIES, families).catch(() => { });
+      if (wallets.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, wallets).catch(() => { });
+      if (transactions.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, transactions).catch(() => { });
       if (d.appointments) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.APPOINTMENTS, d.appointments).catch(() => { });
       if (d.emrEncounters) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.EMR_ENCOUNTERS, d.emrEncounters).catch(() => { });
       if (d.doctors) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTORS, d.doctors).catch(() => { });
@@ -453,14 +472,14 @@ export class BackupService {
       if (d.portalCardApplications) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, d.portalCardApplications).catch(() => { });
       if (d.cashVouchers) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CASH_DESK_VOUCHERS, d.cashVouchers).catch(() => { });
       if (d.sampleDispatches) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches).catch(() => { });
-      if (d.companyProfile) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, d.companyProfile).catch(() => { });
-      if (d.users) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.USERS, d.users).catch(() => { });
+      if (companyProfile) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, companyProfile).catch(() => { });
+      if (users.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.USERS, users).catch(() => { });
 
       // Broadcast multi-device / multi-portal live sync events
       window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'FULL_IMPORT_LIVE', timestamp: Date.now() } }));
       localStorage.setItem('labmedix_global_sync_timestamp', Date.now().toString());
 
-      AuditService.log('BACKUP_RESTORED', 'backup', `Successfully restored backup dated ${backup.createdDate} (Records: ${backup.recordCounts?.patients || 0} Patients, ${backup.recordCounts?.healthCards || 0} Cards, ${backup.recordCounts?.walletTransactions || 0} Transactions)`);
+      AuditService.log('BACKUP_RESTORED', 'backup', `Successfully restored backup dated ${backup?.createdDate || new Date().toISOString()}`);
       return { success: true, message: 'All database records successfully imported and brought LIVE across Central & all devices!' };
     } catch (err: any) {
       return { success: false, message: `Restore Failed: ${err.message}` };
@@ -472,7 +491,7 @@ export class BackupService {
     tag: 'manual' | 'pre-restore' | 'eod' | 'system' | 'cloud_sync' = 'manual'
   ): SnapshotRecord {
     const backup = this.createBackupData();
-    const snapshots = StorageService.getSnapshots();
+    let snapshots = StorageService.getSnapshots();
     const newSnapshot: SnapshotRecord = {
       id: generateUuid(),
       timestamp: new Date().toISOString(),
@@ -486,8 +505,10 @@ export class BackupService {
     };
 
     snapshots.unshift(newSnapshot);
-    // Keep max 25 snapshots in rolling window
-    if (snapshots.length > 25) snapshots.pop();
+    // Keep max 30 snapshots in rolling window (oldest exceeding 30 are automatically purged)
+    if (snapshots.length > 30) {
+      snapshots = snapshots.slice(0, 30);
+    }
     StorageService.saveSnapshots(snapshots);
 
     AuditService.log('SNAPSHOT_CREATED', 'backup', `Created Time-Machine snapshot: ${newSnapshot.title} [${tag}]`);
@@ -499,8 +520,22 @@ export class BackupService {
     const snapshots = StorageService.getSnapshots();
     const snapshot = snapshots.find(s => s.id === snapshotId);
     if (!snapshot) return false;
-    this.restoreBackup(snapshot.data, true);
-    AuditService.log('SNAPSHOT_RESTORED', 'backup', `Restored snapshot point: ${snapshot.title} (${snapshot.timestamp})`);
+    
+    // 1. Perform restore of snapshot data
+    const res = this.restoreBackup(snapshot.data, true);
+    if (!res.success) {
+      console.error('[BackupService] Restore snapshot failed:', res.message);
+      return false;
+    }
+
+    // 2. Automatically take a live post-restore auto backup / snapshot point
+    try {
+      this.createSnapshot(`Post-Restore Live Point (${snapshot.title})`, 'manual');
+    } catch (e) {
+      console.warn('[BackupService] Failed to create post-restore auto backup:', e);
+    }
+
+    AuditService.log('SNAPSHOT_RESTORED', 'backup', `Restored snapshot point: ${snapshot.title} (${snapshot.timestamp}) with automatic live backup.`);
     return true;
   }
 
@@ -511,8 +546,13 @@ export class BackupService {
   }
 
   public static clearAllSnapshots(): void {
+    try {
+      this.createSnapshot(`Pre-Reset Central Live Auto-Backup (${new Date().toLocaleTimeString()})`, 'pre-restore');
+    } catch (e) {
+      console.warn('[BackupService] Failed to create pre-reset auto-backup:', e);
+    }
     StorageService.saveSnapshots([]);
-    AuditService.log('SNAPSHOTS_CLEARED', 'backup', 'Cleared all Time-Machine snapshots history.');
+    AuditService.log('SNAPSHOTS_CLEARED', 'backup', 'Cleared Time-Machine snapshots after creating live central auto-backup safety point.');
   }
 
   /** Auto-Schedule Time Machine EOD Checkpoint */
