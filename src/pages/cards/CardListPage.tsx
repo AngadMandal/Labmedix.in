@@ -4,6 +4,7 @@ import { CardService } from '../../services/cardService';
 import { PatientService } from '../../services/patientService';
 import { StorageService } from '../../services/storage';
 import { PortalService, PatientReceiptData } from '../../services/portalService';
+import { ApiSyncService } from '../../services/apiSyncService';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { DataTable, Column } from '../../components/common/DataTable';
@@ -16,7 +17,7 @@ import { SuperAdminCardDeleteModal } from '../../components/card/SuperAdminCardD
 import { PatientRealMoneyTopUpModal } from '../../components/portal/PatientRealMoneyTopUpModal';
 import { DirectLabAndPackageBookingModal } from '../../components/portal/DirectLabAndPackageBookingModal';
 import { PatientReceiptModal } from '../../components/portal/PatientReceiptModal';
-import { HealthCard, CardStatus, CardApplicationRequest, Patient, Membership } from '../../types';
+import { HealthCard, CardStatus, CardApplicationRequest, Patient, Membership, Wallet } from '../../types';
 import { DEFAULT_MEMBERSHIPS } from '../../constants/memberships';
 import { formatDate, formatCurrency, formatDateTime } from '../../utils/formatters';
 
@@ -67,7 +68,7 @@ import {
   LayoutGrid,
   List,
   Search,
-  Wallet,
+  Wallet as WalletIcon,
   TestTube,
   Flame,
   TrendingUp,
@@ -88,12 +89,12 @@ export const CardListPage: React.FC = () => {
   // Navigation Tabs: Ultra 3D Deck, Operations Table, Archived 30-Day Hub, Applications Queue
   const [activeMainView, setActiveMainView] = useState<'deck_3d' | 'table_view' | 'archived_hub' | 'applications_queue'>('deck_3d');
 
-  // Core Data
+  // Core Data & State
   const [cards, setCards] = useState<HealthCard[]>(() => CardService.getAll(true));
   const [applications, setApplications] = useState<CardApplicationRequest[]>(() => PortalService.getCardApplications());
-  const patients = StorageService.getPatients();
-  const memberships = StorageService.getMemberships();
-  const wallets = StorageService.getWallets();
+  const [patients, setPatients] = useState<Patient[]>(() => StorageService.getPatients());
+  const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getMemberships());
+  const [wallets, setWallets] = useState<Wallet[]>(() => StorageService.getWallets());
 
   // Filters & Search
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -113,18 +114,41 @@ export const CardListPage: React.FC = () => {
   const refreshList = () => {
     setCards(CardService.getAll(true));
     setApplications(PortalService.getCardApplications());
-    showToast('info', 'Cards Synchronized', 'Health card repository updated.');
+    setPatients(StorageService.getPatients());
+    setMemberships(StorageService.getMemberships());
+    setWallets(StorageService.getWallets());
+    showToast('info', 'Cards & Patients Synchronized', 'Central database repository updated.');
   };
 
   useEffect(() => {
+    const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
+      if (items) setCards(CardService.getAll(true));
+    });
+    const unsubPatients = ApiSyncService.subscribeToCollection<Patient>('patients', (items) => {
+      if (items) setPatients(StorageService.getPatients());
+    });
+    const unsubApps = ApiSyncService.subscribeToCollection<CardApplicationRequest>('cardApplications', (items) => {
+      if (items) setApplications(PortalService.getCardApplications());
+    });
+    const unsubWallets = ApiSyncService.subscribeToCollection<Wallet>('wallets', (items) => {
+      if (items) setWallets(StorageService.getWallets());
+    });
+
     const handleSync = (e: any) => {
-      if (!e.detail || ['labmedix_portal_card_applications_v1', 'labmedix_cards_v1', 'labmedix_patients_v1'].includes(e.detail.key)) {
-        setCards(CardService.getAll(true));
-        setApplications(PortalService.getCardApplications());
-      }
+      setCards(CardService.getAll(true));
+      setApplications(PortalService.getCardApplications());
+      setPatients(StorageService.getPatients());
+      setMemberships(StorageService.getMemberships());
+      setWallets(StorageService.getWallets());
     };
     window.addEventListener('labmedix_data_synced', handleSync as EventListener);
-    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => {
+      unsubCards();
+      unsubPatients();
+      unsubApps();
+      unsubWallets();
+      window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+    };
   }, []);
 
   // Active / Archived Lists
@@ -412,7 +436,7 @@ export const CardListPage: React.FC = () => {
                 if (p) setActivePatientForTopUp(p);
               }}
             >
-              <Wallet className="w-3.5 h-3.5 text-emerald-600" />
+              <WalletIcon className="w-3.5 h-3.5 text-emerald-600" />
             </Button>
 
             <Button
@@ -875,7 +899,7 @@ export const CardListPage: React.FC = () => {
                             if (patient) setActivePatientForTopUp(patient);
                           }}
                         >
-                          <Wallet className="w-3 h-3 mr-1" />
+                          <WalletIcon className="w-3 h-3 mr-1" />
                           Top-Up
                         </Button>
 

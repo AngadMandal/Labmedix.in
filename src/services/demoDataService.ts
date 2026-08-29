@@ -45,30 +45,41 @@ export class DemoDataService {
 
   public static isDemoPatient(patient: Patient): boolean {
     if (!patient) return false;
+    // Explicitly protected live records
+    if ((patient as any).isDemo === false) return false;
+
     const id = (patient.id || '').trim().toLowerCase();
     const name = (patient.fullName || '').trim().toLowerCase();
     const mobile = (patient.mobile || '').trim();
 
+    const isExplicitDemoId = DemoDataService.DEMO_PATIENT_IDS.includes(id);
+    const isExplicitDemoName = DemoDataService.DEMO_NAMES.some(dn => name === dn || name === `dr. ${dn}` || (dn.length > 5 && name.includes(dn)));
+    const isDemoMobile = mobile === '+91 98300 12345' || mobile === '9830012345';
+
     return (
-      DemoDataService.DEMO_PATIENT_IDS.includes(id) ||
-      DemoDataService.DEMO_NAMES.some(dn => name.includes(dn)) ||
-      mobile === '+91 98300 12345' ||
-      mobile === '9830012345' ||
-      (patient as any).isDemo === true
+      (patient as any).isDemo === true ||
+      isExplicitDemoId ||
+      isExplicitDemoName ||
+      isDemoMobile
     );
   }
 
   public static isDemoCard(card: HealthCard): boolean {
     if (!card) return false;
+    // Explicitly protected live records
+    if ((card as any).isDemo === false) return false;
+
     const id = (card.id || '').trim().toLowerCase();
     const cardNo = (card.cardNumber || '').trim().toLowerCase();
     const patientId = (card.patientId || '').trim().toLowerCase();
 
+    const isExplicitDemoCardNo = DemoDataService.DEMO_CARD_NUMBERS.includes(cardNo) || DemoDataService.DEMO_CARD_NUMBERS.includes(id);
+    const isDemoPatientId = DemoDataService.DEMO_PATIENT_IDS.includes(patientId);
+
     return (
-      DemoDataService.DEMO_CARD_NUMBERS.includes(cardNo) ||
-      DemoDataService.DEMO_CARD_NUMBERS.includes(id) ||
-      DemoDataService.DEMO_PATIENT_IDS.includes(patientId) ||
-      (card as any).isDemo === true
+      (card as any).isDemo === true ||
+      isExplicitDemoCardNo ||
+      isDemoPatientId
     );
   }
 

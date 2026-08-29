@@ -204,6 +204,7 @@ export class PatientService {
       issueDate: now.toISOString().split('T')[0],
       expiryDate: expiry.toISOString().split('T')[0],
       status: initialStatus,
+      isDemo: false,
       cvv: generateCardCvv(),
       verificationCode: generateVerificationCode(),
       designConfig: {
@@ -284,6 +285,7 @@ export class PatientService {
       isFamilyHead: hasFamily ? true : undefined,
       healthCardId: cardId,
       walletId,
+      isDemo: false,
       isDeleted: false,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),

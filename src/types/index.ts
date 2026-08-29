@@ -140,6 +140,7 @@ export interface Patient {
   isFamilyHead?: boolean;
   healthCardId?: string;
   walletId: string;
+  isDemo?: boolean;
   isDeleted: boolean;
   deletedAt?: string;
   deletedBy?: string;
@@ -214,6 +215,7 @@ export interface HealthCard {
   replacementReason?: string;
   renewedCount: number;
   lastRenewedAt?: string;
+  isDemo?: boolean;
   isDeleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;

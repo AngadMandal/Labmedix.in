@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PatientService } from '../../services/patientService';
 import { StorageService } from '../../services/storage';
@@ -7,6 +7,7 @@ import { FamilyService } from '../../services/familyService';
 import { WalletService } from '../../services/walletService';
 import { EMRService } from '../../services/emrService';
 import { PortalService, BloodTestBooking, MedicineOrder } from '../../services/portalService';
+import { ApiSyncService } from '../../services/apiSyncService';
 import { PatientRecordPdfService } from '../../services/patientRecordPdfService';
 import { ClinicalEncounter, PatientAppointment } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -77,6 +78,22 @@ export const PatientDetailPage: React.FC = () => {
   // Print modals for Clinical tab
   const [activePrintEncounter, setActivePrintEncounter] = useState<ClinicalEncounter | null>(null);
   const [activePrintLabBooking, setActivePrintLabBooking] = useState<BloodTestBooking | null>(null);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const unsubPatients = ApiSyncService.subscribeToCollection('patients', () => setTick(t => t + 1));
+    const unsubCards = ApiSyncService.subscribeToCollection('cards', () => setTick(t => t + 1));
+    const unsubWallets = ApiSyncService.subscribeToCollection('wallets', () => setTick(t => t + 1));
+
+    const handleSync = () => setTick(t => t + 1);
+    window.addEventListener('labmedix_data_synced', handleSync);
+    return () => {
+      unsubPatients();
+      unsubCards();
+      unsubWallets();
+      window.removeEventListener('labmedix_data_synced', handleSync);
+    };
+  }, []);
 
   const patient = PatientService.getById(id || '');
   const company = StorageService.getCompanyProfile();
