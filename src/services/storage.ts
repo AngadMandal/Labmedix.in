@@ -556,7 +556,8 @@ export class StorageService {
         cloudPharmacyOrders,
         cloudVouchers,
         cloudDispatches,
-        cloudSnapshots
+        cloudSnapshots,
+        cloudCompany
       ] = await Promise.all([
         ApiSyncService.fetchCollection<Patient>('patients').catch(() => []),
         ApiSyncService.fetchCollection<HealthCard>('cards').catch(() => []),
@@ -576,7 +577,8 @@ export class StorageService {
         ApiSyncService.fetchCollection<any>('pharmacyOrders').catch(() => []),
         ApiSyncService.fetchCollection<any>('vouchers').catch(() => []),
         ApiSyncService.fetchCollection<SampleDispatchRecord>('sampleDispatches').catch(() => []),
-        ApiSyncService.fetchCollection<SnapshotRecord>('snapshots').catch(() => [])
+        ApiSyncService.fetchCollection<SnapshotRecord>('snapshots').catch(() => []),
+        ApiSyncService.fetchDocument<CompanyProfile>('settings/companyProfile').catch(() => null)
       ]);
 
       const syncEntity = <T>(cloudItems: T[], key: string) => {
@@ -606,6 +608,11 @@ export class StorageService {
       if (cloudVouchers.length > 0) syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
       if (cloudDispatches.length > 0) syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
       if (cloudSnapshots.length > 0) syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
+      if (cloudCompany && cloudCompany.name) {
+        StorageService.memoryCache.set(STORAGE_KEYS.COMPANY_PROFILE, cloudCompany);
+        try { localStorage.setItem(STORAGE_KEYS.COMPANY_PROFILE, JSON.stringify(cloudCompany)); } catch {}
+        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.COMPANY_PROFILE, value: cloudCompany } }));
+      }
     } catch (e) {
       console.warn('[LABMEDIX] Cloud Firestore cross-device sync hydration notice:', e);
     }
@@ -766,6 +773,8 @@ export class StorageService {
     if (!profile) {
       profile = DEFAULT_COMPANY_PROFILE;
       this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
+    } else {
+      profile = { ...DEFAULT_COMPANY_PROFILE, ...profile };
     }
     return profile;
   }

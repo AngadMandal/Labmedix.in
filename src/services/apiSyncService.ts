@@ -86,6 +86,25 @@ export class ApiSyncService {
     }
   }
 
+  /** Generic fetch document from Firestore */
+  public static async fetchDocument<T>(docPath: string): Promise<T | null> {
+    if (this.quotaExceeded) return null;
+    try {
+      const docRef = doc(db, docPath);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        this.lastSyncTimestamp = new Date().toISOString();
+        this.isConnected = true;
+        return docSnap.data() as T;
+      }
+      return null;
+    } catch (error) {
+      this.checkQuotaError(error);
+      this.syncErrors++;
+      return null;
+    }
+  }
+
   /** Generic save or update document in Firestore */
   public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<boolean> {
     if (this.quotaExceeded) return true;
