@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StorageService } from '../../services/storage';
 import { BackupService } from '../../services/backupService';
 import { GoogleDriveService } from '../../services/googleDriveService';
@@ -101,12 +101,23 @@ export const BackupRestorePage: React.FC = () => {
     );
   }
 
+  const latestDriveBackupIdRef = useRef<string | null>(null);
+  const isInitialDriveLoadRef = useRef(true);
+
   const fetchDriveHistory = async () => {
     try {
       const res = await fetch('/api/backup/history');
       if (res.ok) {
         const data = await res.json();
-        if (data.backups) {
+        if (data.backups && Array.isArray(data.backups) && data.backups.length > 0) {
+          const newest = data.backups[0];
+          if (isInitialDriveLoadRef.current) {
+            latestDriveBackupIdRef.current = newest.id;
+            isInitialDriveLoadRef.current = false;
+          } else if (latestDriveBackupIdRef.current && newest.id !== latestDriveBackupIdRef.current) {
+            latestDriveBackupIdRef.current = newest.id;
+            showToast('success', 'Automated Cloud Backup Complete ☁️', `Google Drive successfully synced and secured a new automated database backup point (${newest.name}).`);
+          }
           setDriveHistory(data.backups);
         }
       }
