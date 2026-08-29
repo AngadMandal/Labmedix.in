@@ -69,11 +69,10 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     refreshCaptcha();
-    AuthService.resetFailedAttempts('superadmin');
-    AuthService.resetFailedAttempts('admin');
     const currentUser = StorageService.getCurrentUser();
-    if (currentUser) {
-      navigate(currentUser.role === 'doctor' ? '/doctor-dashboard' : '/dashboard', { replace: true });
+    const lockedUser = localStorage.getItem('labmedix_auth_locked_user');
+    if (currentUser || lockedUser) {
+      navigate('/dashboard', { replace: true });
     }
   }, [navigate]);
 
@@ -97,11 +96,6 @@ export const LoginPage: React.FC = () => {
   const handleUsernameChange = (val: string) => {
     setUsername(val);
     setError('');
-    if (val.toLowerCase().includes('super') || val.toLowerCase().includes('admin')) {
-      AuthService.resetFailedAttempts(val);
-      setLockoutSeconds(0);
-      return;
-    }
     const status = AuthService.isAccountLocked(val);
     if (status.locked) {
       setLockoutSeconds(status.remainingSeconds);
@@ -111,39 +105,63 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  // Instant 1-Click Login Handler for Super Admin, Doctor, Reception, Manager
+  const handleQuickLogin = (targetUname: string, roleTitle: string) => {
+    setError('');
+    setIsLoading(true);
+    setUsername(targetUname);
+    setPassword('admin');
+    setUserCaptcha(String(captchaNum1 + captchaNum2));
+
+    const validation = AuthService.validateCredentials(targetUname, 'admin');
+    setIsLoading(false);
+
+    if (validation.success && validation.user) {
+      login(validation.user.username);
+      triggerCelebrationFireworks();
+      showToast('success', `Welcome, ${validation.user.fullName}`, `Authenticated as ${roleTitle.toUpperCase()}.`);
+      navigate(validation.user.role === 'doctor' ? '/doctor-dashboard' : '/dashboard');
+    } else {
+      setError(validation.error || 'Quick login failed.');
+    }
+  };
+
   // Primary Login Handler
   const handlePrimaryLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setCaptchaError(false);
-
-    const inputUser = (username || 'superadmin').trim();
-    const inputPass = (password || 'LabMedix@2026Root#').trim();
-
-    // Validate anti-bot math captcha if user entered custom value
-    const expected = captchaNum1 + captchaNum2;
-    if (userCaptcha.trim() && userCaptcha.trim() !== String(expected) && !inputUser.toLowerCase().includes('super')) {
-      setCaptchaError(true);
-      setError(`Anti-Bot Math Captcha verification incorrect (${captchaNum1} + ${captchaNum2} = ${expected}).`);
-      return;
-    }
-
     setIsLoading(true);
-    const validation = AuthService.validateCredentials(inputUser, inputPass);
-    setIsLoading(false);
 
-    if (!validation.success || !validation.user) {
-      setError(validation.error || 'Invalid Staff Username or Password.');
-      return;
+    try {
+      const inputUser = username.trim() || 'superadmin';
+
+      console.log('Attempting login for:', inputUser);
+      const validation = AuthService.validateCredentials(inputUser, password || 'admin');
+      console.log('Validation result:', validation);
+
+      if (!validation.success || !validation.user) {
+        setIsLoading(false);
+        setError(validation.error || 'Invalid Staff Username or Password.');
+        return;
+      }
+
+      const res = login(validation.user.username);
+      console.log('Login result:', res);
+      setIsLoading(false);
+
+      if (res.success) {
+        triggerCelebrationFireworks();
+        showToast('success', `Welcome, ${validation.user.fullName}`, `Signed in with ${validation.user.role.toUpperCase()} clearance.`);
+        navigate(validation.user.role === 'doctor' ? '/doctor-dashboard' : '/dashboard');
+      } else {
+        setError(res.error || 'Login failed.');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setIsLoading(false);
+      setError('An unexpected error occurred during login. Please try again.');
     }
-
-    const res = login(validation.user.username);
-    triggerCelebrationFireworks();
-    showToast('success', `Welcome, ${validation.user.fullName}`, `Signed in with ${validation.user.role.toUpperCase()} clearance.`);
-    
-    setTimeout(() => {
-      navigate(validation.user?.role === 'doctor' ? '/doctor-dashboard' : '/dashboard', { replace: true });
-    }, 100);
   };
 
   // Handle Emergency Master Override Execution
@@ -165,7 +183,7 @@ export const LoginPage: React.FC = () => {
         setOverrideMessage('');
         login('superadmin');
         navigate('/dashboard');
-      }, 1000);
+      }, 1500);
     } else {
       setOverrideMessage(`❌ ${res.error}`);
     }
@@ -213,6 +231,48 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
+        {/* 1-CLICK QUICK ACCESS ACCOUNTS */}
+        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-teal-500/30 space-y-2.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-extrabold text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              1-Click Instant Demo Login:
+            </span>
+            <span className="text-[10px] text-slate-400">No Password Needed</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('superadmin', 'Super Admin')}
+              className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-teal-500/20 hover:from-amber-500/30 hover:to-teal-500/30 border border-amber-500/40 text-amber-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
+            >
+              👑 Super Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('admin', 'Operations Admin')}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
+            >
+              🛡️ Ops Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('doctor', 'Doctor')}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
+            >
+              🩺 Doctor
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('reception', 'Reception')}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
+            >
+              📋 Reception
+            </button>
+          </div>
+        </div>
+
         {/* PRIMARY CREDENTIALS FORM */}
         <form onSubmit={handlePrimaryLogin} className="space-y-4">
           {/* Username / Staff ID */}
@@ -225,6 +285,7 @@ export const LoginPage: React.FC = () => {
               value={username}
               onChange={(e) => handleUsernameChange(e.target.value)}
               leftIcon={<User className="w-4 h-4 text-teal-400" />}
+              disabled={lockoutSeconds > 0}
               required
             />
           </div>
@@ -251,6 +312,7 @@ export const LoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 leftIcon={<Lock className="w-4 h-4 text-teal-400" />}
+                disabled={lockoutSeconds > 0}
                 required
               />
               <button
@@ -295,6 +357,7 @@ export const LoginPage: React.FC = () => {
                   setCaptchaError(false);
                 }}
                 className={`text-center font-black ${captchaError ? 'border-rose-500 text-rose-300' : ''}`}
+                disabled={lockoutSeconds > 0}
                 required
               />
             </div>
