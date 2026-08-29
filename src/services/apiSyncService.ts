@@ -107,7 +107,7 @@ export class ApiSyncService {
 
   /** Generic save or update document in Firestore */
   public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<boolean> {
-    if (this.quotaExceeded) return true;
+    if (this.quotaExceeded) return false;
     try {
       const docRef = doc(db, collectionName, id);
       const sanitized = JSON.parse(JSON.stringify(data));
@@ -130,7 +130,7 @@ export class ApiSyncService {
 
   /** Generic delete document from Firestore */
   public static async deleteDocument(collectionName: string, id: string): Promise<boolean> {
-    if (this.quotaExceeded) return true;
+    if (this.quotaExceeded) return false;
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);

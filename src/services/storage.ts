@@ -618,9 +618,9 @@ export class StorageService {
     }
 
     const currentUsers = this.getItem<User[]>(STORAGE_KEYS.USERS, []);
-    if (currentUsers.length === 0) {
-      this.setItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    } else {
+    
+    // Only force patch or add if users exist in local storage to avoid overriding empty state from a new deployment
+    if (currentUsers.length > 0) {
       let usersModified = false;
       currentUsers.forEach(u => {
         if (u.username === 'superadmin' || u.id === 'usr_super_admin') {
