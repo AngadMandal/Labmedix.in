@@ -14,8 +14,19 @@ export class UserService {
 
   public static generateStaffId(): string {
     const users = StorageService.getUsers();
-    const count = users.length + 1;
-    return `LMDX-STF-${String(count).padStart(3, '0')}`;
+    let maxId = 0;
+    users.forEach(u => {
+      if (u.staffId) {
+        const match = u.staffId.match(/\d+$/);
+        if (match) {
+          const num = parseInt(match[0], 10);
+          if (!isNaN(num) && num > maxId) {
+            maxId = num;
+          }
+        }
+      }
+    });
+    return `LMDX-STF-${String(maxId + 1).padStart(3, '0')}`;
   }
 
   public static generateSecurePassword(): string {

@@ -625,7 +625,9 @@ export class StorageService {
       currentUsers.forEach(u => {
         if (u.username === 'superadmin' || u.id === 'usr_super_admin') {
           u.role = 'super_admin';
-          u.pinCode = 'LabMedix@2026Root#';
+          if (!u.pinCode) {
+            u.pinCode = 'LabMedix@2026Root#';
+          }
           u.status = 'active';
           usersModified = true;
         } else if (u.username === 'admin' || u.id === 'usr_admin') {
