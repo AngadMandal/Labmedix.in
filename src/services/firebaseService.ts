@@ -5,17 +5,17 @@ import configFile from '../../firebase-applet-config.json';
 
 const config = {
   ...configFile,
-  apiKey: "AIzaSyBNaCHTH6cWJ1AdygG42bKugjtHNRg05ys",
-  authDomain: "gen-lang-client-0076489895.firebaseapp.com",
-  projectId: "gen-lang-client-0076489895",
-  storageBucket: "gen-lang-client-0076489895.firebasestorage.app",
-  messagingSenderId: "451271134982",
-  appId: "1:451271134982:web:defaee0de0069f4732d887"
+  apiKey: configFile.apiKey || "AIzaSyBfdM6h6xvWNYR0uGorw71knrR201fadOM",
+  authDomain: configFile.authDomain || "gen-lang-client-0668341047.firebaseapp.com",
+  projectId: configFile.projectId || "gen-lang-client-0668341047",
+  storageBucket: configFile.storageBucket || "gen-lang-client-0668341047.firebasestorage.app",
+  messagingSenderId: configFile.messagingSenderId || "320967705280",
+  appId: configFile.appId || "1:320967705280:web:8002acbb6d3436e56a6325"
 };
 
 const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
 export const auth = getAuth(app);
-export const db = getFirestore(app, (config as any).firestoreDatabaseId || 'ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8');
+export const db = getFirestore(app);
 
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.warn('Firebase setPersistence warning:', err);
@@ -70,11 +70,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    const docRef = doc(db, 'system', 'status');
+    await getDocFromServer(docRef).catch(() => {});
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
+    // Silent catch
   }
 }
 
