@@ -84,22 +84,22 @@ export const WebsiteCmsPage: React.FC = () => {
       { label: 'Registered Patients',  value: patients.length > 0 ? patients.length.toLocaleString() + '+' : '—', icon: Users,      color: '#4ade80', source: 'Admin → Patients' },
       { label: 'Lab Tests Available',  value: tests.length > 0    ? String(tests.length)    : '—',              icon: TestTube,   color: '#c084fc', source: 'Admin → Test Master' },
       { label: 'Health Packages',      value: packages.length > 0 ? String(packages.length) : '—',              icon: Package,    color: '#f59e0b', source: 'Admin → Test Master' },
-      { label: 'Card Tiers Active',    value: String(config.cardTiers.length),                                   icon: CreditCard, color: '#60a5fa', source: 'CMS Studio' },
+      { label: 'Card Tiers Active',    value: String((config?.cardTiers || []).length),                                   icon: CreditCard, color: '#60a5fa', source: 'CMS Studio' },
     ]);
     setAutoFetchDone(true);
-  }, []);
+  }, [config]);
 
   const updateField = (field: keyof WebsiteCMSConfig, value: any) =>
     setConfig(prev => ({ ...prev, [field]: value }));
 
   const updateCardTier = (index: number, key: keyof WebsiteCardTierConfig, val: any) => {
-    const u = [...config.cardTiers];
+    const u = [...(config?.cardTiers || [])];
     u[index] = { ...u[index], [key]: val };
     setConfig(prev => ({ ...prev, cardTiers: u }));
   };
 
   const updateSpecialty = (index: number, key: keyof WebsiteDoctorSpecialty, val: any) => {
-    const u = [...config.specialties];
+    const u = [...(config?.specialties || [])];
     u[index] = { ...u[index], [key]: val };
     setConfig(prev => ({ ...prev, specialties: u }));
   };
@@ -330,9 +330,9 @@ export const WebsiteCmsPage: React.FC = () => {
       {/* TAB 3: HEALTH CARD TIERS */}
       {activeTab === 'cards' && (
         <div className="rounded-3xl p-6 space-y-6" style={panel('rgba(180,83,9,0.35)')}>
-          <SH title="3D Smart Health Card Tiers & Pricing Matrix (INR ₹)" icon={Award} ic="#f59e0b" sub={`${config.cardTiers.length} Active Tiers`} />
+          <SH title="3D Smart Health Card Tiers & Pricing Matrix (INR ₹)" icon={Award} ic="#f59e0b" sub={`${(config?.cardTiers || []).length} Active Tiers`} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {config.cardTiers.map((tier, idx) => {
+            {(config?.cardTiers || []).map((tier, idx) => {
               const c = TIER_COLORS[tier.tier] || '#4ade80';
               return (
                 <div key={tier.id} className="rounded-2xl p-5 space-y-4"

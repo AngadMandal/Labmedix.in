@@ -73,6 +73,7 @@ export interface User {
   cardMaterialWish?: string;
   customPermissions?: Permission[];
   allowedModules?: string[];
+  emailSent?: boolean;
 }
 
 export interface Address {

@@ -4,7 +4,9 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { ThemeSelectorModal } from '../../components/layout/ThemeSelectorModal';
 import { triggerCelebrationFireworks } from '../../utils/confetti';
-import { StorageService } from '../../services/storage';
+import { StorageService, STORAGE_KEYS } from '../../services/storage';
+import { ApiSyncService } from '../../services/apiSyncService';
+import { BackupService } from '../../services/backupService';
 import { Patient, HealthCard, Membership, CompanyProfile, CardThemePreset, CardMaterial } from '../../types';
 import { CR80CardFront } from '../../components/card/CR80CardFront';
 import { CR80CardBack } from '../../components/card/CR80CardBack';
@@ -327,7 +329,7 @@ export const SettingsPage: React.FC = () => {
     showToast('success', 'Profile Exported', 'Configuration JSON downloaded.');
   };
 
-  // Import Profile JSON
+  // Import Profile / Backup JSON
   const handleImportProfile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -335,29 +337,53 @@ export const SettingsPage: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const json = JSON.parse(event.target?.result as string);
-        if (json.name) setName(json.name);
-        if (json.tagline) setTagline(json.tagline);
-        if (json.estdYear) setEstdYear(json.estdYear);
-        if (json.subtitle) setSubtitle(json.subtitle);
-        if (json.logoUrl) setLogoUrl(json.logoUrl);
-        if (json.address) setAddress(json.address);
-        if (json.helpline) setHelpline(json.helpline);
-        if (json.registrationNo) setRegistrationNo(json.registrationNo);
-        if (json.selectedPreset) setSelectedPreset(json.selectedPreset);
-        if (json.selectedMaterial) setSelectedMaterial(json.selectedMaterial);
-        if (json.zohoPayments) {
-          setZohoEnabled(json.zohoPayments.enabled ?? true);
-          setZohoEnv(json.zohoPayments.environment ?? 'production');
-          if (json.zohoPayments.apiKey) setZohoApiKey(json.zohoPayments.apiKey);
-          if (json.zohoPayments.signingKey) setZohoSigningKey(json.zohoPayments.signingKey);
-          if (json.zohoPayments.merchantAccountId) setZohoMerchantId(json.zohoPayments.merchantAccountId);
-          if (json.zohoPayments.accountHolderName) setZohoAccountHolder(json.zohoPayments.accountHolderName);
-          if (json.zohoPayments.webhookUrl) setZohoWebhookUrl(json.zohoPayments.webhookUrl);
+        const jsonContent = event.target?.result as string;
+        const json = JSON.parse(jsonContent);
+
+        // Check if it's a backup or contains any data
+        const validation = BackupService.validateBackupJson(jsonContent);
+        if (validation.valid && validation.backup) {
+          const res = BackupService.restoreBackup(validation.backup, true);
+          if (res.success) {
+            triggerCelebrationFireworks();
+            showToast('success', 'Universal JSON Imported & Live! ⚡', `Successfully imported records (Patients: ${validation.backup.recordCounts?.patients || 0}, Cards: ${validation.backup.recordCounts?.healthCards || 0}, Transactions: ${validation.backup.recordCounts?.walletTransactions || 0}) live across all devices and Central.`);
+            setTimeout(() => window.location.reload(), 1200);
+            return;
+          }
         }
-        showToast('success', 'Profile Imported', 'Loaded profile configuration from JSON.');
-      } catch (err) {
-        showToast('error', 'Import Failed', 'Invalid JSON file format.');
+
+        // Otherwise handle as company profile / settings JSON
+        const importedProfile = json.companyProfile || json;
+
+        if (importedProfile.name) setName(importedProfile.name);
+        if (importedProfile.tagline) setTagline(importedProfile.tagline);
+        if (importedProfile.estdYear) setEstdYear(importedProfile.estdYear);
+        if (importedProfile.subtitle) setSubtitle(importedProfile.subtitle);
+        if (importedProfile.logoUrl) setLogoUrl(importedProfile.logoUrl);
+        if (importedProfile.address) setAddress(importedProfile.address);
+        if (importedProfile.helpline) setHelpline(importedProfile.helpline);
+        if (importedProfile.registrationNo) setRegistrationNo(importedProfile.registrationNo);
+        if (importedProfile.selectedPreset) setSelectedPreset(importedProfile.selectedPreset);
+        if (importedProfile.selectedMaterial) setSelectedMaterial(importedProfile.selectedMaterial);
+        if (importedProfile.zohoPayments) {
+          setZohoEnabled(importedProfile.zohoPayments.enabled ?? true);
+          setZohoEnv(importedProfile.zohoPayments.environment ?? 'production');
+          if (importedProfile.zohoPayments.apiKey) setZohoApiKey(importedProfile.zohoPayments.apiKey);
+          if (importedProfile.zohoPayments.signingKey) setZohoSigningKey(importedProfile.zohoPayments.signingKey);
+          if (importedProfile.zohoPayments.merchantAccountId) setZohoMerchantId(importedProfile.zohoPayments.merchantAccountId);
+          if (importedProfile.zohoPayments.accountHolderName) setZohoAccountHolder(importedProfile.zohoPayments.accountHolderName);
+          if (importedProfile.zohoPayments.webhookUrl) setZohoWebhookUrl(importedProfile.zohoPayments.webhookUrl);
+        }
+
+        // Save & Sync live immediately
+        updateCompanyProfile(importedProfile);
+        ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, StorageService.getCompanyProfile()).catch(() => {});
+        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'IMPORT_PROFILE', timestamp: Date.now() } }));
+
+        triggerCelebrationFireworks();
+        showToast('success', 'Company Profile Imported & Live! ⚡', 'Configuration successfully updated and synchronized across all portals.');
+      } catch (err: any) {
+        showToast('error', 'Import Failed', `Invalid JSON file format: ${err.message}`);
       }
     };
     reader.readAsText(file);

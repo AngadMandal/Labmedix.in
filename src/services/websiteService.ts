@@ -216,14 +216,28 @@ export class WebsiteService {
    * Retrieve active Website CMS Configuration (Dynamically synced with active Membership Tiers)
    */
   public static getWebsiteConfig(): WebsiteCMSConfig {
-    const raw = StorageService.getItem<WebsiteCMSConfig>(WEBSITE_CMS_STORAGE_KEY, DEFAULT_WEBSITE_CMS_CONFIG);
+    const raw = StorageService.getItem<WebsiteCMSConfig>(WEBSITE_CMS_STORAGE_KEY, DEFAULT_WEBSITE_CMS_CONFIG) || DEFAULT_WEBSITE_CMS_CONFIG;
     
+    const safeConfig: WebsiteCMSConfig = {
+      ...DEFAULT_WEBSITE_CMS_CONFIG,
+      ...raw,
+      cardTiers: Array.isArray(raw.cardTiers) && raw.cardTiers.length > 0 ? raw.cardTiers : DEFAULT_WEBSITE_CMS_CONFIG.cardTiers,
+      specialties: Array.isArray(raw.specialties) && raw.specialties.length > 0 ? raw.specialties : DEFAULT_WEBSITE_CMS_CONFIG.specialties,
+      testimonials: Array.isArray(raw.testimonials) && raw.testimonials.length > 0 ? raw.testimonials : DEFAULT_WEBSITE_CMS_CONFIG.testimonials,
+      faqs: Array.isArray(raw.faqs) && raw.faqs.length > 0 ? raw.faqs : DEFAULT_WEBSITE_CMS_CONFIG.faqs,
+      stats: {
+        ...DEFAULT_WEBSITE_CMS_CONFIG.stats,
+        ...(raw.stats || {})
+      }
+    };
+
     // Single Source of Truth: Map ACTIVE membership tiers from Central Store
-    const activeMemberships = StorageService.getMemberships().filter(m => m.status === 'active');
+    const memberships = StorageService.getMemberships();
+    const activeMemberships = Array.isArray(memberships) ? memberships.filter(m => m.status === 'active') : [];
     
     if (activeMemberships && activeMemberships.length > 0) {
       const syncedCardTiers: WebsiteCardTierConfig[] = activeMemberships.map((mem) => {
-        const custom = (raw.cardTiers || []).find(ct => ct.id === mem.id || ct.name?.toLowerCase() === mem.name?.toLowerCase());
+        const custom = (safeConfig.cardTiers || []).find(ct => ct.id === mem.id || ct.name?.toLowerCase() === mem.name?.toLowerCase());
         const tierLabel = mem.name.includes('Silver') ? 'Silver' : mem.name.includes('Gold') ? 'Gold' : mem.name.includes('Platinum') ? 'Platinum' : 'VIP';
         
         return {
@@ -246,11 +260,11 @@ export class WebsiteService {
         };
       });
       return {
-        ...raw,
+        ...safeConfig,
         cardTiers: syncedCardTiers
       };
     }
-    return raw;
+    return safeConfig;
   }
 
   /**

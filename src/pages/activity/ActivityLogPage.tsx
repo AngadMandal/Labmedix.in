@@ -91,9 +91,9 @@ export const ActivityLogPage: React.FC = () => {
   };
 
   // Export CSV
-  const handleExportCsv = () => {
+  const handleExportCsv = (data: AuditLog[], filename: string) => {
     const headers = ['Block #', 'Timestamp', 'Severity', 'Module', 'Action', 'Actor Name', 'Actor Role', 'Reference ID', 'Block Hash', 'Description'];
-    const rows = filteredLogs.map(l => [
+    const rows = data.map(l => [
       String(l.index || ''),
       `"${l.timestamp}"`,
       l.severity || 'info',
@@ -111,10 +111,10 @@ export const ActivityLogPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `LABMEDIX_IMMUTABLE_AUDIT_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
-    showToast('success', 'Audit CSV Exported', 'Downloaded activity trail dataset.');
+    showToast('success', 'Audit CSV Exported', `Downloaded ${data.length} audit records.`);
   };
 
   // Filtered dataset
@@ -291,9 +291,17 @@ export const ActivityLogPage: React.FC = () => {
           <Button
             variant="primary"
             leftIcon={<Download className="w-4 h-4" />}
-            onClick={handleExportCsv}
+            onClick={() => handleExportCsv(filteredLogs, `LABMEDIX_AUDIT_FILTERED_${new Date().toISOString().slice(0, 10)}.csv`)}
           >
-            Export Audit CSV
+            Export Filtered CSV
+          </Button>
+
+          <Button
+            variant="primary"
+            leftIcon={<Download className="w-4 h-4" />}
+            onClick={() => handleExportCsv(logs, `LABMEDIX_AUDIT_FULL_${new Date().toISOString().slice(0, 10)}.csv`)}
+          >
+            Export Full Audit CSV
           </Button>
         </div>
       </div>

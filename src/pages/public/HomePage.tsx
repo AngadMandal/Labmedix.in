@@ -1076,7 +1076,7 @@ export const HomePage: React.FC = () => {
 
           {/* Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {cmsConfig.cardTiers.map((tier) => (
+            {(cmsConfig?.cardTiers || []).map((tier) => (
               <div
                 key={tier.id}
                 className={`p-6 rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border transition-all flex flex-col justify-between space-y-6 relative overflow-hidden group hover:scale-[1.02] shadow-xl ${

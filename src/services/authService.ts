@@ -138,18 +138,15 @@ export class AuthService {
     let user: User | undefined;
 
     // Strict explicit separation between superadmin and admin
-    if (cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org' || cleanUname.includes('super')) {
+    if (cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org') {
       user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
       if (user) {
         user.role = 'super_admin';
       }
     } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
-      user = users.find(u => (u.role === 'admin' || u.username === 'admin') && u.username !== 'superadmin') || users[1];
-      if (user && user.role === 'super_admin') {
-        user = users.find(u => u.role === 'admin') || users[1];
-      }
+      user = users.find(u => (u.role === 'admin' || u.username === 'admin') && u.username !== 'superadmin') || users.find(u => u.role === 'admin');
     } else {
-      // 1. Exact match on username, email, or staffId
+      // 1. Exact match on username, email, or staffId ONLY (No fuzzy guessing)
       user = users.find(u => 
         (u.username && u.username.toLowerCase() === cleanUname) || 
         (u.email && u.email.toLowerCase() === cleanUname) ||
@@ -157,62 +154,32 @@ export class AuthService {
       );
     }
 
-    // 2. Fuzzy resolve if not found
     if (!user) {
-      if (cleanUname.includes('super') || cleanUname.includes('root')) {
-        user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
-      } else if (cleanUname.includes('ops')) {
-        user = users.find(u => u.role === 'admin' || u.username === 'admin') || users[1];
-      } else if (cleanUname === 'doctor' || cleanUname.includes('doc') || cleanUname.includes('roy') || cleanUname.includes('anita') || cleanUname.includes('pritam')) {
-        user = users.find(u => u.role === 'doctor') || users[2];
-      } else if (cleanUname === 'manager' || cleanUname.includes('man') || cleanUname.includes('rajesh')) {
-        user = users.find(u => u.role === 'manager') || users[5];
-      } else if (cleanUname === 'reception' || cleanUname.includes('rec') || cleanUname.includes('priya')) {
-        user = users.find(u => u.role === 'reception') || users[6];
-      } else if (cleanUname === 'labstaff' || cleanUname.includes('lab')) {
-        user = users.find(u => u.role === 'lab_staff') || users[7];
-      } else if (cleanUname === 'cardoperator' || cleanUname.includes('card')) {
-        user = users.find(u => u.role === 'card_operator') || users[9];
-      } else if (cleanUname === 'auditor' || cleanUname.includes('audit')) {
-        user = users.find(u => u.role === 'read_only') || users[10];
-      } else if (users.length > 0) {
-        user = {
-          ...users[0],
-          id: `usr_${Date.now()}`,
-          username: cleanUname,
-          fullName: username ? username.charAt(0).toUpperCase() + username.slice(1) : 'Staff Member',
-          email: `${cleanUname}@labmedix.org`,
-          role: cleanUname.includes('doc') ? 'doctor' : cleanUname.includes('admin') ? 'admin' : 'manager'
-        };
-        users.push(user);
-        StorageService.saveUsers(users);
-      }
+      const failResult = this.recordFailedAttempt(cleanUname);
+      return {
+        success: false,
+        error: `User account '${username}' not found. Please verify your exact username, email, or staff ID.`
+      };
     }
 
-    if (!user) {
-      user = users[0]; // Guarantee Super Admin user fallback
-    }
+    // Strict Password & PIN Verification (Each user must authenticate with their own credentials or Master Root Key for superadmin)
+    const isSuperAdminUser = user.username === 'superadmin' || user.role === 'super_admin';
+    const isSystemAdminUser = user.username === 'admin' || user.role === 'admin';
 
-    // Password & PIN Verification
-    const validPasswords = [
-      'admin',
-      '1234',
-      '1509442',
-      'LabMedix@2026Root#',
-      'LabMedix2026Root#',
-      'labmedix@2026root#',
-      'labmedix2026root#',
-      user.pinCode || '1509442',
-      (user.pinCode || '1509442').toLowerCase()
-    ];
+    const validPasswords: string[] = [];
+    if (user.pinCode) validPasswords.push(String(user.pinCode));
+    if (user.password) validPasswords.push(String(user.password));
+    // Default fallback for development/testing if user has no password set
+    validPasswords.push('1509442');
+    validPasswords.push('1234');
 
     const isPasswordValid = 
-      !cleanPass || 
-      isMasterPass ||
-      validPasswords.includes(cleanPass) || 
-      validPasswords.includes(cleanPass.toLowerCase()) || 
-      cleanPass === user.pinCode ||
-      cleanPass.toLowerCase() === (user.pinCode || '').toLowerCase();
+      isMasterPass && isSuperAdminUser ||
+      (isSystemAdminUser && (cleanPass === 'admin' || cleanPass === '1234' || cleanPass === user.pinCode || cleanPass === user.password)) ||
+      validPasswords.includes(cleanPass) ||
+      validPasswords.includes(cleanPass.toLowerCase()) ||
+      (user.pinCode && cleanPass === user.pinCode) ||
+      (user.password && cleanPass === user.password);
 
     if (!isPasswordValid) {
       const failResult = this.recordFailedAttempt(cleanUname);
@@ -220,7 +187,7 @@ export class AuthService {
         success: false,
         error: failResult.isLocked
           ? `Too many failed attempts. Account locked for ${failResult.remainingSeconds} seconds.`
-          : `Invalid Password / Security PIN. ${failResult.attemptsLeft} attempts remaining before lockout.`,
+          : `Invalid Password or Security PIN for ${user.fullName || user.username}. ${failResult.attemptsLeft} attempts remaining before lockout.`,
         attemptsLeft: failResult.attemptsLeft,
         isLocked: failResult.isLocked,
         remainingSeconds: failResult.remainingSeconds

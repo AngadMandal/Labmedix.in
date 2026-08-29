@@ -283,6 +283,82 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
+        {/* Operational Staff Quick-Login Shortcuts */}
+        <div className="pt-3 border-t border-slate-800 space-y-2">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <span>⚡ Operational Staff Quick-Login:</span>
+            <span className="text-[10px] text-teal-400 font-mono">Default PIN: 1509442</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('superadmin');
+                setPassword('LabMedix@2026Root#');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-950/80 border border-slate-700 hover:border-teal-500/50 text-teal-300 font-bold transition-all text-center truncate"
+              title="Super Admin"
+            >
+              👑 Super Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('admin');
+                setPassword('1509442');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-950/80 border border-slate-700 hover:border-teal-500/50 text-slate-200 font-bold transition-all text-center truncate"
+              title="Operations Admin"
+            >
+              🛡️ Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('reception');
+                setPassword('1509442');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-950/80 border border-slate-700 hover:border-teal-500/50 text-slate-200 font-bold transition-all text-center truncate"
+              title="Front Desk Reception"
+            >
+              👩‍💼 Front Desk
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('manager');
+                setPassword('1509442');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-950/80 border border-slate-700 hover:border-teal-500/50 text-slate-200 font-bold transition-all text-center truncate"
+              title="Cashier / Manager"
+            >
+              💰 Cashier / Mgr
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('labstaff');
+                setPassword('1509442');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-950/80 border border-slate-700 hover:border-teal-500/50 text-slate-200 font-bold transition-all text-center truncate"
+              title="Lab Technologist"
+            >
+              🧪 Lab Tech
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('doctor');
+                setPassword('1509442');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-teal-950/80 border border-slate-700 hover:border-teal-500/50 text-slate-200 font-bold transition-all text-center truncate"
+              title="Consultant Doctor"
+            >
+              🩺 Doctor
+            </button>
+          </div>
+        </div>
+
         {/* Footer Redirects to Home & Patient Portal */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs pt-3 border-t border-slate-800">
           <Link to="/" className="text-teal-400 hover:text-teal-300 font-bold hover:underline">

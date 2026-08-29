@@ -26,6 +26,7 @@ import { Select } from '../../components/common/Select';
 import { formatDateTime, formatDate } from '../../utils/formatters';
 import { ExportService } from '../../services/exportService';
 import { PrintService } from '../../services/printService';
+import { GmailService } from '../../services/gmailService';
 import {
   Users,
   UserCheck,
@@ -342,7 +343,28 @@ Note: Keep these credentials confidential.`;
       showToast('error', 'Creation Failed', res.error);
     } else {
       triggerCelebrationFireworks();
-      showToast('success', 'Staff Created', `${res.user.fullName} registered with ID ${res.user.staffId}. Password assigned.`);
+      showToast('success', 'Staff Created', `${res.user.fullName} registered with ID ${res.user.staffId}.`);
+
+      // Automatically dispatch credentials email to staff
+      const staffPass = res.user.password || 'Lmdx@2026!';
+      const staffPin = res.user.pinCode || '1234';
+      const loginUrl = `${window.location.origin}/#/login`;
+      const emailSubject = `[LABMEDIX ENTERPRISE] Official Staff Account & Portal Credentials - ${res.user.fullName}`;
+      const emailBody = `Dear ${res.user.fullName},\n\nYour official staff account has been successfully created in the LABMEDIX AutoHealth Enterprise system.\n\nHere are your secure login credentials:\n\n- Staff ID: ${res.user.staffId}\n- Role: ${res.user.role.toUpperCase()} (${res.user.designation})\n- Department: ${res.user.department}\n- Username: ${res.user.username}\n- Email: ${res.user.email}\n- Password: ${staffPass}\n- Security PIN: ${staffPin}\n\nLogin Portal: ${loginUrl}\n\nPlease keep these credentials strictly confidential.\n\nWarm regards,\nSovereign Super Admin Office\nLABMEDIX AutoHealth Enterprise`;
+
+      GmailService.sendEmail(undefined, res.user.email, emailSubject, emailBody).then((sent) => {
+        if (sent) {
+          UserService.updateUser(res.user.id, { emailSent: true });
+          showToast('success', 'Email Dispatched!', `Staff ID & password successfully sent to ${res.user.email}`);
+        } else {
+          showToast('info', 'Email Queued', `Staff created. Email dispatch queued for ${res.user.email}`);
+        }
+        refreshList();
+      }).catch(() => {
+        showToast('success', 'Credentials Ready', `Staff created successfully for ${res.user.fullName}.`);
+        refreshList();
+      });
+
       setIsAddModalOpen(false);
       resetForm();
       refreshList();
@@ -783,6 +805,14 @@ Note: Keep these credentials confidential.`;
                   <span>•••• (Locked)</span>
                 </span>
               )}
+            </div>
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold flex items-center gap-1 ${
+                u.emailSent ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200'
+              }`} title={u.emailSent ? 'Automated credentials email successfully dispatched to staff' : 'Credentials email pending'}>
+                {u.emailSent ? '📧 Email Sent' : '⏳ Email Pending'}
+              </span>
+              <span className="text-[9.5px] text-slate-400 truncate max-w-[120px] font-mono">{u.email}</span>
             </div>
           </div>
         );

@@ -87,6 +87,7 @@ export class UserService {
       emergencyContactName: userData.emergencyContactName?.trim() || 'Immediate Family',
       cardThemeWish: userData.cardThemeWish || 'premium_medical',
       cardMaterialWish: userData.cardMaterialWish || 'gloss',
+      emailSent: false,
       createdAt: now.toISOString()
     };
 

@@ -553,8 +553,10 @@ export class StorageService {
       const v = localStorage.getItem(key);
       if (v) {
         const parsed = JSON.parse(v) as T;
-        StorageService.memoryCache.set(key, parsed);
-        return parsed;
+        if (parsed !== null && parsed !== undefined) {
+          StorageService.memoryCache.set(key, parsed);
+          return parsed;
+        }
       }
     } catch { /* fall through */ }
 
@@ -564,9 +566,11 @@ export class StorageService {
       if (v) {
         console.info(`[LABMEDIX] Restored ${key} from sessionStorage mirror.`);
         const parsed = JSON.parse(v) as T;
-        StorageService.memoryCache.set(key, parsed);
-        try { localStorage.setItem(key, v); } catch { }
-        return parsed;
+        if (parsed !== null && parsed !== undefined) {
+          StorageService.memoryCache.set(key, parsed);
+          try { localStorage.setItem(key, v); } catch { }
+          return parsed;
+        }
       }
     } catch { /* fall through */ }
 
@@ -1054,6 +1058,8 @@ export class StorageService {
       profile.name = 'LABMEDIX MULTI-SPECIALITY HEALTHCARE & DIAGNOSTIC CENTRE';
     }
     this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
+    // Explicitly broadcast to ensure all modules/portals update instantly
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.COMPANY_PROFILE, value: profile } }));
   }
 
   // Cash Desk Vouchers (Super Admin Sovereign PIN & Voucher Ledger)

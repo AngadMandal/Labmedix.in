@@ -310,47 +310,59 @@ export class BackupService {
         }
       }
 
-      // Check format
+      // Check format (Extremely forgiving and comprehensive for any JSON structure)
       const currentPatients = StorageService.getPatients().length;
       const currentCards = StorageService.getCards().length;
       const currentFamilies = StorageService.getFamilies().length;
       const currentWallets = StorageService.getWallets().length;
 
-      let detectedFormat = 'Standard LABMEDIX Backup';
-      let finalData: any = {};
+      let detectedFormat = 'Comprehensive LABMEDIX Universal Live JSON';
+      let sourceObj = parsed.data || parsed;
 
-      if (parsed.data && typeof parsed.data === 'object') {
-        detectedFormat = 'Full Enterprise Database Vault';
-        finalData = {
-          patients: Array.isArray(parsed.data.patients) ? parsed.data.patients : [],
-          healthCards: Array.isArray(parsed.data.healthCards) ? parsed.data.healthCards : [],
-          memberships: Array.isArray(parsed.data.memberships) ? parsed.data.memberships : [],
-          families: Array.isArray(parsed.data.families) ? parsed.data.families : [],
-          wallets: Array.isArray(parsed.data.wallets) ? parsed.data.wallets : [],
-          walletTransactions: Array.isArray(parsed.data.walletTransactions) ? parsed.data.walletTransactions : [],
-          auditLogs: Array.isArray(parsed.data.auditLogs) ? parsed.data.auditLogs : [],
-          companyProfile: parsed.data.companyProfile || StorageService.getCompanyProfile(),
-          users: Array.isArray(parsed.data.users) ? parsed.data.users : StorageService.getUsers()
-        };
-      } else if (Array.isArray(parsed.patients) || Array.isArray(parsed.healthCards)) {
-        detectedFormat = 'Root-Level Collections Dump';
-        finalData = {
-          patients: parsed.patients || [],
-          healthCards: parsed.healthCards || [],
-          memberships: parsed.memberships || [],
-          families: parsed.families || [],
-          wallets: parsed.wallets || [],
-          walletTransactions: parsed.walletTransactions || [],
-          auditLogs: parsed.auditLogs || [],
-          companyProfile: parsed.companyProfile || StorageService.getCompanyProfile(),
-          users: parsed.users || StorageService.getUsers()
-        };
-      } else {
-        return {
-          valid: false,
-          error: 'Unrecognized backup structure. File must contain valid patients, health cards, or company profiles.'
-        };
+      // Handle raw array uploads (e.g. user uploads just an array of patients, cards, or transactions)
+      let rawPatients: any[] = [];
+      let rawCards: any[] = [];
+      let rawTransactions: any[] = [];
+
+      if (Array.isArray(parsed)) {
+        if (parsed.length > 0) {
+          const sample = parsed[0];
+          if (sample.cardNumber || sample.tier || sample.cardId) {
+            rawCards = parsed;
+            detectedFormat = 'Raw Health Cards Array Dump';
+          } else if (sample.amount || sample.transactionId || sample.type || sample.paymentMethod) {
+            rawTransactions = parsed;
+            detectedFormat = 'Raw Financial Transactions Array Dump';
+          } else {
+            rawPatients = parsed;
+            detectedFormat = 'Raw Patient Directory Array Dump';
+          }
+        }
       }
+
+      const finalData = {
+        patients: rawPatients.length > 0 ? rawPatients : (Array.isArray(sourceObj.patients) ? sourceObj.patients : (Array.isArray(sourceObj.patientList) ? sourceObj.patientList : (Array.isArray(parsed.patientList) ? parsed.patientList : StorageService.getPatients()))),
+        healthCards: rawCards.length > 0 ? rawCards : (Array.isArray(sourceObj.healthCards) ? sourceObj.healthCards : (Array.isArray(sourceObj.cards) ? sourceObj.cards : (Array.isArray(parsed.cards) ? parsed.cards : StorageService.getCards()))),
+        memberships: Array.isArray(sourceObj.memberships) ? sourceObj.memberships : (Array.isArray(parsed.memberships) ? parsed.memberships : StorageService.getMemberships()),
+        families: Array.isArray(sourceObj.families) ? sourceObj.families : (Array.isArray(parsed.families) ? parsed.families : StorageService.getFamilies()),
+        wallets: Array.isArray(sourceObj.wallets) ? sourceObj.wallets : (Array.isArray(parsed.wallets) ? parsed.wallets : StorageService.getWallets()),
+        walletTransactions: rawTransactions.length > 0 ? rawTransactions : (Array.isArray(sourceObj.walletTransactions) ? sourceObj.walletTransactions : (Array.isArray(sourceObj.transactions) ? sourceObj.transactions : (Array.isArray(parsed.transactions) ? parsed.transactions : StorageService.getTransactions()))),
+        auditLogs: Array.isArray(sourceObj.auditLogs) ? sourceObj.auditLogs : (Array.isArray(parsed.auditLogs) ? parsed.auditLogs : StorageService.getAuditLogs()),
+        companyProfile: sourceObj.companyProfile || sourceObj.company || sourceObj.profile || parsed.companyProfile || parsed.company || parsed.profile || (sourceObj.name ? sourceObj : StorageService.getCompanyProfile()),
+        users: Array.isArray(sourceObj.users) ? sourceObj.users : (Array.isArray(sourceObj.staff) ? sourceObj.staff : (Array.isArray(parsed.users) ? parsed.users : StorageService.getUsers())),
+        appointments: Array.isArray(sourceObj.appointments) ? sourceObj.appointments : StorageService.getItem(STORAGE_KEYS.APPOINTMENTS, []),
+        emrEncounters: Array.isArray(sourceObj.emrEncounters) ? sourceObj.emrEncounters : StorageService.getItem(STORAGE_KEYS.EMR_ENCOUNTERS, []),
+        doctors: Array.isArray(sourceObj.doctors) ? sourceObj.doctors : StorageService.getItem(STORAGE_KEYS.DOCTORS, []),
+        doctorPayouts: Array.isArray(sourceObj.doctorPayouts) ? sourceObj.doctorPayouts : StorageService.getItem(STORAGE_KEYS.DOCTOR_PAYOUTS, []),
+        labTests: Array.isArray(sourceObj.labTests) ? sourceObj.labTests : StorageService.getItem(STORAGE_KEYS.LAB_TESTS, []),
+        healthPackages: Array.isArray(sourceObj.healthPackages) ? sourceObj.healthPackages : StorageService.getItem(STORAGE_KEYS.HEALTH_PACKAGES, []),
+        portalLabBookings: Array.isArray(sourceObj.portalLabBookings) ? sourceObj.portalLabBookings : StorageService.getItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []),
+        portalPharmacyOrders: Array.isArray(sourceObj.portalPharmacyOrders) ? sourceObj.portalPharmacyOrders : StorageService.getItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []),
+        portalCardApplications: Array.isArray(sourceObj.portalCardApplications) ? sourceObj.portalCardApplications : StorageService.getItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []),
+        cashVouchers: Array.isArray(sourceObj.cashVouchers) ? sourceObj.cashVouchers : StorageService.getItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, []),
+        sampleDispatches: Array.isArray(sourceObj.sampleDispatches) ? sourceObj.sampleDispatches : StorageService.getItem(STORAGE_KEYS.SAMPLE_DISPATCHES, []),
+        recoveryVault: Array.isArray(sourceObj.recoveryVault) ? sourceObj.recoveryVault : StorageService.getItem(STORAGE_KEYS.RECOVERY_VAULT, [])
+      };
 
       const incomingPatients = finalData.patients.length;
       const incomingCards = finalData.healthCards.length;
@@ -359,7 +371,7 @@ export class BackupService {
 
       const backupResult: BackupData = {
         version: parsed.version || '2.0.0',
-        backupVersion: parsed.backupVersion || 'LABMEDIX-AUTO-ADAPTED',
+        backupVersion: parsed.backupVersion || 'LABMEDIX-UNIVERSAL-LIVE',
         createdDate: parsed.createdDate || parsed.exportedAt || new Date().toISOString(),
         checksum: parsed.checksum || this.computeChecksum(JSON.stringify(finalData)),
         sizeBytes: parsed.sizeBytes || new Blob([JSON.stringify(finalData)]).size,
@@ -441,11 +453,15 @@ export class BackupService {
       if (d.portalCardApplications) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, d.portalCardApplications).catch(() => { });
       if (d.cashVouchers) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CASH_DESK_VOUCHERS, d.cashVouchers).catch(() => { });
       if (d.sampleDispatches) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches).catch(() => { });
+      if (d.companyProfile) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, d.companyProfile).catch(() => { });
+      if (d.users) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.USERS, d.users).catch(() => { });
 
-      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'RESTORE_BACKUP' } }));
+      // Broadcast multi-device / multi-portal live sync events
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'FULL_IMPORT_LIVE', timestamp: Date.now() } }));
+      localStorage.setItem('labmedix_global_sync_timestamp', Date.now().toString());
 
-      AuditService.log('BACKUP_RESTORED', 'backup', `Successfully restored backup dated ${backup.createdDate} (Records: ${backup.recordCounts?.patients || 0} Patients, ${backup.recordCounts?.healthCards || 0} Cards)`);
-      return { success: true, message: 'Database restored successfully with pre-flight safety snapshot created!' };
+      AuditService.log('BACKUP_RESTORED', 'backup', `Successfully restored backup dated ${backup.createdDate} (Records: ${backup.recordCounts?.patients || 0} Patients, ${backup.recordCounts?.healthCards || 0} Cards, ${backup.recordCounts?.walletTransactions || 0} Transactions)`);
+      return { success: true, message: 'All database records successfully imported and brought LIVE across Central & all devices!' };
     } catch (err: any) {
       return { success: false, message: `Restore Failed: ${err.message}` };
     }
