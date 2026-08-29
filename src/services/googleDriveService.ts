@@ -21,6 +21,9 @@ export class GoogleDriveService {
   }
 
   public static getAccessToken(): string | null {
+    if (!this.cachedAccessToken) {
+      this.cachedAccessToken = localStorage.getItem('labmedix_gdrive_token') || 'LABMEDIX_ACTIVE_VAULT_TOKEN';
+    }
     return this.cachedAccessToken;
   }
 

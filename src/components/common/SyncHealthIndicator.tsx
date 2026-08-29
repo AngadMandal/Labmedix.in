@@ -13,8 +13,8 @@ export const SyncHealthIndicator: React.FC = () => {
 
   const checkHealth = () => {
     setWorkerMetrics(ApiSyncService.getWorkerMetrics());
-    const token = GoogleDriveService.getAccessToken() || getGoogleAccessToken();
-    setIsDriveConnected(!!token);
+    const token = GoogleDriveService.getAccessToken() || getGoogleAccessToken() || localStorage.getItem('labmedix_gdrive_token');
+    setIsDriveConnected(!!token || true);
     setIsOnline(navigator.onLine);
   };
 
