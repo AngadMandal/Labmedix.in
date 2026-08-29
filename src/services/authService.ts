@@ -135,18 +135,33 @@ export class AuthService {
     }
 
     const users = StorageService.getUsers();
-    // 1. Exact match on username, email, or staffId
-    let user = users.find(u => 
-      (u.username && u.username.toLowerCase() === cleanUname) || 
-      (u.email && u.email.toLowerCase() === cleanUname) ||
-      (u.staffId && u.staffId.toLowerCase() === cleanUname)
-    );
+    let user: User | undefined;
+
+    // Strict explicit separation between superadmin and admin
+    if (cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org' || cleanUname.includes('super')) {
+      user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
+      if (user) {
+        user.role = 'super_admin';
+      }
+    } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
+      user = users.find(u => (u.role === 'admin' || u.username === 'admin') && u.username !== 'superadmin') || users[1];
+      if (user && user.role === 'super_admin') {
+        user = users.find(u => u.role === 'admin') || users[1];
+      }
+    } else {
+      // 1. Exact match on username, email, or staffId
+      user = users.find(u => 
+        (u.username && u.username.toLowerCase() === cleanUname) || 
+        (u.email && u.email.toLowerCase() === cleanUname) ||
+        (u.staffId && u.staffId.toLowerCase() === cleanUname)
+      );
+    }
 
     // 2. Fuzzy resolve if not found
     if (!user) {
-      if (cleanUname === 'superadmin' || cleanUname.includes('super') || cleanUname.includes('root')) {
+      if (cleanUname.includes('super') || cleanUname.includes('root')) {
         user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
-      } else if (cleanUname === 'admin' || cleanUname.includes('ops')) {
+      } else if (cleanUname.includes('ops')) {
         user = users.find(u => u.role === 'admin' || u.username === 'admin') || users[1];
       } else if (cleanUname === 'doctor' || cleanUname.includes('doc') || cleanUname.includes('roy') || cleanUname.includes('anita') || cleanUname.includes('pritam')) {
         user = users.find(u => u.role === 'doctor') || users[2];
@@ -360,9 +375,18 @@ export class AuthService {
   public static loginWithUsername(username: string): { success: boolean; user?: User; error?: string } {
     const cleanUname = (username || 'superadmin').trim().toLowerCase();
     const users = StorageService.getUsers();
-    let user = users.find(u => u.username.toLowerCase() === cleanUname || u.email?.toLowerCase() === cleanUname);
+    let user: User | undefined;
+
+    if (cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org') {
+      user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
+    } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
+      user = users.find(u => u.role === 'admin' || u.username === 'admin') || users[1];
+    } else {
+      user = users.find(u => u.username.toLowerCase() === cleanUname || u.email?.toLowerCase() === cleanUname);
+    }
+
     if (!user) {
-      user = users.find(u => u.username === 'superadmin' || u.username === 'admin') || users[0];
+      user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
     }
     if (user) {
       user.status = 'active';

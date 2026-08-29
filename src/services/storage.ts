@@ -953,12 +953,21 @@ export class StorageService {
     } else {
       let usersModified = false;
       currentUsers.forEach(u => {
-        if (u.role === 'super_admin' || u.username === 'superadmin' || u.id === 'usr_super_admin') {
+        if (u.username === 'superadmin' || u.id === 'usr_super_admin') {
+          u.role = 'super_admin';
           u.pinCode = 'LabMedix@2026Root#';
           u.status = 'active';
           usersModified = true;
+        } else if (u.username === 'admin' || u.id === 'usr_admin') {
+          u.role = 'admin';
+          usersModified = true;
         }
       });
+      // Ensure superadmin always exists
+      if (!currentUsers.some(u => u.username === 'superadmin' || u.role === 'super_admin')) {
+        currentUsers.unshift(INITIAL_USERS[0]);
+        usersModified = true;
+      }
       if (usersModified) {
         this.setItem(STORAGE_KEYS.USERS, currentUsers);
       }

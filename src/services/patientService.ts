@@ -111,11 +111,18 @@ export class PatientService {
   }
 
   public static createPatient(input: CreatePatientInput): CreatePatientResult {
-    const patients = StorageService.getPatients();
-    const cards = StorageService.getCards();
-    const wallets = StorageService.getWallets();
-    const memberships = StorageService.getMemberships();
-    const families = StorageService.getFamilies();
+    if (!input || !input.fullName || !input.fullName.trim()) {
+      throw new Error('Patient Full Name is required for registration.');
+    }
+    if (!input.mobile || !input.mobile.trim()) {
+      throw new Error('Patient Mobile Number is required for registration.');
+    }
+
+    const patients = StorageService.getPatients() || [];
+    const cards = StorageService.getCards() || [];
+    const wallets = StorageService.getWallets() || [];
+    const memberships = StorageService.getMemberships() || [];
+    const families = StorageService.getFamilies() || [];
     const currentUser = StorageService.getCurrentUser();
 
     // 1. Generate Next Patient ID safely
@@ -140,7 +147,7 @@ export class PatientService {
     StorageService.saveWallets(wallets);
 
     if (depositAmount > 0) {
-      const txns = StorageService.getTransactions();
+      const txns = StorageService.getTransactions() || [];
       txns.unshift({
         id: `txn_${generateUuid().slice(0, 8)}`,
         walletId,
@@ -152,13 +159,26 @@ export class PatientService {
         referenceNo: `INIT-${Date.now().toString(36).toUpperCase()}`,
         notes: 'Initial Wallet Balance Deposit during registration',
         date: new Date().toISOString(),
-        createdBy: currentUser?.fullName || 'Reception Desk'
+        createdBy: currentUser?.fullName || 'Super Administrator'
       });
       StorageService.saveTransactions(txns);
     }
 
-    // 3. Create Health Card for Primary Patient
-    const selectedMembership = memberships.find(m => m.id === input.membershipId) || memberships[0];
+    // 3. Create Health Card for Primary Patient with foolproof membership fallback
+    const defaultMembership = {
+      id: 'mem_gold',
+      name: 'Gold Health Shield',
+      slug: 'gold',
+      validityMonths: 12,
+      opdDiscount: 20,
+      labDiscount: 25,
+      pharmacyDiscount: 15,
+      homeCollectionDiscount: 50,
+      price: 999,
+      status: 'active'
+    };
+    const selectedMembership = memberships.find(m => m.id === input.membershipId) || memberships[0] || defaultMembership;
+    
     const usedCardNumbers = new Set(cards.map(c => c.cardNumber));
     const cardNumber = generateCardNumber(Array.from(usedCardNumbers));
     usedCardNumbers.add(cardNumber);
@@ -189,7 +209,7 @@ export class PatientService {
       designConfig: {
         ...DEFAULT_CARD_DESIGN,
         preset: primaryPreset as any,
-        material: (input.cardMaterial as any) || 'gloss'
+        material: (input.cardMaterial as any) || 'metallic'
       },
       statusHistory: [
         {
@@ -198,7 +218,7 @@ export class PatientService {
           date: now.toISOString(),
           previousStatus: 'active',
           newStatus: initialStatus,
-          changedBy: currentUser?.fullName || 'System',
+          changedBy: currentUser?.fullName || 'Super Administrator',
           reason: `Initial card generation for ${selectedMembership.name}`
         }
       ],

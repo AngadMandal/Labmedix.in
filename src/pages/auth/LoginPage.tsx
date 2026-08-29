@@ -39,12 +39,6 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Anti-Bot Security Captcha State
-  const [captchaNum1, setCaptchaNum1] = useState(12);
-  const [captchaNum2, setCaptchaNum2] = useState(7);
-  const [userCaptcha, setUserCaptcha] = useState('');
-  const [captchaError, setCaptchaError] = useState(false);
-
   // Lockout Countdown State
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
@@ -57,18 +51,7 @@ export const LoginPage: React.FC = () => {
   // Forgot Password Modal State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
-  // Refresh Math Captcha & Pre-fill for seamless user experience
-  const refreshCaptcha = () => {
-    const n1 = Math.floor(5 + Math.random() * 15);
-    const n2 = Math.floor(2 + Math.random() * 9);
-    setCaptchaNum1(n1);
-    setCaptchaNum2(n2);
-    setUserCaptcha(String(n1 + n2));
-    setCaptchaError(false);
-  };
-
   useEffect(() => {
-    refreshCaptcha();
     const currentUser = StorageService.getCurrentUser();
     const lockedUser = localStorage.getItem('labmedix_auth_locked_user');
     if (currentUser || lockedUser) {
@@ -105,39 +88,17 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // Instant 1-Click Login Handler for Super Admin, Doctor, Reception, Manager
-  const handleQuickLogin = (targetUname: string, roleTitle: string) => {
-    setError('');
-    setIsLoading(true);
-    setUsername(targetUname);
-    setPassword('admin');
-    setUserCaptcha(String(captchaNum1 + captchaNum2));
-
-    const validation = AuthService.validateCredentials(targetUname, 'admin');
-    setIsLoading(false);
-
-    if (validation.success && validation.user) {
-      login(validation.user.username);
-      triggerCelebrationFireworks();
-      showToast('success', `Welcome, ${validation.user.fullName}`, `Authenticated as ${roleTitle.toUpperCase()}.`);
-      navigate(validation.user.role === 'doctor' ? '/doctor-dashboard' : '/dashboard');
-    } else {
-      setError(validation.error || 'Quick login failed.');
-    }
-  };
-
   // Primary Login Handler
   const handlePrimaryLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setCaptchaError(false);
     setIsLoading(true);
 
     try {
       const inputUser = username.trim() || 'superadmin';
 
       console.log('Attempting login for:', inputUser);
-      const validation = AuthService.validateCredentials(inputUser, password || 'admin');
+      const validation = AuthService.validateCredentials(inputUser, password || '');
       console.log('Validation result:', validation);
 
       if (!validation.success || !validation.user) {
@@ -231,48 +192,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 1-CLICK QUICK ACCESS ACCOUNTS */}
-        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-teal-500/30 space-y-2.5">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-extrabold text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              1-Click Instant Demo Login:
-            </span>
-            <span className="text-[10px] text-slate-400">No Password Needed</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('superadmin', 'Super Admin')}
-              className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-teal-500/20 hover:from-amber-500/30 hover:to-teal-500/30 border border-amber-500/40 text-amber-300 font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm hover:scale-[1.02]"
-            >
-              👑 Super Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin', 'Operations Admin')}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
-            >
-              🛡️ Ops Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('doctor', 'Doctor')}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
-            >
-              🩺 Doctor
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('reception', 'Reception')}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
-            >
-              📋 Reception
-            </button>
-          </div>
-        </div>
-
         {/* PRIMARY CREDENTIALS FORM */}
         <form onSubmit={handlePrimaryLogin} className="space-y-4">
           {/* Username / Staff ID */}
@@ -323,43 +242,6 @@ export const LoginPage: React.FC = () => {
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
-            </div>
-          </div>
-
-          {/* Anti-Bot Security Captcha */}
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                <Fingerprint className="w-4 h-4 text-purple-400" />
-                Anti-Bot Captcha Verification:
-              </span>
-              <button
-                type="button"
-                onClick={refreshCaptcha}
-                className="text-teal-400 hover:text-teal-300 text-[11px] flex items-center gap-1 font-mono"
-                title="Generate new captcha equation"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Refresh</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="px-3.5 py-2 rounded-xl bg-slate-900 border border-teal-500/40 text-sm font-black font-mono tracking-widest text-teal-300 shadow-inner">
-                {captchaNum1} + {captchaNum2} = ?
-              </div>
-              <Input
-                type="number"
-                placeholder="Answer"
-                value={userCaptcha}
-                onChange={(e) => {
-                  setUserCaptcha(e.target.value);
-                  setCaptchaError(false);
-                }}
-                className={`text-center font-black ${captchaError ? 'border-rose-500 text-rose-300' : ''}`}
-                disabled={lockoutSeconds > 0}
-                required
-              />
             </div>
           </div>
 
