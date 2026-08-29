@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
 import configFile from '../../firebase-applet-config.json';
 
 const config = {
@@ -16,6 +16,15 @@ const config = {
 const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Enable offline persistence
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code == 'failed-precondition') {
+    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+  } else if (err.code == 'unimplemented') {
+    console.warn('The current browser does not support persistence.');
+  }
+});
 
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.warn('Firebase setPersistence warning:', err);
@@ -65,7 +74,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  // Don't re-throw for transient network errors, just log them
+  if (!errInfo.error.includes('unavailable')) {
+      throw new Error(JSON.stringify(errInfo));
+  }
 }
 
 async function testConnection() {
