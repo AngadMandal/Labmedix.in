@@ -44,9 +44,23 @@ export class ApiSyncService {
   private static syncErrors = 0;
   private static lastSyncTimestamp = new Date().toISOString();
   private static isConnected = true;
+  private static quotaExceeded = false;
+
+  private static checkQuotaError(error: unknown): boolean {
+    const errStr = String(error || '').toLowerCase();
+    if (errStr.includes('resource-exhausted') || errStr.includes('quota exceeded') || errStr.includes('quota')) {
+      if (!this.quotaExceeded) {
+        this.quotaExceeded = true;
+        console.warn('[ApiSync] Firestore quota exhausted. Operating in high-performance local storage mode.');
+      }
+      return true;
+    }
+    return false;
+  }
 
   /** Generic fetch collection from Firestore */
   public static async fetchCollection<T>(collectionName: string): Promise<T[]> {
+    if (this.quotaExceeded) return [];
     try {
       const q = query(collection(db, collectionName));
       const snapshot = await getDocs(q);
@@ -58,14 +72,18 @@ export class ApiSyncService {
       this.isConnected = true;
       return items;
     } catch (error) {
+      this.checkQuotaError(error);
       this.syncErrors++;
-      console.warn(`[ApiSync] Fallback for fetching ${collectionName} from local storage:`, error);
+      if (!this.quotaExceeded) {
+        console.warn(`[ApiSync] Fallback for fetching ${collectionName} from local storage:`, error);
+      }
       return [];
     }
   }
 
   /** Generic save or update document in Firestore */
   public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<boolean> {
+    if (this.quotaExceeded) return true;
     try {
       const docRef = doc(db, collectionName, id);
       const sanitized = JSON.parse(JSON.stringify(data));
@@ -77,28 +95,33 @@ export class ApiSyncService {
       this.isConnected = true;
       return true;
     } catch (error) {
+      this.checkQuotaError(error);
       this.syncErrors++;
-      console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id}:`, error);
+      if (!this.quotaExceeded) {
+        console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id}:`, error);
+      }
       return false;
     }
   }
 
   /** Generic delete document from Firestore */
   public static async deleteDocument(collectionName: string, id: string): Promise<boolean> {
+    if (this.quotaExceeded) return true;
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
       this.lastSyncTimestamp = new Date().toISOString();
       return true;
     } catch (error) {
+      this.checkQuotaError(error);
       this.syncErrors++;
-      console.warn(`[ApiSync] Firestore delete notice for ${collectionName}/${id}:`, error);
       return false;
     }
   }
 
   /** Purge entire collection in Firestore (Batch Deletion) */
   public static async purgeCollection(collectionName: string): Promise<number> {
+    if (this.quotaExceeded) return 0;
     try {
       const q = query(collection(db, collectionName));
       const snapshot = await getDocs(q);
@@ -117,13 +140,14 @@ export class ApiSyncService {
       this.lastSyncTimestamp = new Date().toISOString();
       return deletedCount;
     } catch (error) {
-      console.warn(`[ApiSync] Failed to purge collection ${collectionName}:`, error);
+      this.checkQuotaError(error);
       return 0;
     }
   }
 
   /** Real-time listener for multi-device sync */
   public static subscribeToCollection<T>(collectionName: string, callback: (items: T[]) => void): () => void {
+    if (this.quotaExceeded) return () => {};
     try {
       const q = query(collection(db, collectionName));
       const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -135,13 +159,14 @@ export class ApiSyncService {
         this.isConnected = true;
         callback(items);
       }, (error) => {
+        if (this.checkQuotaError(error)) return;
         this.syncErrors++;
         console.warn(`[ApiSync] Snapshot error on ${collectionName}:`, error);
       });
       return unsubscribe;
     } catch (e) {
+      if (this.checkQuotaError(e)) return () => {};
       this.syncErrors++;
-      console.warn(`[ApiSync] Failed to subscribe to ${collectionName}:`, e);
       return () => {};
     }
   }

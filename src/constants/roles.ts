@@ -304,9 +304,9 @@ export const ROLE_DEFAULT_MODULES: Record<Role, SystemModuleKey[]> = {
   reception: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'wallet', 'families'],
   manager: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'memberships', 'families', 'wallet', 'reports', 'activity'],
   lab_staff: ['dashboard', 'patients', 'cards', 'wallet', 'test_master'],
-  marketing: ['dashboard', 'patients', 'cards', 'reports'],
+  marketing: ['dashboard', 'patients', 'cards'],
   card_operator: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet'],
-  read_only: ['dashboard', 'patients', 'cards', 'wallet', 'reports', 'activity']
+  read_only: ['dashboard', 'patients', 'cards', 'wallet', 'activity']
 };
 
 export function hasPermission(userRole: Role, permission: Permission): boolean {
@@ -330,9 +330,9 @@ export function checkUserPermission(user: { role: Role; customPermissions?: Perm
 export function checkUserModuleAccess(user: { role: Role; allowedModules?: string[] } | null | undefined, moduleKey: SystemModuleKey): boolean {
   if (!user) return false;
   if (moduleKey === 'dashboard') return true; // Dashboard accessible to all authenticated staff
-  // Doctor EMR is strictly reserved for doctors
+  // Doctor EMR is restricted to doctors, super_admins, admins, or explicitly permitted users
   if (moduleKey === 'emr') {
-    return user.role === 'doctor' || (user.allowedModules ? user.allowedModules.includes('emr') : false);
+    return user.role === 'doctor' || user.role === 'super_admin' || user.role === 'admin' || (user.allowedModules ? user.allowedModules.includes('emr') : false);
   }
   if (user.role === 'super_admin') return true;
   if (user.allowedModules && user.allowedModules.length > 0) {

@@ -116,14 +116,16 @@ const SuperAdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 
 const DoctorRouteGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, login } = useAuth();
+  const { currentUser, login, hasModuleAccess } = useAuth();
   const [error, setError] = React.useState<string>('');
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
-  if (currentUser.role !== 'doctor') {
+  const isAllowed = currentUser.role === 'doctor' || currentUser.role === 'super_admin' || currentUser.role === 'admin' || hasModuleAccess('emr');
+
+  if (!isAllowed) {
     const doctorUsers = StorageService.getUsers().filter(u => u.role === 'doctor');
 
     const handleSwitchToDoctor = (username: string) => {
