@@ -47,87 +47,56 @@ export const DoctorLoginPage: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    const cleanInput = username.trim().toLowerCase();
-    console.log('[DoctorLogin] Attempting login with username/ID:', cleanInput);
-
+    const cleanInput = username.trim();
     if (!cleanInput) {
       setError('Please enter your Doctor Username or Staff ID.');
-      AuditService.log(
-        'DOCTOR_LOGIN_FAILED',
-        'auth',
-        'Doctor login failed: empty username or ID',
-        undefined,
-        { input: username, timestamp: new Date().toISOString() },
-        'security'
-      );
       return;
     }
 
     setIsLoading(true);
-    const users = StorageService.getUsers();
-    console.log('[DoctorLogin] Retrieved users pool from storage:', users.length);
 
-    let user = users.find(u => 
-      (u.username && u.username.toLowerCase() === cleanInput) || 
-      (u.email && u.email.toLowerCase() === cleanInput) ||
-      (u.staffId && u.staffId.toLowerCase() === cleanInput)
-    );
+    try {
+      const validation = AuthService.validateCredentials(cleanInput, password);
+      setIsLoading(false);
 
-    if (!user) {
-      console.log('[DoctorLogin] User not found in storage pool. Checking DoctorMasterService...');
-      const masterDoc = DoctorMasterService.getAllDoctors().find(d => 
-        d.username.toLowerCase() === cleanInput || d.name.toLowerCase().includes(cleanInput)
-      );
-
-      if (masterDoc) {
-        console.log('[DoctorLogin] Found doctor in DoctorMasterService:', masterDoc.name);
-        user = {
-          id: masterDoc.id,
-          username: masterDoc.username,
-          fullName: masterDoc.name,
-          email: masterDoc.email,
-          role: 'doctor',
-          department: masterDoc.department,
-          status: 'active',
-          pinCode: masterDoc.pinCode || '1234',
-          createdAt: new Date().toISOString()
-        };
-        users.push(user);
-        StorageService.saveUsers(users);
-      } else {
-        console.log('[DoctorLogin] Creating fallback doctor profile for:', cleanInput);
-        user = {
-          id: `usr_doc_${Date.now()}`,
-          username: cleanInput,
-          fullName: username.trim(),
-          email: `${cleanInput}@labmedix.org`,
-          role: 'doctor',
-          status: 'active',
-          pinCode: password || '1234',
-          createdAt: new Date().toISOString()
-        };
-        users.push(user);
-        StorageService.saveUsers(users);
+      if (!validation.success || !validation.user) {
+        setError(validation.error || 'Doctor account not found or invalid credentials. You must be created by the Super Admin before logging in.');
+        return;
       }
+
+      const user = validation.user;
+      if (user.role !== 'doctor' && user.role !== 'super_admin' && user.role !== 'admin') {
+        setError('Access denied: This portal is strictly for authorized clinical doctors and administrators.');
+        return;
+      }
+
+      if (user.status === 'inactive') {
+        setError('This account has been deactivated by the Super Admin.');
+        return;
+      }
+
+      const res = login(user.username);
+      if (res.success) {
+        AuditService.log(
+          'DOCTOR_LOGIN_SUCCESS',
+          'auth',
+          `Doctor ${user.fullName} (${user.username}) successfully authenticated into Doctor Portal`,
+          user.id,
+          { username: user.username, role: user.role, timestamp: new Date().toISOString() },
+          'security'
+        );
+        
+        triggerCelebrationFireworks();
+        showToast('success', `Welcome, ${user.fullName}`, 'Signed into Doctor Clinical Portal successfully.');
+        navigate('/doctor-dashboard');
+      } else {
+        setError(res.error || 'Login failed.');
+      }
+    } catch (err) {
+      console.error('Doctor login error:', err);
+      setIsLoading(false);
+      setError('An unexpected error occurred during login.');
     }
-
-    console.log('[DoctorLogin] Authenticated doctor profile successfully:', user);
-    setIsLoading(false);
-    AuthService.finalizeLogin(user);
-    login(user.username);
-
-    AuditService.log(
-      'DOCTOR_LOGIN_SUCCESS',
-      'auth',
-      `Doctor ${user.fullName} (${user.username}) successfully authenticated into Doctor Portal`,
-      user.id,
-      { username: user.username, role: 'doctor', timestamp: new Date().toISOString() },
-      'security'
-    );
-    
-    triggerCelebrationFireworks();
-    showToast('success', `Welcome, ${user.fullName}`, 'Signed into Doctor Clinical Portal successfully.');
-    navigate('/doctor-dashboard');
   };
 
   return (

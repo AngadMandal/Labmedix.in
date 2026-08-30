@@ -158,7 +158,14 @@ export class AuthService {
       const failResult = this.recordFailedAttempt(cleanUname);
       return {
         success: false,
-        error: `User account '${username}' not found. Please verify your exact username, email, or staff ID.`
+        error: `User account '${username}' not found. You must be created by the Super Admin before logging in.`
+      };
+    }
+
+    if (user.status === 'inactive') {
+      return {
+        success: false,
+        error: `Account for '${user.fullName || user.username}' has been deactivated by Super Admin. Access denied.`
       };
     }
 

@@ -129,7 +129,6 @@ export const PatientListPage: React.FC = () => {
   const [cardApplications, setCardApplications] = useState<CardApplicationRequest[]>(() => PortalService.getCardApplications());
 
   const refreshList = () => {
-    setPatients(PatientService.getAll(true));
     setCards(StorageService.getCards());
     setMemberships(StorageService.getMemberships());
     setWallets(StorageService.getWallets());
@@ -165,7 +164,6 @@ export const PatientListPage: React.FC = () => {
 
     const handleSync = (e: any) => {
       if (!e.detail || ['labmedix_patients_v1', 'labmedix_portal_card_applications_v1', 'labmedix_portal_lab_bookings_v1', 'labmedix_portal_pharmacy_orders_v1'].includes(e.detail.key)) {
-        setPatients(PatientService.getAll(true));
         setCards(StorageService.getCards());
         setMemberships(StorageService.getMemberships());
         setWallets(StorageService.getWallets());

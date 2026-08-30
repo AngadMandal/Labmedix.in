@@ -86,11 +86,19 @@ export class ApiSyncService {
     }
   }
 
+  private static getDocRef(docPath: string) {
+    const parts = docPath.split('/');
+    if (parts.length >= 2) {
+      return doc(db, parts[0], parts[1]);
+    }
+    return doc(db, docPath);
+  }
+
   /** Generic fetch document from Firestore */
   public static async fetchDocument<T>(docPath: string): Promise<T | null> {
     if (this.quotaExceeded) return null;
     try {
-      const docRef = doc(db, docPath);
+      const docRef = this.getDocRef(docPath);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         this.lastSyncTimestamp = new Date().toISOString();
@@ -236,7 +244,7 @@ export class ApiSyncService {
           }
         }
       } else if (config.type === 'doc' && typeof value === 'object') {
-        const docRef = doc(db, config.path);
+        const docRef = this.getDocRef(config.path);
         const sanitized = JSON.parse(JSON.stringify(value));
         await setDoc(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
       }
@@ -248,7 +256,7 @@ export class ApiSyncService {
   }
 
   /** Subscribe to all Firestore collections for real-time multi-device sync */
-  public static subscribeToAll(onUpdate: (key: string, value: any) => void): () => void {
+  public static subscribeToAll(onUpdate?: (key: string, value: any) => void): () => void {
     if (this.quotaExceeded) return () => {};
 
     // Unsubscribe existing listeners
@@ -270,7 +278,17 @@ export class ApiSyncService {
             });
             this.lastSyncTimestamp = new Date().toISOString();
             this.isConnected = true;
-            onUpdate(key, items);
+
+            // Automatically persist to memory cache and localStorage, and notify UI via custom event
+            try {
+              // Avoid circular overwrite if data is identical or being edited
+              localStorage.setItem(key, JSON.stringify(items));
+              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: items } }));
+            } catch (err) {
+              console.warn(`[ApiSync] Failed local persist for ${key}:`, err);
+            }
+
+            if (onUpdate) onUpdate(key, items);
           }, (err) => {
             if (this.checkQuotaError(err)) {
               return;
@@ -280,13 +298,22 @@ export class ApiSyncService {
           });
           this.activeUnsubscribers.push(unsub);
         } else if (config.type === 'doc') {
-          const docRef = doc(db, config.path);
+          const docRef = this.getDocRef(config.path);
           const unsub = onSnapshot(docRef, (docSnap) => {
             if (this.quotaExceeded) return;
             if (docSnap.exists()) {
               this.lastSyncTimestamp = new Date().toISOString();
               this.isConnected = true;
-              onUpdate(key, docSnap.data());
+              const data = docSnap.data();
+
+              try {
+                localStorage.setItem(key, JSON.stringify(data));
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: data } }));
+              } catch (err) {
+                console.warn(`[ApiSync] Failed local persist for doc ${key}:`, err);
+              }
+
+              if (onUpdate) onUpdate(key, data);
             }
           }, (err) => {
             if (this.checkQuotaError(err)) {
