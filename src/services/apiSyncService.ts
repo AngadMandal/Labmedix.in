@@ -10,7 +10,7 @@ import {
   writeBatch,
   getDoc 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebaseService';
+import { db, firebaseConfig, handleFirestoreError, OperationType } from './firebaseService';
 import { 
   Patient, 
   HealthCard, 
@@ -860,7 +860,7 @@ export class ApiSyncService {
   public static getSyncHealthMetrics(): SyncHealthMetrics {
     return {
       status: this.isConnected ? 'connected' : 'offline',
-      projectId: 'gen-lang-client-0668341047',
+      projectId: firebaseConfig.projectId || 'gen-lang-client-0076489895',
       databaseId: '(default)',
       activeListenersCount: this.activeUnsubscribers.length || Object.keys(this.KEY_TO_FIRESTORE_MAP).length,
       lastSyncTime: this.lastSyncTimestamp,
@@ -877,7 +877,7 @@ export class ApiSyncService {
       processedCount: this.processedQueueCount,
       lastSyncTime: this.lastSyncTimestamp,
       isWorking: this.workerRunning,
-      projectId: 'gen-lang-client-0668341047',
+      projectId: firebaseConfig.projectId || 'gen-lang-client-0076489895',
       databaseId: '(default)'
     };
   }

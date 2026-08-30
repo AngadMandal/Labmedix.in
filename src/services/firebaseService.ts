@@ -12,12 +12,12 @@ import configFile from '../../firebase-applet-config.json';
 
 const config = {
   ...configFile,
-  apiKey: configFile.apiKey || "AIzaSyBfdM6h6xvWNYR0uGorw71knrR201fadOM",
-  authDomain: configFile.authDomain || "gen-lang-client-0668341047.firebaseapp.com",
-  projectId: configFile.projectId || "gen-lang-client-0668341047",
-  storageBucket: configFile.storageBucket || "gen-lang-client-0668341047.firebasestorage.app",
-  messagingSenderId: configFile.messagingSenderId || "320967705280",
-  appId: configFile.appId || "1:320967705280:web:8002acbb6d3436e56a6325"
+  apiKey: configFile.apiKey || "AIzaSyBNaCHTH6cWJ1AdygG42bKugjtHNRg05ys",
+  authDomain: configFile.authDomain || "gen-lang-client-0076489895.firebaseapp.com",
+  projectId: configFile.projectId || "gen-lang-client-0076489895",
+  storageBucket: configFile.storageBucket || "gen-lang-client-0076489895.firebasestorage.app",
+  messagingSenderId: configFile.messagingSenderId || "451271134982",
+  appId: configFile.appId || "1:451271134982:web:defaee0de0069f4732d887"
 };
 
 export const firebaseConfig = config;

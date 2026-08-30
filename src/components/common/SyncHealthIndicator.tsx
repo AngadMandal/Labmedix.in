@@ -107,7 +107,7 @@ export const SyncHealthIndicator: React.FC = () => {
                 <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-rose-500 shadow-sm shadow-rose-500/50'}`} />
                 <div>
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Firebase / Central DB</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Project: {workerMetrics.projectId || 'gen-lang-client-0668341047'}</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Project: {workerMetrics.projectId || 'gen-lang-client-0076489895'}</p>
                 </div>
               </div>
               <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${isOnline ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/50 text-rose-600'}`}>

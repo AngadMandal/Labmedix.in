@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Database, 
   Server, 
@@ -15,7 +15,13 @@ import {
   Clock, 
   Globe,
   HardDrive,
-  ShieldCheck
+  ShieldCheck,
+  SignalHigh,
+  SignalMedium,
+  SignalLow,
+  Activity,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, firebaseConfig } from '../../services/firebaseService';
@@ -27,6 +33,8 @@ export interface FirestoreConnectionDiagnosticProps {
   onStatusChange?: (status: 'connected' | 'connecting' | 'disconnected' | 'error') => void;
 }
 
+type ConnectionQuality = 'Excellent' | 'Good' | 'Poor' | 'Offline' | 'Connecting';
+
 export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnosticProps> = ({
   compact = false,
   className = '',
@@ -36,17 +44,29 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [lastHeartbeat, setLastHeartbeat] = useState<string | null>(null);
   const [lastPingLatency, setLastPingLatency] = useState<number | null>(null);
+  const [pingHistory, setPingHistory] = useState<number[]>([]);
   const [isPinging, setIsPinging] = useState<boolean>(false);
+  const [autoPingEnabled, setAutoPingEnabled] = useState<boolean>(true);
   const [isFromCache, setIsFromCache] = useState<boolean>(false);
   const [hasPendingWrites, setHasPendingWrites] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [healthCheckDocCount, setHealthCheckDocCount] = useState<number>(0);
 
-  const projectId = firebaseConfig.projectId || 'gen-lang-client-0668341047';
+  const projectId = firebaseConfig.projectId || 'gen-lang-client-0076489895';
   const databaseId = '(default)';
   const databaseRestUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
   const consoleUrl = `https://console.firebase.google.com/project/${projectId}/firestore`;
+
+  // Calculate connection quality
+  const connectionQuality: ConnectionQuality = useMemo(() => {
+    if (!isOnline || connectionStatus === 'disconnected' || connectionStatus === 'error') return 'Offline';
+    if (connectionStatus === 'connecting') return 'Connecting';
+    if (lastPingLatency === null) return 'Connecting';
+    if (lastPingLatency < 150) return 'Excellent';
+    if (lastPingLatency < 500) return 'Good';
+    return 'Poor';
+  }, [isOnline, connectionStatus, lastPingLatency]);
 
   // Monitor browser online/offline state
   useEffect(() => {
@@ -116,8 +136,10 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
   }, [onStatusChange]);
 
   // Execute diagnostic ping roundtrip test
-  const executePing = useCallback(async () => {
-    setIsPinging(true);
+  const executePing = useCallback(async (silent = false) => {
+    if (isPinging || !navigator.onLine) return;
+    if (!silent) setIsPinging(true);
+    
     const start = performance.now();
     try {
       const healthDocRef = doc(db, '_system_health', 'heartbeat');
@@ -125,20 +147,24 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
         timestamp: new Date().toISOString(),
         serverTime: serverTimestamp(),
         clientAgent: navigator.userAgent,
-        status: 'ok'
+        status: 'ok',
+        autoPing: silent
       }, { merge: true });
 
       const elapsed = Math.round(performance.now() - start);
       setLastPingLatency(elapsed);
+      setPingHistory(prev => [...prev.slice(-19), elapsed]); // Keep last 20 pings
       setConnectionStatus('connected');
       setErrorMessage(null);
       setLastHeartbeat(new Date().toISOString());
 
-      ApiSyncService.addDiagnosticLog({
-        type: 'PING',
-        pathOrCollection: '_system_health/heartbeat',
-        details: `Live health check ping succeeded: ${elapsed}ms roundtrip`
-      });
+      if (!silent) {
+        ApiSyncService.addDiagnosticLog({
+          type: 'PING',
+          pathOrCollection: '_system_health/heartbeat',
+          details: `Live health check ping succeeded: ${elapsed}ms roundtrip`
+        });
+      }
     } catch (err: any) {
       const elapsed = Math.round(performance.now() - start);
       setLastPingLatency(elapsed);
@@ -151,14 +177,48 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
         details: `Live health check ping failed (${elapsed}ms): ${err?.message || err}`
       });
     } finally {
-      setIsPinging(false);
+      if (!silent) setIsPinging(false);
     }
-  }, []);
+  }, [isPinging]);
+
+  // Auto-ping heartbeat mechanism
+  useEffect(() => {
+    if (!autoPingEnabled || !isOnline) return;
+    
+    // Initial ping on mount
+    executePing(true);
+    
+    const interval = setInterval(() => {
+      executePing(true);
+    }, 15000); // Ping every 15 seconds for strong connection monitoring
+    
+    return () => clearInterval(interval);
+  }, [autoPingEnabled, isOnline, executePing]);
 
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const getQualityColor = () => {
+    switch (connectionQuality) {
+      case 'Excellent': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+      case 'Good': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+      case 'Poor': return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+      case 'Connecting': return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+      default: return 'text-slate-400 bg-slate-800 border-slate-700';
+    }
+  };
+
+  const getQualityIcon = () => {
+    switch (connectionQuality) {
+      case 'Excellent': return <SignalHigh className="w-3.5 h-3.5 text-emerald-400" />;
+      case 'Good': return <SignalMedium className="w-3.5 h-3.5 text-amber-400" />;
+      case 'Poor': return <SignalLow className="w-3.5 h-3.5 text-rose-400" />;
+      case 'Connecting': return <Activity className="w-3.5 h-3.5 text-blue-400 animate-pulse" />;
+      default: return <WifiOff className="w-3.5 h-3.5 text-slate-400" />;
+    }
   };
 
   const getStatusBadge = () => {
@@ -170,7 +230,7 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            CONNECTED (Live Listener)
+            CONNECTED
           </span>
         );
       case 'connecting':
@@ -184,14 +244,14 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
             <WifiOff className="w-3 h-3 text-slate-400" />
-            OFFLINE / DISCONNECTED
+            OFFLINE
           </span>
         );
       case 'error':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
             <AlertTriangle className="w-3 h-3 text-rose-400" />
-            CONNECTION ERROR
+            ERROR
           </span>
         );
     }
@@ -199,20 +259,24 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
 
   if (compact) {
     return (
-      <div className={`p-3 rounded-2xl bg-slate-900/90 border border-slate-800 font-mono text-xs ${className}`}>
-        <div className="flex items-center justify-between gap-2 mb-2">
+      <div className={`p-3 rounded-2xl bg-slate-900/90 border border-slate-800 font-mono text-xs flex flex-col gap-2 ${className}`}>
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Radio className="w-3.5 h-3.5 text-emerald-400" />
             <span className="font-bold text-slate-200">Backend Connection</span>
           </div>
           {getStatusBadge()}
         </div>
-        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400">
-          <div>
-            <span>Project:</span> <strong className="text-slate-200">{projectId}</strong>
+        <div className="flex items-center justify-between mt-1">
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border ${getQualityColor()}`}>
+            {getQualityIcon()}
+            <span className="text-[10px] font-bold uppercase">{connectionQuality}</span>
           </div>
           <div className="text-right">
-            <span>Latency:</span> <strong className="text-emerald-400">{lastPingLatency !== null ? `${lastPingLatency}ms` : 'Listening'}</strong>
+            <span className="text-[10px] text-slate-400">Latency: </span>
+            <strong className={lastPingLatency && lastPingLatency < 200 ? 'text-emerald-400' : 'text-amber-400'}>
+              {lastPingLatency !== null ? `${lastPingLatency}ms` : '---'}
+            </strong>
           </div>
         </div>
       </div>
@@ -240,22 +304,54 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
               </span>
             </div>
             <p className="text-[10px] text-slate-400">
-              Real-time health check listener on <code className="text-slate-300 font-bold">_system_health/heartbeat</code>
+              Robust real-time health checks & latency monitoring
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {getStatusBadge()}
+        </div>
+      </div>
+
+      {/* Signal Strength & Actions Bar */}
+      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/90 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="text-slate-400 text-[10px] font-bold uppercase">Signal Quality:</div>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${getQualityColor()}`}>
+            {getQualityIcon()}
+            <span className="font-bold uppercase tracking-wider">{connectionQuality}</span>
+            {lastPingLatency !== null && (
+              <span className="ml-1 opacity-80 border-l border-current pl-1.5 text-[10px]">
+                {lastPingLatency}ms
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoPingEnabled(!autoPingEnabled)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+              autoPingEnabled 
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30' 
+                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+            }`}
+            title="Toggle automatic background latency pings"
+          >
+            {autoPingEnabled ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4" />}
+            Auto-Ping
+          </button>
+          
           <button
             id="btn-diagnostic-test-ping"
-            onClick={executePing}
-            disabled={isPinging}
-            className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            onClick={() => executePing(false)}
+            disabled={isPinging || !isOnline}
+            className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             title="Execute test ping write/read to Firestore"
           >
-            <Zap className={`w-3 h-3 text-amber-300 ${isPinging ? 'animate-bounce' : ''}`} />
-            <span>{isPinging ? 'Pinging...' : 'Test Ping'}</span>
+            <Zap className={`w-3.5 h-3.5 ${isPinging ? 'animate-bounce text-amber-300' : ''}`} />
+            <span>{isPinging ? 'Pinging...' : 'Force Ping'}</span>
           </button>
         </div>
       </div>
@@ -323,23 +419,23 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
         <div className="flex items-center justify-between text-[11px]">
           <span className="font-bold text-slate-300 flex items-center gap-1.5">
             <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            Health Check Listener Telemetry
+            Real-Time Pipeline Telemetry
           </span>
           <span className="text-slate-400 text-[10px]">
-            Updates received: <strong className="text-slate-200">{healthCheckDocCount}</strong>
+            Snapshot updates: <strong className="text-slate-200">{healthCheckDocCount}</strong>
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
           <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-            <span className="text-slate-500 block">Transport Status</span>
+            <span className="text-slate-500 block">Transport</span>
             <span className={`font-bold mt-0.5 block ${isOnline ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {isOnline ? 'Online (WebSocket/gRPC)' : 'Offline'}
+              {isOnline ? 'WebSockets/gRPC' : 'Offline'}
             </span>
           </div>
 
           <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-            <span className="text-slate-500 block">Roundtrip Latency</span>
+            <span className="text-slate-500 block">RTT Latency</span>
             <span className={`font-bold mt-0.5 block ${
               lastPingLatency === null 
                 ? 'text-slate-400' 
@@ -352,19 +448,45 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
           </div>
 
           <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-            <span className="text-slate-500 block">Cache Source</span>
+            <span className="text-slate-500 block">Cache Mode</span>
             <span className="font-bold text-slate-200 mt-0.5 block">
               {isFromCache ? 'IndexedDB (Local)' : 'Cloud Firestore'}
             </span>
           </div>
 
           <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-            <span className="text-slate-500 block">Pending Sync Writes</span>
+            <span className="text-slate-500 block">Pending Queue</span>
             <span className={`font-bold mt-0.5 block ${hasPendingWrites ? 'text-amber-400' : 'text-slate-300'}`}>
-              {hasPendingWrites ? 'In Queue' : 'All Clear (0)'}
+              {hasPendingWrites ? 'Mutations Queued' : 'All Clear (0)'}
             </span>
           </div>
         </div>
+
+        {/* Latency History Sparkline/Timeline */}
+        {pingHistory.length > 0 && (
+          <div className="pt-2">
+            <div className="flex items-end h-8 gap-0.5 px-1 pb-1 border-b border-slate-800/80">
+              {pingHistory.map((ping, i) => {
+                const height = Math.min(100, Math.max(10, (1 - (ping / 1000)) * 100));
+                let color = 'bg-emerald-500/80';
+                if (ping > 200) color = 'bg-amber-500/80';
+                if (ping > 500) color = 'bg-rose-500/80';
+                return (
+                  <div 
+                    key={i} 
+                    className={`flex-1 rounded-t-sm ${color} transition-all duration-300`}
+                    style={{ height: `${height}%` }}
+                    title={`${ping}ms`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-[8px] text-slate-500 mt-1 uppercase px-1">
+              <span>Past latency</span>
+              <span>Latest</span>
+            </div>
+          </div>
+        )}
 
         {lastHeartbeat && (
           <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
@@ -373,7 +495,7 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
               Last Heartbeat Ack: <strong className="text-slate-300">{new Date(lastHeartbeat).toLocaleTimeString()}</strong>
             </span>
             <span className="flex items-center gap-1 text-emerald-400">
-              <ShieldCheck className="w-3 h-3" /> Realtime Sync Verified
+              <ShieldCheck className="w-3 h-3" /> Sync Verified
             </span>
           </div>
         )}
@@ -388,3 +510,4 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
     </div>
   );
 };
+

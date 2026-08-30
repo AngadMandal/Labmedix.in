@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Activity, 
   Database, 
@@ -241,15 +242,23 @@ export const SyncStatusPanel: React.FC = () => {
   }, [logs, logFilter, searchLogQuery]);
 
   const authUid = firebaseUser?.uid || 'AUTH_GUEST_SESSION';
-  const projectId = metrics.projectId || 'gen-lang-client-0668341047';
+  const projectId = metrics.projectId || 'gen-lang-client-0076489895';
 
   // Status badges
   const isHealthy = isOnline && metrics.status === 'connected';
 
+  const location = useLocation();
+  const isOnAdminPanel = location.pathname.includes('/settings') || location.pathname.includes('/super-admin');
+
+  // Only allow super admin to view the diagnostic connection tools
+  if (currentUser?.role !== 'super_admin' || !isOnAdminPanel) {
+    return null;
+  }
+
   return (
     <>
-      {/* Floating Developer Overlay Toggle Button (Bottom-Right) */}
-      <div className="fixed bottom-4 right-4 z-999 flex items-center gap-2 font-mono select-none">
+      {/* Floating Developer Overlay Toggle Button (Top-Right) */}
+      <div className="fixed top-20 right-4 z-[999] flex items-center gap-2 font-mono select-none">
         <button
           id="sync-status-panel-trigger"
           onClick={() => setIsOpen((prev) => !prev)}
@@ -290,7 +299,7 @@ export const SyncStatusPanel: React.FC = () => {
       {isOpen && (
         <div 
           id="sync-status-panel-modal"
-          className="fixed bottom-16 right-4 sm:right-6 z-999 w-[95vw] sm:w-[580px] max-h-[85vh] flex flex-col bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl overflow-hidden font-sans animate-in fade-in zoom-in-95 duration-150"
+          className="fixed top-32 right-4 sm:right-6 z-[999] w-[95vw] sm:w-[580px] max-h-[80vh] flex flex-col bg-slate-950/95 text-slate-100 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-2xl overflow-hidden font-sans animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header Bar */}
           <div className="flex items-center justify-between px-5 py-3.5 bg-slate-900/80 border-b border-slate-800/80">
