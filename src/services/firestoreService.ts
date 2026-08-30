@@ -39,6 +39,18 @@ export const firestoreService = {
     return null;
   },
 
+  // Generic Get Entire Collection
+  getCollection: async <T>(collectionName: string, ...constraints: QueryConstraint[]): Promise<T[]> => {
+    try {
+      const q = query(collection(db, collectionName), ...constraints);
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+    } catch (err) {
+      console.error(`Error fetching collection ${collectionName}:`, err);
+      return [];
+    }
+  },
+
   // Generic Set Document (Create or Overwrite)
   setDocument: async (collectionName: string, docId: string, data: any): Promise<void> => {
     const docRef = doc(db, collectionName, docId);

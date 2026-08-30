@@ -335,7 +335,7 @@ export const SettingsPage: React.FC = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const jsonContent = event.target?.result as string;
         const json = JSON.parse(jsonContent);
@@ -343,7 +343,7 @@ export const SettingsPage: React.FC = () => {
         // Check if it's a backup or contains any data
         const validation = BackupService.validateBackupJson(jsonContent);
         if (validation.valid && validation.backup) {
-          const res = BackupService.restoreBackup(validation.backup, true);
+          const res = await BackupService.restoreBackup(validation.backup, true);
           if (res.success) {
             triggerCelebrationFireworks();
             showToast('success', 'Universal JSON Imported & Live! ⚡', `Successfully imported records (Patients: ${validation.backup.recordCounts?.patients || 0}, Cards: ${validation.backup.recordCounts?.healthCards || 0}, Transactions: ${validation.backup.recordCounts?.walletTransactions || 0}) live across all devices and Central.`);

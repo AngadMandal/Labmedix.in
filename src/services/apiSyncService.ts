@@ -255,6 +255,111 @@ export class ApiSyncService {
     }
   }
 
+  /** Replace an entire collection in Firestore (writes target items & deletes items not in targetItems) */
+  public static async replaceCollectionInFirestore(collectionName: string, targetItems: any[]): Promise<void> {
+    if (this.quotaExceeded) return;
+    try {
+      const q = query(collection(db, collectionName));
+      const existingSnap = await getDocs(q);
+
+      const targetIdSet = new Set<string>();
+      const batchList: Array<() => Promise<void>> = [];
+
+      let currentBatch = writeBatch(db);
+      let opCount = 0;
+
+      for (const item of targetItems) {
+        if (item && item.id) {
+          const itemId = String(item.id);
+          targetIdSet.add(itemId);
+          const docRef = doc(db, collectionName, itemId);
+          const sanitized = JSON.parse(JSON.stringify(item));
+          currentBatch.set(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
+          opCount++;
+          if (opCount >= 400) {
+            const b = currentBatch;
+            batchList.push(() => b.commit());
+            currentBatch = writeBatch(db);
+            opCount = 0;
+          }
+        }
+      }
+
+      for (const existingDoc of existingSnap.docs) {
+        if (!targetIdSet.has(existingDoc.id)) {
+          currentBatch.delete(existingDoc.ref);
+          opCount++;
+          if (opCount >= 400) {
+            const b = currentBatch;
+            batchList.push(() => b.commit());
+            currentBatch = writeBatch(db);
+            opCount = 0;
+          }
+        }
+      }
+
+      if (opCount > 0) {
+        const b = currentBatch;
+        batchList.push(() => b.commit());
+      }
+
+      for (const commitFn of batchList) {
+        await commitFn();
+      }
+
+      this.lastSyncTimestamp = new Date().toISOString();
+      this.isConnected = true;
+    } catch (error) {
+      this.checkQuotaError(error);
+      this.syncErrors++;
+      console.warn(`[ApiSync] Firestore collection replacement error on ${collectionName}:`, error);
+    }
+  }
+
+  /** Synchronize full database restore / rollback to Central Firestore across all collections */
+  public static async syncFullRestoreToFirestore(d: any): Promise<void> {
+    if (this.quotaExceeded || !d) return;
+
+    const collectionsToRestore: { path: string; items: any[] }[] = [
+      { path: 'patients', items: d.patients || d.patientList || [] },
+      { path: 'cards', items: d.healthCards || d.cards || [] },
+      { path: 'memberships', items: d.memberships || [] },
+      { path: 'families', items: d.families || [] },
+      { path: 'wallets', items: d.wallets || [] },
+      { path: 'transactions', items: d.walletTransactions || d.transactions || [] },
+      { path: 'users', items: d.users || d.staff || [] },
+      { path: 'appointments', items: d.appointments || [] },
+      { path: 'emrEncounters', items: d.emrEncounters || [] },
+      { path: 'doctors', items: d.doctors || [] },
+      { path: 'doctorPayouts', items: d.doctorPayouts || [] },
+      { path: 'labTests', items: d.labTests || [] },
+      { path: 'healthPackages', items: d.healthPackages || [] },
+      { path: 'labBookings', items: d.portalLabBookings || [] },
+      { path: 'pharmacyOrders', items: d.portalPharmacyOrders || [] },
+      { path: 'cardApplications', items: d.portalCardApplications || [] },
+      { path: 'vouchers', items: d.cashVouchers || [] },
+      { path: 'sampleDispatches', items: d.sampleDispatches || [] },
+      { path: 'recoveryVault', items: d.recoveryVault || [] }
+    ];
+
+    for (const entry of collectionsToRestore) {
+      if (Array.isArray(entry.items)) {
+        await this.replaceCollectionInFirestore(entry.path, entry.items);
+      }
+    }
+
+    // Docs
+    if (d.companyProfile || d.company || d.profile) {
+      await this.syncKeyToFirestore('labmedix_company_profile_v1', d.companyProfile || d.company || d.profile);
+    }
+    if (d.websiteCms) {
+      await this.syncKeyToFirestore('LABMEDIX_WEBSITE_CMS_CONFIG', d.websiteCms);
+    }
+    if (d.integrations) {
+      await this.syncKeyToFirestore('labmedix_integrations_v4', d.integrations);
+    }
+  }
+
   /** Subscribe to all Firestore collections for real-time multi-device sync */
   public static subscribeToAll(onUpdate?: (key: string, value: any) => void): () => void {
     if (this.quotaExceeded) return () => {};

@@ -1,6 +1,7 @@
 import { User, Role } from '../types';
 import { StorageService } from './storage';
 import { AuditService } from './auditService';
+import { firestoreService } from './firestoreService';
 
 interface FailedLoginRecord {
   count: number;
@@ -208,6 +209,31 @@ export class AuthService {
     user.status = 'active';
     this.finalizeLogin(user);
     return { success: true, user };
+  }
+
+  // Async Credential & Security PIN Validation using Central Firestore Live DB
+  public static async validateCredentialsAsync(
+    username: string, 
+    passwordOrPin: string
+  ): Promise<{ success: boolean; user?: User; error?: string; attemptsLeft?: number; isLocked?: boolean; remainingSeconds?: number }> {
+    try {
+      // 1. Fetch latest users live from Central Firestore
+      const remoteUsers = await firestoreService.getCollection<User>('users');
+      if (remoteUsers && remoteUsers.length > 0) {
+        const localUsers = StorageService.getUsers();
+        // Merge remote users into local cache without overwriting active session
+        const mergedMap = new Map<string, User>();
+        localUsers.forEach(u => mergedMap.set(u.id, u));
+        remoteUsers.forEach(u => mergedMap.set(u.id, { ...mergedMap.get(u.id), ...u }));
+        const mergedList = Array.from(mergedMap.values());
+        StorageService.saveUsers(mergedList);
+      }
+    } catch (e) {
+      console.warn('Central Firestore fetch on login warning (falling back to local cache):', e);
+    }
+
+    // 2. Perform strict credential validation
+    return this.validateCredentials(username, passwordOrPin);
   }
 
   // ==========================================

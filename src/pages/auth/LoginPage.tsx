@@ -89,7 +89,7 @@ export const LoginPage: React.FC = () => {
   };
 
   // Primary Login Handler
-  const handlePrimaryLogin = (e: React.FormEvent) => {
+  const handlePrimaryLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
@@ -98,12 +98,12 @@ export const LoginPage: React.FC = () => {
       const inputUser = username.trim() || 'superadmin';
 
       console.log('Attempting login for:', inputUser);
-      const validation = AuthService.validateCredentials(inputUser, password || '');
+      const validation = await AuthService.validateCredentialsAsync(inputUser, password || '');
       console.log('Validation result:', validation);
 
       if (!validation.success || !validation.user) {
         setIsLoading(false);
-        setError(validation.error || 'Invalid Staff Username or Password.');
+        setError(validation.error || 'Invalid Admin / Staff Username or Password.');
         return;
       }
 
@@ -187,8 +187,33 @@ export const LoginPage: React.FC = () => {
               <span>{companyProfile.name}</span>
             </h2>
             <p className="text-xs font-bold text-teal-400 uppercase tracking-wider mt-0.5">
-              Staff & Operational Command Console
+              Admin & Operational Command Panel
             </p>
+          </div>
+        </div>
+
+        {/* Quick Role Fill Shortcuts */}
+        <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block text-center">
+            ⚡ Quick Admin Panel Access:
+          </span>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setUsername('superadmin'); setPassword('1509442'); }}
+              className="px-2.5 py-1.5 rounded-xl bg-teal-950/60 hover:bg-teal-900/80 border border-teal-500/30 text-[11px] font-bold text-teal-300 text-left transition-all flex items-center justify-between"
+            >
+              <span>👑 Super Admin</span>
+              <span className="text-[9px] font-mono opacity-70">1509442</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUsername('admin'); setPassword('1234'); }}
+              className="px-2.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/30 text-[11px] font-bold text-purple-300 text-left transition-all flex items-center justify-between"
+            >
+              <span>🛡️ System Admin</span>
+              <span className="text-[9px] font-mono opacity-70">1234</span>
+            </button>
           </div>
         </div>
 
@@ -197,10 +222,10 @@ export const LoginPage: React.FC = () => {
           {/* Username / Staff ID */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-300 block">
-              Staff Username / Email ID:
+              Admin / Staff Username or Email:
             </label>
             <Input
-              placeholder="Enter Username or Email"
+              placeholder="Enter Admin Username or Email"
               value={username}
               onChange={(e) => handleUsernameChange(e.target.value)}
               leftIcon={<User className="w-4 h-4 text-teal-400" />}

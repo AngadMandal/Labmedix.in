@@ -404,7 +404,7 @@ export class BackupService {
     }
   }
 
-  public static restoreBackup(backup: any, createSafetySnapshot = true): { success: boolean; message: string } {
+  public static async restoreBackup(backup: any, createSafetySnapshot = true): Promise<{ success: boolean; message: string }> {
     try {
       if (typeof backup === 'string') {
         try { backup = JSON.parse(backup); } catch {}
@@ -454,26 +454,8 @@ export class BackupService {
       if (d.recoveryVault) StorageService.setItem(STORAGE_KEYS.RECOVERY_VAULT, d.recoveryVault);
       if (d.sampleDispatches) StorageService.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches);
 
-      // Trigger Cloud Firestore Synchronization for all restored collections
-      if (patients.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, patients).catch(() => { });
-      if (cards.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, cards).catch(() => { });
-      if (memberships.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.MEMBERSHIPS, memberships).catch(() => { });
-      if (families.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.FAMILIES, families).catch(() => { });
-      if (wallets.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, wallets).catch(() => { });
-      if (transactions.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, transactions).catch(() => { });
-      if (d.appointments) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.APPOINTMENTS, d.appointments).catch(() => { });
-      if (d.emrEncounters) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.EMR_ENCOUNTERS, d.emrEncounters).catch(() => { });
-      if (d.doctors) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTORS, d.doctors).catch(() => { });
-      if (d.doctorPayouts) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTOR_PAYOUTS, d.doctorPayouts).catch(() => { });
-      if (d.labTests) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.LAB_TESTS, d.labTests).catch(() => { });
-      if (d.healthPackages) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_PACKAGES, d.healthPackages).catch(() => { });
-      if (d.portalLabBookings) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, d.portalLabBookings).catch(() => { });
-      if (d.portalPharmacyOrders) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, d.portalPharmacyOrders).catch(() => { });
-      if (d.portalCardApplications) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, d.portalCardApplications).catch(() => { });
-      if (d.cashVouchers) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CASH_DESK_VOUCHERS, d.cashVouchers).catch(() => { });
-      if (d.sampleDispatches) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, d.sampleDispatches).catch(() => { });
-      if (companyProfile) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, companyProfile).catch(() => { });
-      if (users.length > 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.USERS, users).catch(() => { });
+      // Trigger Full Cloud Firestore Synchronization to push exact live rollback across all devices
+      await ApiSyncService.syncFullRestoreToFirestore(d);
 
       // Broadcast multi-device / multi-portal live sync events
       window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { action: 'FULL_IMPORT_LIVE', timestamp: Date.now() } }));
@@ -516,13 +498,13 @@ export class BackupService {
     return newSnapshot;
   }
 
-  public static restoreSnapshot(snapshotId: string): boolean {
+  public static async restoreSnapshot(snapshotId: string): Promise<boolean> {
     const snapshots = StorageService.getSnapshots();
     const snapshot = snapshots.find(s => s.id === snapshotId);
     if (!snapshot) return false;
     
     // 1. Perform restore of snapshot data
-    const res = this.restoreBackup(snapshot.data, true);
+    const res = await this.restoreBackup(snapshot.data, true);
     if (!res.success) {
       console.error('[BackupService] Restore snapshot failed:', res.message);
       return false;

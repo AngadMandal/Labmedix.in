@@ -126,6 +126,7 @@ export const BackupRestorePage: React.FC = () => {
 
   const loadLocalSnapshots = () => {
     const list = StorageService.getSnapshots();
+    list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
     setSnapshots(list);
     setDemoStats(DemoDataService.getDemoStats());
     setSyncHealth(ApiSyncService.getSyncHealthMetrics());
@@ -303,15 +304,22 @@ export const BackupRestorePage: React.FC = () => {
     }
   };
 
-  const handleRestoreSnapshot = (snapId: string) => {
+  const handleRestoreSnapshot = async (snapId: string) => {
     if (!window.confirm('Are you sure you want to restore this snapshot? A safety pre-restore backup point will be created automatically.')) return;
-    const ok = BackupService.restoreSnapshot(snapId);
-    if (ok) {
-      loadLocalSnapshots();
-      showToast('success', 'Database Restored', 'System state successfully reverted to snapshot point.');
-      setTimeout(() => window.location.reload(), 1200);
-    } else {
-      showToast('error', 'Restore Failed', 'Target snapshot record could not be found.');
+    setLoading(true);
+    try {
+      const ok = await BackupService.restoreSnapshot(snapId);
+      if (ok) {
+        loadLocalSnapshots();
+        showToast('success', 'Database Restored & Live! ⚡', 'System state successfully reverted to snapshot point across Central & all devices.');
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        showToast('error', 'Restore Failed', 'Target snapshot record could not be found.');
+      }
+    } catch (e: any) {
+      showToast('error', 'Restore Error', e.message || 'Failed to perform rollback.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -338,7 +346,7 @@ export const BackupRestorePage: React.FC = () => {
           throw new Error(validation.error || 'Invalid backup structure.');
         }
 
-        const res = BackupService.restoreBackup(validation.backup, true);
+        const res = await BackupService.restoreBackup(validation.backup, true);
         if (res.success) {
           showToast('success', 'Database Imported Successfully!', res.message);
           loadLocalSnapshots();

@@ -1156,9 +1156,9 @@ export const PatientPortalPage: React.FC = () => {
             </Link>
             <Link
               to="/login"
-              className="hover:text-white transition-colors inline-flex items-center gap-1.5"
+              className="hover:text-white transition-colors inline-flex items-center gap-1.5 font-bold"
             >
-              <span>🔒 Staff Login →</span>
+              <span>🔒 Admin Panel →</span>
             </Link>
           </div>
         </div>

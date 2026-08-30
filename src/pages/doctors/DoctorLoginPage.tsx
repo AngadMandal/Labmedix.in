@@ -190,7 +190,7 @@ export const DoctorLoginPage: React.FC = () => {
               to="/login"
               className="text-xs text-slate-400 hover:text-teal-400 transition-colors font-medium"
             >
-              ← Return to Standard Staff Login
+              ← Return to Admin Panel Login
             </Link>
           </div>
         </div>

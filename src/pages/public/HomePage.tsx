@@ -367,7 +367,7 @@ export const HomePage: React.FC = () => {
               </button>
             </Link>
 
-            {/* Staff / Admin Operational Login */}
+            {/* Admin Panel / Staff Login */}
             <Link to={isAuthenticated ? "/dashboard" : "/login"}>
               <Button
                 variant="outline"
@@ -375,7 +375,7 @@ export const HomePage: React.FC = () => {
                 className="border-slate-800 hover:border-slate-600 bg-slate-900/80 text-slate-300 hover:text-white font-bold text-xs transition-all px-3"
                 leftIcon={isAuthenticated ? <ShieldCheck className="w-3.5 h-3.5 text-teal-400" /> : <LogIn className="w-3.5 h-3.5 text-slate-400" />}
               >
-                {isAuthenticated ? 'Staff Dashboard' : 'Staff Login'}
+                {isAuthenticated ? 'Admin Panel' : 'Admin Panel Login'}
               </Button>
             </Link>
 
@@ -483,7 +483,7 @@ export const HomePage: React.FC = () => {
                   className="w-full border-slate-700 text-slate-300 text-xs font-bold"
                   leftIcon={isAuthenticated ? <ShieldCheck className="w-4 h-4 text-teal-400" /> : <LogIn className="w-4 h-4 text-teal-400" />}
                 >
-                  {isAuthenticated ? 'Staff Dashboard' : 'Staff Operational Login'}
+                  {isAuthenticated ? 'Admin Panel' : 'Admin Panel Login'}
                 </Button>
               </Link>
             </div>
@@ -1426,7 +1426,7 @@ export const HomePage: React.FC = () => {
                     className="hover:text-teal-400 text-slate-300 hover:text-white flex items-center gap-1"
                   >
                     <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Staff Portal Login</span>
+                    <span>Admin Panel Login</span>
                   </button>
                 </li>
                 <li>
@@ -1446,9 +1446,9 @@ export const HomePage: React.FC = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/login" className="hover:text-teal-400 text-slate-400 hover:text-white flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Staff & Operational Console</span>
+                  <Link to="/login" className="hover:text-teal-400 text-slate-400 hover:text-white flex items-center gap-1 font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Admin & Staff Command Panel</span>
                   </Link>
                 </li>
               </ul>
