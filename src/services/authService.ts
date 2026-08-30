@@ -107,7 +107,7 @@ export class AuthService {
   // CREDENTIAL & SECURITY PIN VALIDATION
   // ==========================================
   public static validateCredentials(username: string, passwordOrPin: string): { success: boolean; user?: User; error?: string; attemptsLeft?: number; isLocked?: boolean; remainingSeconds?: number } {
-    const cleanUname = (username || 'superadmin').trim().toLowerCase();
+    const cleanUname = (username || 'superadmin').trim().toLowerCase().replace(/\s+/g, '');
     const cleanPass = (passwordOrPin || '').trim();
 
     // Super Admin auto-bypass lockout for root password
@@ -139,19 +139,20 @@ export class AuthService {
 
     // Strict explicit separation between superadmin and admin
     if (cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org') {
-      user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
+      user = users.find(u => u.role === 'super_admin' || (u.username && u.username.trim().toLowerCase().replace(/\s+/g, '') === 'superadmin')) || users[0];
       if (user) {
         user.role = 'super_admin';
       }
     } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
-      user = users.find(u => (u.role === 'admin' || u.username === 'admin') && u.username !== 'superadmin') || users.find(u => u.role === 'admin');
+      user = users.find(u => (u.role === 'admin' || (u.username && u.username.trim().toLowerCase().replace(/\s+/g, '') === 'admin')) && u.username !== 'superadmin') || users.find(u => u.role === 'admin');
     } else {
-      // 1. Exact match on username, email, or staffId ONLY (No fuzzy guessing)
-      user = users.find(u => 
-        (u.username && u.username.toLowerCase() === cleanUname) || 
-        (u.email && u.email.toLowerCase() === cleanUname) ||
-        (u.staffId && u.staffId.toLowerCase() === cleanUname)
-      );
+      // 1. Exact match on normalized username, email, or staffId ONLY
+      user = users.find(u => {
+        const uName = (u.username || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uEmail = (u.email || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uStaff = (u.staffId || '').trim().toLowerCase().replace(/\s+/g, '');
+        return uName === cleanUname || uEmail === cleanUname || uStaff === cleanUname;
+      });
     }
 
     if (!user) {

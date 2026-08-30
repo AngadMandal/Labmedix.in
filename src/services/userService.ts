@@ -62,9 +62,17 @@ export class UserService {
     cardMaterialWish?: string;
   }): { user: User; error?: string } {
     const users = StorageService.getUsers();
-    const existing = users.find(u => u.username.toLowerCase() === userData.username.trim().toLowerCase());
+    const cleanUsername = (userData.username || '').trim().toLowerCase().replace(/\s+/g, '');
+    const cleanEmail = (userData.email || '').trim().toLowerCase().replace(/\s+/g, '');
+
+    const existing = users.find(u => {
+      const uName = (u.username || '').trim().toLowerCase().replace(/\s+/g, '');
+      const uEmail = (u.email || '').trim().toLowerCase().replace(/\s+/g, '');
+      return uName === cleanUsername || (cleanEmail && uEmail === cleanEmail);
+    });
+
     if (existing) {
-      return { user: null as any, error: `Username "${userData.username}" already exists.` };
+      return { user: null as any, error: `User account with username "${userData.username}" or email "${userData.email}" already exists.` };
     }
 
     const company = StorageService.getCompanyProfile();
@@ -76,9 +84,9 @@ export class UserService {
     const newUser: User = {
       id: `usr_${generateUuid().slice(0, 8)}`,
       staffId: this.generateStaffId(),
-      username: userData.username.trim().toLowerCase(),
+      username: cleanUsername,
       fullName: userData.fullName.trim(),
-      email: userData.email.trim(),
+      email: cleanEmail,
       password: userData.password?.trim() || this.generateSecurePassword(),
       role: userData.role,
       designation: userData.designation?.trim() || 'Staff Officer',

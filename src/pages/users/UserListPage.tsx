@@ -3,6 +3,7 @@ import { UserService } from '../../services/userService';
 import { StorageService } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useFirestoreCollection } from '../../hooks/useFirestore';
 import { triggerCelebrationFireworks } from '../../utils/confetti';
 import { User, Role, Permission, CompanyProfile } from '../../types';
 import {
@@ -121,7 +122,15 @@ const CLINICAL_AVATARS = [
 export const UserListPage: React.FC = () => {
   const { currentUser, can, login } = useAuth();
   const { showToast } = useToast();
+  const { data: cloudUsers } = useFirestoreCollection<User>('users');
   const [users, setUsers] = useState<User[]>(() => UserService.getAll());
+
+  useEffect(() => {
+    if (cloudUsers && cloudUsers.length > 0) {
+      setUsers(cloudUsers);
+    }
+  }, [cloudUsers]);
+
   const company = StorageService.getCompanyProfile();
 
   const isSuperAdmin = currentUser?.role === 'super_admin';
