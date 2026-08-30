@@ -536,6 +536,7 @@ export class StorageService {
     StorageService.initPersistentEngine();
 
     // 1. Cloud Firestore Cross-Device Hydration (Primary Source of Truth on startup)
+    let cloudUsersCount = 0;
     try {
       const [
         cloudPatients,
@@ -580,6 +581,8 @@ export class StorageService {
         ApiSyncService.fetchCollection<SnapshotRecord>('snapshots').catch(() => []),
         ApiSyncService.fetchDocument<CompanyProfile>('settings/companyProfile').catch(() => null)
       ]);
+
+      cloudUsersCount = cloudUsers.length;
 
       const syncEntity = <T>(cloudItems: T[], key: string) => {
         if (Array.isArray(cloudItems)) {
@@ -643,36 +646,9 @@ export class StorageService {
       if (usersModified) {
         this.setItem(STORAGE_KEYS.USERS, currentUsers);
       }
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.MEMBERSHIPS)) {
-      this.setItem(STORAGE_KEYS.MEMBERSHIPS, DEFAULT_MEMBERSHIPS);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.COMPANY_PROFILE)) {
-      this.setItem(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.PATIENTS)) {
-      this.setItem(STORAGE_KEYS.PATIENTS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.CARDS)) {
-      this.setItem(STORAGE_KEYS.CARDS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.WALLETS)) {
-      this.setItem(STORAGE_KEYS.WALLETS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
-      this.setItem(STORAGE_KEYS.TRANSACTIONS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS)) {
-      this.setItem(STORAGE_KEYS.AUDIT_LOGS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.FAMILIES)) {
-      this.setItem(STORAGE_KEYS.FAMILIES, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.SNAPSHOTS)) {
-      this.setItem(STORAGE_KEYS.SNAPSHOTS, []);
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-      this.setItem(STORAGE_KEYS.CURRENT_USER, null);
+    } else if (cloudUsersCount === 0) {
+      // If absolutely no users in Firestore and local, seed initial superadmin
+      this.setItem(STORAGE_KEYS.USERS, INITIAL_USERS);
     }
   }
 

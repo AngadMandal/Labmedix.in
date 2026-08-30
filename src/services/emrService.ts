@@ -1,6 +1,7 @@
 import { ClinicalEncounter, PrescribedMedication, OrderedLabTest, ClinicalVitals, PatientAppointment } from '../types';
 import { StorageService } from './storage';
 import { AuditService } from './auditService';
+import { ApiSyncService } from './apiSyncService';
 import { generateUuid } from '../utils/idGenerator';
 
 const EMR_STORAGE_KEY = 'labmedix_clinical_encounters';
@@ -100,7 +101,8 @@ export class EMRService {
     const encounters = this.getAllEncounters();
     const filtered = encounters.filter(e => e.id !== id);
     if (filtered.length === encounters.length) return false;
-    localStorage.setItem(EMR_STORAGE_KEY, JSON.stringify(filtered));
+    StorageService.setItem(EMR_STORAGE_KEY, filtered);
+    ApiSyncService.deleteDocument('emrEncounters', id).catch(() => {});
     AuditService.log('EMR_ENCOUNTER_DELETED', 'patient', `Deleted EMR record ${id}`);
     return true;
   }

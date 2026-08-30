@@ -1,6 +1,13 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  doc, 
+  getDocFromServer 
+} from 'firebase/firestore';
 import configFile from '../../firebase-applet-config.json';
 
 const config = {
@@ -15,16 +22,20 @@ const config = {
 
 const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code == 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code == 'unimplemented') {
-    console.warn('The current browser does not support persistence.');
-  }
-});
+// Initialize Firestore with multi-tab support and instant real-time live synchronization
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch {
+  firestoreDb = getFirestore(app);
+}
+
+export const db = firestoreDb;
 
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.warn('Firebase setPersistence warning:', err);

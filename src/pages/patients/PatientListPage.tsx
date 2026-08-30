@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useFirestoreCollection } from '../../hooks/useFirestore';
 import { PatientService } from '../../services/patientService';
 import { StorageService } from '../../services/storage';
 import { PortalService, BloodTestBooking, MedicineOrder, PatientReceiptData } from '../../services/portalService';
@@ -115,7 +116,7 @@ export const PatientListPage: React.FC = () => {
   const navigate = useNavigate();
 
   // Core Data & Real-time Subscriptions
-  const [patients, setPatients] = useState<Patient[]>(() => PatientService.getAll(true));
+  const { data: patients } = useFirestoreCollection<Patient>('patients');
   const [cards, setCards] = useState<HealthCard[]>(() => StorageService.getCards());
   const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getMemberships());
   const company = StorageService.getCompanyProfile();
@@ -140,9 +141,6 @@ export const PatientListPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsubPatients = ApiSyncService.subscribeToCollection<Patient>('patients', (items) => {
-      if (items && items.length > 0) setPatients(items);
-    });
     const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
       if (items && items.length > 0) setCards(items);
     });
@@ -180,7 +178,6 @@ export const PatientListPage: React.FC = () => {
     window.addEventListener('labmedix_data_synced', handleSync as EventListener);
 
     return () => {
-      unsubPatients();
       unsubCards();
       unsubMemberships();
       unsubWallets();

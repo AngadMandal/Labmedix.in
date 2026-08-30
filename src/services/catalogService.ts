@@ -1,4 +1,5 @@
 import { StorageService } from './storage';
+import { ApiSyncService } from './apiSyncService';
 
 export interface LabTestItem {
   id: string;
@@ -290,6 +291,7 @@ export class CatalogService {
     const filtered = tests.filter(t => t.id !== id);
     if (filtered.length === tests.length) return false;
     this.saveLabTests(filtered);
+    ApiSyncService.deleteDocument('labTests', id).catch(() => {});
     return true;
   }
 
@@ -483,6 +485,7 @@ export class CatalogService {
     const filtered = packages.filter(p => p.id !== id);
     if (filtered.length === packages.length) return false;
     this.saveHealthPackages(filtered);
+    ApiSyncService.deleteDocument('healthPackages', id).catch(() => {});
     return true;
   }
 
