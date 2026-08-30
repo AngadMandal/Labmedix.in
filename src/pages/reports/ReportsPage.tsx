@@ -140,6 +140,15 @@ export const ReportsPage: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState<BranchId>('all');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('month');
   const [activeViewTab, setActiveViewTab] = useState<'overview' | 'velocity' | 'wallet_float' | 'staff_productivity' | 'audit_ledger' | 'dept_collections' | 'doctor_referrals' | 'my_reports'>('overview');
+  const [, setSyncTick] = useState(0);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setSyncTick(prev => prev + 1);
+    };
+    window.addEventListener('labmedix_data_synced', handleSync);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync);
+  }, []);
 
   // Database Access
   const patients = StorageService.getPatients().filter(p => !p.isDeleted);

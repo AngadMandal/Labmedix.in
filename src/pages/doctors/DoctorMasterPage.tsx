@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { DoctorMasterItem, DoctorMasterService, DoctorCommissionPayoutRecord } from '../../services/doctorMasterService';
@@ -61,6 +61,16 @@ export const DoctorMasterPage: React.FC = () => {
   const refreshList = () => {
     setDoctors(DoctorMasterService.getAllDoctors());
   };
+
+  useEffect(() => {
+    const handleSync = (e: CustomEvent) => {
+      if (!e.detail?.key || e.detail.key === 'labmedix_doctor_master_records_v1' || e.detail.key === 'labmedix_doctor_commission_payouts_v1') {
+        refreshList();
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   const togglePinReveal = (docId: string) => {
     if (!isSuperAdmin) {

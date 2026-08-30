@@ -230,29 +230,10 @@ export class ApiSyncService {
 
     try {
       if (config.type === 'collection' && Array.isArray(value)) {
-        const newIdsSet = new Set<string>();
         for (const item of value) {
           if (item && item.id) {
-            newIdsSet.add(String(item.id));
             await this.saveDocument(config.path, String(item.id), item);
           }
-        }
-
-        // Clean up documents in Firestore that were deleted or purged locally
-        try {
-          const snapshot = await getDocs(query(collection(db, config.path)));
-          const deletePromises: Promise<void>[] = [];
-          snapshot.forEach((docSnap) => {
-            if (!newIdsSet.has(docSnap.id)) {
-              deletePromises.push(deleteDoc(doc(db, config.path, docSnap.id)));
-            }
-          });
-          if (deletePromises.length > 0) {
-            await Promise.all(deletePromises);
-            console.info(`[ApiSync] Cleaned ${deletePromises.length} removed items from Firestore ${config.path}`);
-          }
-        } catch (delErr) {
-          console.warn(`[ApiSync] Cleanup error for ${config.path}:`, delErr);
         }
       } else if (config.type === 'doc' && typeof value === 'object') {
         const docRef = doc(db, config.path);
@@ -531,51 +512,9 @@ export class ApiSyncService {
 
   /** Real-Time Multi-Device Cloud Sync Listeners */
   public static initLiveCloudListeners(onDataSynced?: (collectionName: string, items: any[]) => void): () => void {
-    const unsubscribers: (() => void)[] = [];
-
-    const syncTargets = [
-      { col: 'patients', storageKey: 'labmedix_patients_v1' },
-      { col: 'cards', storageKey: 'labmedix_cards_v1' },
-      { col: 'wallets', storageKey: 'labmedix_wallets_v1' },
-      { col: 'transactions', storageKey: 'labmedix_transactions_v1' },
-      { col: 'vouchers', storageKey: 'LABMEDIX_CASH_DESK_VOUCHERS_V1' },
-      { col: 'auditLogs', storageKey: 'labmedix_audit_logs_v1' },
-      { col: 'families', storageKey: 'labmedix_families_v1' },
-      { col: 'memberships', storageKey: 'labmedix_memberships_v1' },
-      { col: 'appointments', storageKey: 'labmedix_patient_appointments_v1' },
-      { col: 'emrEncounters', storageKey: 'labmedix_clinical_encounters' },
-      { col: 'doctors', storageKey: 'labmedix_doctor_master_records_v1' },
-      { col: 'labBookings', storageKey: 'labmedix_portal_lab_bookings_v1' },
-      { col: 'pharmacyOrders', storageKey: 'labmedix_portal_pharmacy_orders_v1' },
-      { col: 'cardApplications', storageKey: 'labmedix_portal_card_applications_v1' },
-      { col: 'sampleDispatches', storageKey: 'labmedix_sample_dispatches_v1' },
-      { col: 'snapshots', storageKey: 'labmedix_snapshots_v1' }
-    ];
-
-    for (const target of syncTargets) {
-      try {
-        const unsub = this.subscribeToCollection<any>(target.col, (items) => {
-          if (Array.isArray(items)) {
-            try {
-              localStorage.setItem(target.storageKey, JSON.stringify(items));
-              if (onDataSynced) onDataSynced(target.col, items);
-              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: target.storageKey, value: items } }));
-            } catch (e) {
-              console.warn(`[ApiSync] Failed to update local storage for ${target.col}:`, e);
-            }
-          }
-        });
-        unsubscribers.push(unsub);
-      } catch (e) {
-        console.warn(`[ApiSync] Failed to setup live listener for ${target.col}:`, e);
-      }
-    }
-
-    return () => {
-      for (const unsub of unsubscribers) {
-        try { unsub(); } catch {}
-      }
-    };
+    return this.subscribeToAll((key, val) => {
+      if (onDataSynced) onDataSynced(key, val);
+    });
   }
 
   /** Background Worker Queue Engine */

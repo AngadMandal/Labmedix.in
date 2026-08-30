@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { UserService } from '../../services/userService';
 import { StorageService } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
@@ -195,6 +195,16 @@ export const UserListPage: React.FC = () => {
   const refreshList = () => {
     setUsers(UserService.getAll());
   };
+
+  useEffect(() => {
+    const handleSync = (e: CustomEvent) => {
+      if (!e.detail?.key || e.detail.key === 'labmedix_users_v1') {
+        refreshList();
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   // Copy Staff Login Credentials
   const handleCopyStaffCredentials = (u: User) => {

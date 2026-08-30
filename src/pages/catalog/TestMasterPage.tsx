@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CatalogService, LabTestItem, HealthPackageItem } from '../../services/catalogService';
 import {
@@ -94,6 +94,23 @@ export const TestMasterPage: React.FC = () => {
   const [labBookings, setLabBookings] = useState<BloodTestBooking[]>(() => PortalService.getLabBookings());
   const [labFilterStatus, setLabFilterStatus] = useState<string>('all');
   const [labSearchQuery, setLabSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    const handleSync = (e: CustomEvent) => {
+      const key = e.detail?.key;
+      if (!key || key === 'LABMEDIX_TEST_MASTER_LIST') {
+        setTests(CatalogService.getLabTests());
+      }
+      if (!key || key === 'LABMEDIX_HEALTH_PACKAGES_LIST') {
+        setPackages(CatalogService.getHealthPackages());
+      }
+      if (!key || key === 'labmedix_portal_lab_bookings_v1') {
+        setLabBookings(PortalService.getLabBookings());
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   // Lab Operations Modals State
   const [selectedBookingForLabel, setSelectedBookingForLabel] = useState<BloodTestBooking | null>(null);

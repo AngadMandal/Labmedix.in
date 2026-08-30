@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StorageService } from '../../services/storage';
 import { AuditService } from '../../services/auditService';
@@ -44,6 +44,16 @@ export const ActivityLogPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>(() => StorageService.getAuditLogs());
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+
+  useEffect(() => {
+    const handleSync = (e: CustomEvent) => {
+      if (!e.detail?.key || e.detail.key === 'labmedix_audit_logs_v1') {
+        setLogs(StorageService.getAuditLogs());
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   // Filters
   const [selectedModule, setSelectedModule] = useState<string>('all');

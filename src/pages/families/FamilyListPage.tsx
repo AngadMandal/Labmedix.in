@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FamilyService } from '../../services/familyService';
 import { PatientService } from '../../services/patientService';
@@ -45,6 +45,16 @@ export const FamilyListPage: React.FC = () => {
   const patients = StorageService.getPatients().filter(p => !p.isDeleted);
   const cards = StorageService.getCards();
   const memberships = StorageService.getMemberships();
+
+  useEffect(() => {
+    const handleSync = (e: CustomEvent) => {
+      if (!e.detail?.key || e.detail.key === 'labmedix_families_v1' || e.detail.key === 'labmedix_patients_v1') {
+        setFamilies(FamilyService.getAll());
+      }
+    };
+    window.addEventListener('labmedix_data_synced', handleSync as EventListener);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync as EventListener);
+  }, []);
 
   // Admin / Super Admin Permission Check
   const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin' || can('family_manage');
