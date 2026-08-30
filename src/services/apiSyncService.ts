@@ -189,6 +189,18 @@ export class ApiSyncService {
         });
         this.lastSyncTimestamp = new Date().toISOString();
         this.isConnected = true;
+
+        // Automatically sync to local memory cache and localStorage
+        for (const [key, conf] of Object.entries(this.KEY_TO_FIRESTORE_MAP)) {
+          if (conf.type === 'collection' && conf.path === collectionName) {
+            try {
+              localStorage.setItem(key, JSON.stringify(items));
+              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: items } }));
+            } catch {}
+            break;
+          }
+        }
+
         callback(items);
       }, (error) => {
         if (this.checkQuotaError(error)) return;
@@ -238,7 +250,7 @@ export class ApiSyncService {
 
     try {
       if (config.type === 'collection' && Array.isArray(value)) {
-        await this.replaceCollectionInFirestore(config.path, value);
+        await this.upsertCollectionInFirestore(config.path, value);
       } else if (config.type === 'doc' && typeof value === 'object') {
         const docRef = this.getDocRef(config.path);
         const sanitized = JSON.parse(JSON.stringify(value));
@@ -251,7 +263,49 @@ export class ApiSyncService {
     }
   }
 
-  /** Replace an entire collection in Firestore (writes target items & deletes items not in targetItems) */
+  /** Upsert collection items into Firestore without deleting missing items */
+  public static async upsertCollectionInFirestore(collectionName: string, targetItems: any[]): Promise<void> {
+    if (this.quotaExceeded || !Array.isArray(targetItems) || targetItems.length === 0) return;
+    try {
+      const batchList: Array<() => Promise<void>> = [];
+      let currentBatch = writeBatch(db);
+      let opCount = 0;
+
+      for (const item of targetItems) {
+        if (item && item.id) {
+          const itemId = String(item.id);
+          const docRef = doc(db, collectionName, itemId);
+          const sanitized = JSON.parse(JSON.stringify(item));
+          currentBatch.set(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
+          opCount++;
+          if (opCount >= 400) {
+            const b = currentBatch;
+            batchList.push(() => b.commit());
+            currentBatch = writeBatch(db);
+            opCount = 0;
+          }
+        }
+      }
+
+      if (opCount > 0) {
+        const b = currentBatch;
+        batchList.push(() => b.commit());
+      }
+
+      for (const commitFn of batchList) {
+        await commitFn();
+      }
+
+      this.lastSyncTimestamp = new Date().toISOString();
+      this.isConnected = true;
+    } catch (error) {
+      this.checkQuotaError(error);
+      this.syncErrors++;
+      console.warn(`[ApiSync] Firestore collection upsert error on ${collectionName}:`, error);
+    }
+  }
+
+  /** Replace an entire collection in Firestore (used ONLY during full backup snapshot recovery) */
   public static async replaceCollectionInFirestore(collectionName: string, targetItems: any[]): Promise<void> {
     if (this.quotaExceeded) return;
     try {
@@ -690,8 +744,8 @@ export class ApiSyncService {
   public static getSyncHealthMetrics(): SyncHealthMetrics {
     return {
       status: this.isConnected ? 'connected' : 'offline',
-      projectId: 'gen-lang-client-0076489895',
-      databaseId: 'ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8',
+      projectId: 'gen-lang-client-0668341047',
+      databaseId: '(default)',
       activeListenersCount: this.activeUnsubscribers.length || Object.keys(this.KEY_TO_FIRESTORE_MAP).length,
       lastSyncTime: this.lastSyncTimestamp,
       pendingQueueSize: this.workerQueue.length,
@@ -707,8 +761,8 @@ export class ApiSyncService {
       processedCount: this.processedQueueCount,
       lastSyncTime: this.lastSyncTimestamp,
       isWorking: this.workerRunning,
-      projectId: "gen-lang-client-0076489895",
-      databaseId: "ai-studio-labmedixautoheal-1ac13548-bbcc-4f91-96bd-c8c990bec0c8"
+      projectId: 'gen-lang-client-0668341047',
+      databaseId: '(default)'
     };
   }
 }

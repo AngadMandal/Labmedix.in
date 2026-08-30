@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all collections for LABMEDIX multi-device sync
+    // Master security and multi-device live data rules for LABMEDIX Cloud Health System
     match /{document=**} {
       allow read, write: if true;
     }

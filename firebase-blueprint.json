@@ -7,8 +7,9 @@
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
         "fullName": { "type": "string", "maxLength": 100 },
-        "phone": { "type": "string", "maxLength": 20 },
+        "mobile": { "type": "string", "maxLength": 20 },
         "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "bloodGroup": { "type": "string", "maxLength": 10 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "fullName"]
@@ -21,11 +22,52 @@
         "id": { "type": "string", "maxLength": 128 },
         "cardNumber": { "type": "string", "maxLength": 50 },
         "patientId": { "type": "string", "maxLength": 128 },
-        "status": { "type": "string", "enum": ["active", "suspended", "expired"] },
-        "balance": { "type": "number" },
+        "membershipId": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["active", "inactive", "suspended", "expired", "blocked", "replaced"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "cardNumber", "patientId"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Staff and Portal User Accounts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 64 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["id", "username", "role"]
+    },
+    "CardApplication": {
+      "title": "CardApplication",
+      "description": "Online Health Card Application and Self-Service Registrations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "trackingId": { "type": "string", "maxLength": 64 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending_approval", "approved", "rejected", "info_required"] },
+        "membershipId": { "type": "string", "maxLength": 64 },
+        "totalPaidAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fullName", "status"]
+    },
+    "Wallet": {
+      "title": "Wallet",
+      "description": "Patient and Cardholder Cashless Wallet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "patientId": { "type": "string", "maxLength": 128 },
+        "balance": { "type": "number" },
+        "status": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "patientId"]
     },
     "AuditLog": {
       "title": "AuditLog",
@@ -37,21 +79,33 @@
         "userId": { "type": "string", "maxLength": 128 },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "action", "userId"]
+      "required": ["id", "action"]
     }
   },
   "firestore": {
     "/patients/{patientId}": {
       "schema": { "$ref": "Patient" },
-      "description": "Patient records collection"
+      "description": "Central patients registry"
     },
-    "/healthCards/{cardId}": {
+    "/cards/{cardId}": {
       "schema": { "$ref": "HealthCard" },
-      "description": "Health cards collection"
+      "description": "Central health cards registry"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "Staff and Portal User Accounts"
+    },
+    "/cardApplications/{applicationId}": {
+      "schema": { "$ref": "CardApplication" },
+      "description": "Online Card Application Requests"
+    },
+    "/wallets/{walletId}": {
+      "schema": { "$ref": "Wallet" },
+      "description": "Patient Wallets"
     },
     "/auditLogs/{logId}": {
       "schema": { "$ref": "AuditLog" },
-      "description": "System audit logs collection"
+      "description": "System Audit Logs"
     }
   }
 }

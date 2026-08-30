@@ -374,7 +374,7 @@ export class PortalService {
 
     all.unshift(newApp);
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
-    ApiSyncService.syncCardApplications(all).catch(() => {});
+    ApiSyncService.saveDocument('cardApplications', newApp.id, newApp).catch(() => {});
 
     AuditService.log(
       'CARD_APPLICATION_SUBMITTED',
@@ -554,17 +554,17 @@ export class PortalService {
       });
 
       StorageService.setItem(this.CARD_APPLICATIONS_KEY, allApps);
-      ApiSyncService.syncCardApplications(allApps).catch(() => {});
+      ApiSyncService.saveDocument('cardApplications', app.id, app).catch(() => {});
 
       const patients = StorageService.getPatients();
       patients.unshift(newPatient as any);
       StorageService.savePatients(patients);
-      ApiSyncService.syncPatients(patients).catch(() => {});
+      ApiSyncService.saveDocument('patients', newPatient.id, newPatient).catch(() => {});
 
       const cards = StorageService.getCards();
       cards.unshift(newCard as any);
       StorageService.saveCards(cards);
-      ApiSyncService.syncCards(cards).catch(() => {});
+      ApiSyncService.saveDocument('cards', newCard.id, newCard).catch(() => {});
 
       AuditService.log(
         'CARD_APPLICATION_APPROVED',
@@ -606,7 +606,7 @@ export class PortalService {
     });
 
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
-    ApiSyncService.syncCardApplications(all).catch(() => {});
+    ApiSyncService.saveDocument('cardApplications', app.id, app).catch(() => {});
 
     AuditService.log(
       'CARD_APPLICATION_REJECTED',
@@ -643,6 +643,7 @@ export class PortalService {
     });
 
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+    ApiSyncService.saveDocument('cardApplications', app.id, app).catch(() => {});
 
     AuditService.log(
       'CARD_APPLICATION_INFO_REQUESTED',
@@ -679,6 +680,7 @@ export class PortalService {
     });
 
     StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+    ApiSyncService.saveDocument('cardApplications', app.id, app).catch(() => {});
 
     AuditService.log(
       'CARD_APPLICATION_PAYMENT_STATUS_UPDATED',
