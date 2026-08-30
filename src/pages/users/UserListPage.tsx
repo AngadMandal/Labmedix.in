@@ -251,15 +251,13 @@ Note: Keep these credentials confidential.`;
 
     GmailService.sendEmail(undefined, u.email, emailSubject, emailBody).then((sent) => {
       if (sent) {
-        UserService.updateUser(u.id, { emailSent: true });
-        triggerCelebrationFireworks();
-        showToast('success', 'Email Dispatched Successfully!', `Staff credentials email successfully sent to ${u.email}`);
-        refreshList();
+        UserService.updateUser(u.id, { emailSent: true }).then(() => refreshList());
       } else {
         showToast('info', 'Email Queued', `Email dispatch queued for ${u.email}`);
       }
+      refreshList();
     }).catch(() => {
-      UserService.updateUser(u.id, { emailSent: true });
+      UserService.updateUser(u.id, { emailSent: true }).then(() => refreshList());
       triggerCelebrationFireworks();
       showToast('success', 'Email Dispatched!', `Staff credentials successfully sent to ${u.email}`);
       refreshList();
@@ -318,14 +316,14 @@ Note: Keep these credentials confidential.`;
 
 
   // 1. Create Staff (Super Admin Exclusive)
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperAdmin) {
       showToast('error', 'Super Admin Authority Required', 'Only Root Super Admin can create new staff accounts.');
       return;
     }
 
-    const res = UserService.createUser({
+    const res = await UserService.createUser({
       username,
       fullName,
       email,
