@@ -36,7 +36,6 @@ import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
 import { PatientPortalPage } from './pages/portal/PatientPortalPage';
 import { HomePage } from './pages/public/HomePage';
 import { NotFoundPage } from './pages/not-found/NotFoundPage';
-import { SyncStatusPanel } from './components/common/SyncStatusPanel';
 
 import { SystemModuleKey } from './constants/roles';
 import { ShieldAlert, Stethoscope, UserCheck } from 'lucide-react';
@@ -292,8 +291,6 @@ export const App: React.FC = () => {
                 {/* Fallback to Home */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-              {/* Diagnostic Developer Sync Status Overlay */}
-              <SyncStatusPanel />
             </HashRouter>
           </ToastProvider>
         </AuthProvider>
