@@ -141,25 +141,25 @@ export const PatientListPage: React.FC = () => {
 
   useEffect(() => {
     const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
-      if (items && items.length > 0) setCards(items);
+      if (Array.isArray(items)) setCards(items);
     });
     const unsubMemberships = ApiSyncService.subscribeToCollection<Membership>('memberships', (items) => {
-      if (items && items.length > 0) setMemberships(items);
+      if (Array.isArray(items)) setMemberships(items);
     });
     const unsubWallets = ApiSyncService.subscribeToCollection<Wallet>('wallets', (items) => {
-      if (items && items.length > 0) setWallets(items);
+      if (Array.isArray(items)) setWallets(items);
     });
     const unsubLab = ApiSyncService.subscribeToCollection<BloodTestBooking>('labBookings', (items) => {
-      if (items && items.length > 0) setLabBookings(items);
+      if (Array.isArray(items)) setLabBookings(items);
     });
     const unsubPharmacy = ApiSyncService.subscribeToCollection<MedicineOrder>('pharmacyOrders', (items) => {
-      if (items && items.length > 0) setPharmacyOrders(items);
+      if (Array.isArray(items)) setPharmacyOrders(items);
     });
     const unsubAppointments = ApiSyncService.subscribeToCollection<PatientAppointment>('appointments', (items) => {
-      if (items && items.length > 0) setAppointments(items);
+      if (Array.isArray(items)) setAppointments(items);
     });
     const unsubCardApps = ApiSyncService.subscribeToCollection<CardApplicationRequest>('cardApplications', (items) => {
-      if (items && items.length > 0) setCardApplications(items);
+      if (Array.isArray(items)) setCardApplications(items);
     });
 
     const handleSync = (e: any) => {

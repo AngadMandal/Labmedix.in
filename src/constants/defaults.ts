@@ -1,6 +1,7 @@
 import { CompanyProfile, CardDesignConfig } from '../types';
 
 export const DEFAULT_COMPANY_PROFILE: CompanyProfile = {
+  companyId: 'LABMEDIX-MAIN-CLINIC',
   name: 'LABMEDIX MULTI-SPECIALITY HEALTHCARE & DIAGNOSTIC CENTRE',
   tagline: 'Angad Mandal • Confident In Care',
   estdYear: '2025',

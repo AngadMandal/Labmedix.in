@@ -386,6 +386,7 @@ export interface ZohoPaymentConfig {
 }
 
 export interface CompanyProfile {
+  companyId?: string;
   name: string;
   tagline: string;
   estdYear: string;

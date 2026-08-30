@@ -71,25 +71,25 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     const unsubPatients = ApiSyncService.subscribeToCollection<Patient>('patients', (items) => {
-      if (items && items.length > 0) setPatientsList(items);
+      if (Array.isArray(items)) setPatientsList(items);
     });
     const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
-      if (items && items.length > 0) setCardsList(items);
+      if (Array.isArray(items)) setCardsList(items);
     });
     const unsubMemberships = ApiSyncService.subscribeToCollection<Membership>('memberships', (items) => {
-      if (items && items.length > 0) setMembershipsList(items);
+      if (Array.isArray(items)) setMembershipsList(items);
     });
     const unsubWallets = ApiSyncService.subscribeToCollection<Wallet>('wallets', (items) => {
-      if (items && items.length > 0) setWalletsList(items);
+      if (Array.isArray(items)) setWalletsList(items);
     });
     const unsubTransactions = ApiSyncService.subscribeToCollection<WalletTransaction>('transactions', (items) => {
-      if (items && items.length > 0) setTransactionsList(items);
+      if (Array.isArray(items)) setTransactionsList(items);
     });
     const unsubAudit = ApiSyncService.subscribeToCollection<AuditLog>('auditLogs', (items) => {
-      if (items && items.length > 0) setAuditLogsList(items);
+      if (Array.isArray(items)) setAuditLogsList(items);
     });
     const unsubUsers = ApiSyncService.subscribeToCollection<User>('users', (items) => {
-      if (items && items.length > 0) setUsersList(items);
+      if (Array.isArray(items)) setUsersList(items);
     });
 
     const handleSync = () => {

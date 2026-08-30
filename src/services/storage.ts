@@ -592,25 +592,25 @@ export class StorageService {
         }
       };
 
-      if (cloudPatients.length > 0) syncEntity(cloudPatients, STORAGE_KEYS.PATIENTS);
-      if (cloudCards.length > 0) syncEntity(cloudCards, STORAGE_KEYS.CARDS);
-      if (cloudApps.length > 0) syncEntity(cloudApps, STORAGE_KEYS.PORTAL_CARD_APPLICATIONS);
-      if (cloudWallets.length > 0) syncEntity(cloudWallets, STORAGE_KEYS.WALLETS);
-      if (cloudTxns.length > 0) syncEntity(cloudTxns, STORAGE_KEYS.TRANSACTIONS);
-      if (cloudAudit.length > 0) syncEntity(cloudAudit, STORAGE_KEYS.AUDIT_LOGS);
-      if (cloudUsers.length > 0) syncEntity(cloudUsers, STORAGE_KEYS.USERS);
-      if (cloudMemberships.length > 0) syncEntity(cloudMemberships, STORAGE_KEYS.MEMBERSHIPS);
-      if (cloudAppointments.length > 0) syncEntity(cloudAppointments, STORAGE_KEYS.APPOINTMENTS);
-      if (cloudEncounters.length > 0) syncEntity(cloudEncounters, STORAGE_KEYS.EMR_ENCOUNTERS);
-      if (cloudDoctors.length > 0) syncEntity(cloudDoctors, STORAGE_KEYS.DOCTORS);
-      if (cloudDoctorPayouts.length > 0) syncEntity(cloudDoctorPayouts, STORAGE_KEYS.DOCTOR_PAYOUTS);
-      if (cloudLabTests.length > 0) syncEntity(cloudLabTests, STORAGE_KEYS.LAB_TESTS);
-      if (cloudHealthPackages.length > 0) syncEntity(cloudHealthPackages, STORAGE_KEYS.HEALTH_PACKAGES);
-      if (cloudLabBookings.length > 0) syncEntity(cloudLabBookings, STORAGE_KEYS.PORTAL_LAB_BOOKINGS);
-      if (cloudPharmacyOrders.length > 0) syncEntity(cloudPharmacyOrders, STORAGE_KEYS.PORTAL_PHARMACY_ORDERS);
-      if (cloudVouchers.length > 0) syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
-      if (cloudDispatches.length > 0) syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
-      if (cloudSnapshots.length > 0) syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
+      syncEntity(cloudPatients, STORAGE_KEYS.PATIENTS);
+      syncEntity(cloudCards, STORAGE_KEYS.CARDS);
+      syncEntity(cloudApps, STORAGE_KEYS.PORTAL_CARD_APPLICATIONS);
+      syncEntity(cloudWallets, STORAGE_KEYS.WALLETS);
+      syncEntity(cloudTxns, STORAGE_KEYS.TRANSACTIONS);
+      syncEntity(cloudAudit, STORAGE_KEYS.AUDIT_LOGS);
+      syncEntity(cloudUsers, STORAGE_KEYS.USERS);
+      syncEntity(cloudMemberships, STORAGE_KEYS.MEMBERSHIPS);
+      syncEntity(cloudAppointments, STORAGE_KEYS.APPOINTMENTS);
+      syncEntity(cloudEncounters, STORAGE_KEYS.EMR_ENCOUNTERS);
+      syncEntity(cloudDoctors, STORAGE_KEYS.DOCTORS);
+      syncEntity(cloudDoctorPayouts, STORAGE_KEYS.DOCTOR_PAYOUTS);
+      syncEntity(cloudLabTests, STORAGE_KEYS.LAB_TESTS);
+      syncEntity(cloudHealthPackages, STORAGE_KEYS.HEALTH_PACKAGES);
+      syncEntity(cloudLabBookings, STORAGE_KEYS.PORTAL_LAB_BOOKINGS);
+      syncEntity(cloudPharmacyOrders, STORAGE_KEYS.PORTAL_PHARMACY_ORDERS);
+      syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
+      syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
+      syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
       if (cloudCompany && cloudCompany.name) {
         StorageService.memoryCache.set(STORAGE_KEYS.COMPANY_PROFILE, cloudCompany);
         try { localStorage.setItem(STORAGE_KEYS.COMPANY_PROFILE, JSON.stringify(cloudCompany)); } catch {}

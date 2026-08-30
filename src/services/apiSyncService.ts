@@ -238,11 +238,7 @@ export class ApiSyncService {
 
     try {
       if (config.type === 'collection' && Array.isArray(value)) {
-        for (const item of value) {
-          if (item && item.id) {
-            await this.saveDocument(config.path, String(item.id), item);
-          }
-        }
+        await this.replaceCollectionInFirestore(config.path, value);
       } else if (config.type === 'doc' && typeof value === 'object') {
         const docRef = this.getDocRef(config.path);
         const sanitized = JSON.parse(JSON.stringify(value));

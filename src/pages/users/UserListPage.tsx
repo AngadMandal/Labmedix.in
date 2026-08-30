@@ -126,7 +126,7 @@ export const UserListPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>(() => UserService.getAll());
 
   useEffect(() => {
-    if (cloudUsers && cloudUsers.length > 0) {
+    if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
       setUsers(cloudUsers);
     }
   }, [cloudUsers]);
