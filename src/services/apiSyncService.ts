@@ -27,6 +27,15 @@ import {
 } from '../types';
 import { BloodTestBooking, MedicineOrder } from './portalService';
 
+export interface DiagnosticLogEntry {
+  id: string;
+  timestamp: string;
+  type: 'SNAPSHOT' | 'WRITE' | 'DELETE' | 'AUTH' | 'PING' | 'ERROR' | 'INFO';
+  pathOrCollection: string;
+  details: string;
+  payload?: any;
+}
+
 export interface SyncHealthMetrics {
   status: 'connected' | 'connecting' | 'offline';
   projectId: string;
@@ -45,6 +54,73 @@ export class ApiSyncService {
   private static lastSyncTimestamp = new Date().toISOString();
   private static isConnected = true;
   private static quotaExceeded = false;
+  private static diagnosticLogs: DiagnosticLogEntry[] = [];
+  private static diagnosticListeners: ((log: DiagnosticLogEntry) => void)[] = [];
+
+  public static addDiagnosticLog(entry: Omit<DiagnosticLogEntry, 'id' | 'timestamp'>): void {
+    const logItem: DiagnosticLogEntry = {
+      id: 'diag_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      timestamp: new Date().toISOString(),
+      ...entry
+    };
+    this.diagnosticLogs.unshift(logItem);
+    if (this.diagnosticLogs.length > 200) {
+      this.diagnosticLogs.pop();
+    }
+    this.diagnosticListeners.forEach(listener => {
+      try { listener(logItem); } catch {}
+    });
+  }
+
+  public static getDiagnosticLogs(): DiagnosticLogEntry[] {
+    return [...this.diagnosticLogs];
+  }
+
+  public static clearDiagnosticLogs(): void {
+    this.diagnosticLogs = [];
+  }
+
+  public static onDiagnosticLog(callback: (log: DiagnosticLogEntry) => void): () => void {
+    this.diagnosticListeners.push(callback);
+    return () => {
+      this.diagnosticListeners = this.diagnosticListeners.filter(l => l !== callback);
+    };
+  }
+
+  /** Run a live latency ping round-trip test against Firestore */
+  public static async pingFirestore(): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+    const start = performance.now();
+    try {
+      const pingId = `ping_${Date.now()}`;
+      const pingDocRef = doc(db, '_system_diagnostics', pingId);
+      await setDoc(pingDocRef, {
+        pingTime: new Date().toISOString(),
+        clientTimestamp: Date.now(),
+        clientPlatform: navigator.userAgent
+      });
+      const verifySnap = await getDoc(pingDocRef);
+      const latencyMs = Math.round(performance.now() - start);
+
+      this.addDiagnosticLog({
+        type: 'PING',
+        pathOrCollection: '_system_diagnostics',
+        details: `Latency test successful: ${latencyMs}ms roundtrip (doc: ${pingId})`
+      });
+
+      // Cleanup ping doc asynchronously
+      deleteDoc(pingDocRef).catch(() => {});
+
+      return { success: true, latencyMs };
+    } catch (err: any) {
+      const latencyMs = Math.round(performance.now() - start);
+      this.addDiagnosticLog({
+        type: 'ERROR',
+        pathOrCollection: '_system_diagnostics',
+        details: `Ping test failed (${latencyMs}ms): ${err?.message || err}`
+      });
+      return { success: false, latencyMs, error: err?.message || String(err) };
+    }
+  }
 
   private static checkQuotaError(error: unknown): boolean {
     const errStr = String(error || '').toLowerCase();
@@ -125,10 +201,20 @@ export class ApiSyncService {
       }, { merge: true });
       this.lastSyncTimestamp = new Date().toISOString();
       this.isConnected = true;
+      this.addDiagnosticLog({
+        type: 'WRITE',
+        pathOrCollection: `${collectionName}/${id}`,
+        details: `Saved document ${id} to ${collectionName}`
+      });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       this.checkQuotaError(error);
       this.syncErrors++;
+      this.addDiagnosticLog({
+        type: 'ERROR',
+        pathOrCollection: `${collectionName}/${id}`,
+        details: `Failed to save ${id}: ${error?.message || error}`
+      });
       if (!this.quotaExceeded) {
         console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id}:`, error);
       }
@@ -143,10 +229,20 @@ export class ApiSyncService {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
       this.lastSyncTimestamp = new Date().toISOString();
+      this.addDiagnosticLog({
+        type: 'DELETE',
+        pathOrCollection: `${collectionName}/${id}`,
+        details: `Deleted document ${id} from ${collectionName}`
+      });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       this.checkQuotaError(error);
       this.syncErrors++;
+      this.addDiagnosticLog({
+        type: 'ERROR',
+        pathOrCollection: `${collectionName}/${id}`,
+        details: `Failed to delete ${id}: ${error?.message || error}`
+      });
       return false;
     }
   }
@@ -444,11 +540,21 @@ export class ApiSyncService {
             }
 
             if (onUpdate) onUpdate(key, items);
+            this.addDiagnosticLog({
+              type: 'SNAPSHOT',
+              pathOrCollection: config.path,
+              details: `Received snapshot update for ${config.path} (${items.length} items)`
+            });
           }, (err) => {
             if (this.checkQuotaError(err)) {
               return;
             }
             this.syncErrors++;
+            this.addDiagnosticLog({
+              type: 'ERROR',
+              pathOrCollection: config.path,
+              details: `Subscription error on ${config.path}: ${err?.message || err}`
+            });
             console.warn(`[ApiSync] Realtime subscription error on ${config.path}:`, err);
           });
           this.activeUnsubscribers.push(unsub);
@@ -469,12 +575,22 @@ export class ApiSyncService {
               }
 
               if (onUpdate) onUpdate(key, data);
+              this.addDiagnosticLog({
+                type: 'SNAPSHOT',
+                pathOrCollection: config.path,
+                details: `Received snapshot update for doc ${config.path}`
+              });
             }
           }, (err) => {
             if (this.checkQuotaError(err)) {
               return;
             }
             this.syncErrors++;
+            this.addDiagnosticLog({
+              type: 'ERROR',
+              pathOrCollection: config.path,
+              details: `Doc subscription error on ${config.path}: ${err?.message || err}`
+            });
             console.warn(`[ApiSync] Realtime doc subscription error on ${config.path}:`, err);
           });
           this.activeUnsubscribers.push(unsub);

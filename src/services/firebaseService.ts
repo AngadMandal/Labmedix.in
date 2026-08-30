@@ -20,6 +20,8 @@ const config = {
   appId: configFile.appId || "1:320967705280:web:8002acbb6d3436e56a6325"
 };
 
+export const firebaseConfig = config;
+
 const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
 export const auth = getAuth(app);
 
