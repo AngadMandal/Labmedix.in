@@ -110,7 +110,7 @@ export const CardholderAuthModal: React.FC<CardholderAuthModalProps> = ({
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setCaptchaError(false);
@@ -120,27 +120,32 @@ export const CardholderAuthModal: React.FC<CardholderAuthModalProps> = ({
     setIsLoading(true);
     const expected = captchaNum1 + captchaNum2;
 
-    const res = CardholderAuthService.authenticate(loginId, portalPassword, userCaptcha, String(expected));
+    try {
+      const res = await CardholderAuthService.authenticateAsync(loginId, portalPassword, userCaptcha, String(expected));
+      setIsLoading(false);
 
-    setIsLoading(false);
-
-    if (!res.success) {
-      if (res.isLocked && res.remainingSeconds) {
-        setLockoutSeconds(res.remainingSeconds);
+      if (!res.success) {
+        if (res.isLocked && res.remainingSeconds) {
+          setLockoutSeconds(res.remainingSeconds);
+        }
+        if (res.error?.includes('Captcha')) {
+          setCaptchaError(true);
+        }
+        setError(res.error || 'Authentication failed. Please verify Credentials.');
+        refreshCaptcha();
+        return;
       }
-      if (res.error?.includes('Captcha')) {
-        setCaptchaError(true);
-      }
-      setError(res.error || 'Authentication failed. Please verify Credentials.');
-      refreshCaptcha();
-      return;
-    }
 
-    if (res.patient) {
-      triggerCelebrationFireworks();
-      showToast('success', `Welcome, ${res.patient.fullName}`, 'Cardholder authenticated successfully with verified password.');
-      onClose();
-      navigate('/portal');
+      if (res.patient) {
+        triggerCelebrationFireworks();
+        showToast('success', `Welcome, ${res.patient.fullName}`, 'Cardholder authenticated successfully with verified password.');
+        onClose();
+        navigate('/portal');
+      }
+    } catch (err) {
+      console.error('Cardholder auth error:', err);
+      setIsLoading(false);
+      setError('An error occurred during authentication. Please try again.');
     }
   };
 

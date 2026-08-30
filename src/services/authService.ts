@@ -147,12 +147,14 @@ export class AuthService {
     } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
       user = users.find(u => (u.role === 'admin' || (u.username && u.username.trim().toLowerCase().replace(/\s+/g, '') === 'admin')) && u.username !== 'superadmin') || users.find(u => u.role === 'admin');
     } else {
-      // 1. Exact match on normalized username, email, or staffId ONLY
+      // 1. Match on normalized username, email, staffId, id, or role
       user = users.find(u => {
         const uName = (u.username || '').trim().toLowerCase().replace(/\s+/g, '');
         const uEmail = (u.email || '').trim().toLowerCase().replace(/\s+/g, '');
         const uStaff = (u.staffId || '').trim().toLowerCase().replace(/\s+/g, '');
-        return uName === cleanUname || uEmail === cleanUname || uStaff === cleanUname;
+        const uId = (u.id || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uRole = (u.role || '').trim().toLowerCase().replace(/\s+/g, '');
+        return uName === cleanUname || uEmail === cleanUname || uStaff === cleanUname || uId === cleanUname || uRole === cleanUname;
       });
     }
 
@@ -374,27 +376,31 @@ export class AuthService {
   }
 
   public static loginWithUsername(username: string): { success: boolean; user?: User; error?: string } {
-    const cleanUname = (username || 'superadmin').trim().toLowerCase();
+    const cleanUname = (username || 'superadmin').trim().toLowerCase().replace(/\s+/g, '');
     const users = StorageService.getUsers();
     let user: User | undefined;
 
     if (cleanUname === 'superadmin' || cleanUname === 'admin@labmedix.org') {
-      user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
+      user = users.find(u => u.role === 'super_admin' || (u.username && u.username.trim().toLowerCase().replace(/\s+/g, '') === 'superadmin')) || users[0];
     } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
-      user = users.find(u => u.role === 'admin' || u.username === 'admin') || users[1];
+      user = users.find(u => (u.role === 'admin' || (u.username && u.username.trim().toLowerCase().replace(/\s+/g, '') === 'admin')) && u.username !== 'superadmin') || users.find(u => u.role === 'admin');
     } else {
-      user = users.find(u => u.username.toLowerCase() === cleanUname || u.email?.toLowerCase() === cleanUname);
+      user = users.find(u => {
+        const uName = (u.username || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uEmail = (u.email || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uStaff = (u.staffId || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uId = (u.id || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uRole = (u.role || '').trim().toLowerCase().replace(/\s+/g, '');
+        return uName === cleanUname || uEmail === cleanUname || uStaff === cleanUname || uId === cleanUname || uRole === cleanUname;
+      });
     }
 
-    if (!user) {
-      user = users.find(u => u.role === 'super_admin' || u.username === 'superadmin') || users[0];
-    }
     if (user) {
       user.status = 'active';
       this.finalizeLogin(user);
       return { success: true, user };
     }
-    return { success: false, error: 'User initialization failed.' };
+    return { success: false, error: `User account '${username}' not found.` };
   }
 
   public static logout(): void {

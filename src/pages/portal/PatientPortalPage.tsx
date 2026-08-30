@@ -577,7 +577,7 @@ export const PatientPortalPage: React.FC = () => {
   };
 
   // Handle Strict Cardholder Authentication: Card No + CVV + Anti-Bot Captcha
-  const handleCardholderLogin = (e: React.FormEvent) => {
+  const handleCardholderLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setCaptchaError(false);
@@ -587,27 +587,32 @@ export const PatientPortalPage: React.FC = () => {
     setIsLoggingIn(true);
     const expected = captchaNum1 + captchaNum2;
 
-    const res = CardholderAuthService.authenticate(loginId, portalPassword, userCaptcha, String(expected));
+    try {
+      const res = await CardholderAuthService.authenticateAsync(loginId, portalPassword, userCaptcha, String(expected));
+      setIsLoggingIn(false);
 
-    setIsLoggingIn(false);
-
-    if (!res.success) {
-      if (res.isLocked && res.remainingSeconds) {
-        setLockoutSeconds(res.remainingSeconds);
+      if (!res.success) {
+        if (res.isLocked && res.remainingSeconds) {
+          setLockoutSeconds(res.remainingSeconds);
+        }
+        if (res.error?.includes('Captcha')) {
+          setCaptchaError(true);
+        }
+        setError(res.error || 'Authentication failed. Please verify Card Number and CVV.');
+        refreshCaptcha();
+        return;
       }
-      if (res.error?.includes('Captcha')) {
-        setCaptchaError(true);
-      }
-      setError(res.error || 'Authentication failed. Please verify Card Number and CVV.');
-      refreshCaptcha();
-      return;
-    }
 
-    if (res.patient) {
-      setAuthenticatedPatient(res.patient);
-      setError('');
-      triggerCelebrationFireworks();
-      showToast('success', `Welcome, ${res.patient.fullName}`, 'Cardholder authenticated with verified CVV.');
+      if (res.patient) {
+        setAuthenticatedPatient(res.patient);
+        setError('');
+        triggerCelebrationFireworks();
+        showToast('success', `Welcome, ${res.patient.fullName}`, 'Cardholder authenticated with verified CVV.');
+      }
+    } catch (err) {
+      console.error('Cardholder portal login error:', err);
+      setIsLoggingIn(false);
+      setError('An error occurred during authentication.');
     }
   };
 

@@ -43,7 +43,7 @@ export const DoctorLoginPage: React.FC = () => {
     }
   }, [navigate]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -56,7 +56,7 @@ export const DoctorLoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const validation = AuthService.validateCredentials(cleanInput, password);
+      const validation = await AuthService.validateCredentialsAsync(cleanInput, password);
       setIsLoading(false);
 
       if (!validation.success || !validation.user) {
@@ -75,7 +75,7 @@ export const DoctorLoginPage: React.FC = () => {
         return;
       }
 
-      const res = login(user.username);
+      const res = login(user);
       if (res.success) {
         AuditService.log(
           'DOCTOR_LOGIN_SUCCESS',

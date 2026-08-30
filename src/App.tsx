@@ -89,7 +89,7 @@ const ModuleGuard: React.FC<{ moduleKey: SystemModuleKey; children: React.ReactN
 
 import { AuditService } from './services/auditService';
 const SuperAdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const currentUser = StorageService.getCurrentUser();
+  const { currentUser } = useAuth();
   if (!currentUser) return <Navigate to="/login" replace />;
   
   if (currentUser.role !== 'super_admin') {

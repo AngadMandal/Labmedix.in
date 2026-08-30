@@ -225,6 +225,61 @@ export class CardholderAuthService {
     };
   }
 
+  /**
+   * Async Cardholder Authentication with live Firestore sync
+   */
+  public static async authenticateAsync(
+    loginIdInput: string,
+    passwordInput: string,
+    userCaptcha: string,
+    expectedCaptcha: string
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    patient?: Patient;
+    card?: HealthCard;
+    membership?: Membership;
+    isLocked?: boolean;
+    remainingSeconds?: number;
+  }> {
+    try {
+      const { firestoreService } = await import('./firestoreService');
+      const [remotePatients, remoteCards, remoteMemberships] = await Promise.all([
+        firestoreService.getCollection<Patient>('patients').catch(() => []),
+        firestoreService.getCollection<HealthCard>('cards').catch(() => []),
+        firestoreService.getCollection<Membership>('memberships').catch(() => [])
+      ]);
+
+      if (remotePatients && remotePatients.length > 0) {
+        const localPatients = StorageService.getPatients();
+        const map = new Map<string, Patient>();
+        localPatients.forEach(p => map.set(p.id, p));
+        remotePatients.forEach(p => map.set(p.id, { ...map.get(p.id), ...p }));
+        StorageService.savePatients(Array.from(map.values()));
+      }
+
+      if (remoteCards && remoteCards.length > 0) {
+        const localCards = StorageService.getCards();
+        const map = new Map<string, HealthCard>();
+        localCards.forEach(c => map.set(c.id, c));
+        remoteCards.forEach(c => map.set(c.id, { ...map.get(c.id), ...c }));
+        StorageService.saveCards(Array.from(map.values()));
+      }
+
+      if (remoteMemberships && remoteMemberships.length > 0) {
+        const localMemberships = StorageService.getMemberships();
+        const map = new Map<string, Membership>();
+        localMemberships.forEach(m => map.set(m.id, m));
+        remoteMemberships.forEach(m => map.set(m.id, { ...map.get(m.id), ...m }));
+        StorageService.saveMemberships(Array.from(map.values()));
+      }
+    } catch (e) {
+      console.warn('Central Firestore fetch on cardholder login warning:', e);
+    }
+
+    return this.authenticate(loginIdInput, passwordInput, userCaptcha, expectedCaptcha);
+  }
+
 
   /**
    * Get Active Authenticated Cardholder Patient Profile

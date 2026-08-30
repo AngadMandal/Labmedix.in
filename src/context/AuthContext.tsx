@@ -29,8 +29,8 @@ interface AuthContextType {
   isLocked: boolean;
   isIdleWarningOpen: boolean;
   idleSecondsRemaining: number;
-  /** Legacy local username login */
-  login: (username: string) => { success: boolean; error?: string };
+  /** Login with username/id or directly with validated User object */
+  login: (userOrUsername: string | User) => { success: boolean; error?: string };
   logout: () => Promise<void>;
   extendSession: () => void;
   lockScreen: () => void;
@@ -199,10 +199,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ─────────────────────────────────────────────────────────────
-  // LOCAL username login
+  // USER LOGIN (Supports direct User object or username/staffId)
   // ─────────────────────────────────────────────────────────────
-  const login = (username: string) => {
-    const res = AuthService.loginWithUsername(username);
+  const login = (userOrUsername: string | User) => {
+    if (typeof userOrUsername === 'object' && userOrUsername !== null) {
+      AuthService.finalizeLogin(userOrUsername);
+      setCurrentUser(userOrUsername);
+      setIsLocked(false);
+      StorageService.setScreenLocked(false);
+      try {
+        localStorage.setItem('labmedix_auth_locked_user', JSON.stringify(userOrUsername));
+      } catch {}
+      recordActivity();
+      return { success: true };
+    }
+    const res = AuthService.loginWithUsername(userOrUsername);
     if (res.success && res.user) {
       setCurrentUser(res.user);
       setIsLocked(false);

@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      const res = login(validation.user.username);
+      const res = login(validation.user);
       console.log('Login result:', res);
       setIsLoading(false);
 
