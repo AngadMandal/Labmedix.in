@@ -2,6 +2,7 @@ import { User, Role } from '../types';
 import { StorageService } from './storage';
 import { AuditService } from './auditService';
 import { generateUuid } from '../utils/idGenerator';
+import { firestoreService } from './firestoreService';
 
 export class UserService {
   public static getAll(): User[] {
