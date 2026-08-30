@@ -29,9 +29,7 @@ import {
 } from 'lucide-react';
 
 import { IntegrationService } from '../../services/integrationService';
-import { ZohoPaymentService, ZohoCheckoutSession } from '../../services/zohoPaymentService';
 import { GooglePayMerchantQR } from '../payment/GooglePayMerchantQR';
-import { ZohoMerchantCheckout } from '../payment/ZohoMerchantCheckout';
 
 export interface PatientRealMoneyTopUpModalProps {
   isOpen: boolean;
@@ -44,7 +42,7 @@ export interface PatientRealMoneyTopUpModalProps {
   onSuccess: (receipt: PatientReceiptData, updatedWallet: Wallet) => void;
 }
 
-type PaymentGateway = 'zoho_pay' | 'upi_qr' | 'card' | 'netbanking' | 'voucher';
+type PaymentGateway = 'upi_qr' | 'card' | 'netbanking' | 'voucher';
 
 interface TopUpPackage {
   id: string;
@@ -118,21 +116,17 @@ export const PatientRealMoneyTopUpModal: React.FC<PatientRealMoneyTopUpModalProp
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Dynamic Integration Gating (Indian Gateways Only)
-  const isZohoEnabled = IntegrationService.isIntegrationEnabled('zoho_payments');
   const isGpayEnabled = IntegrationService.isIntegrationEnabled('gpay_upi_merchant');
 
   // Form State
   const [selectedAmount, setSelectedAmount] = useState<number>(initialAmount);
   const [customAmountInput, setCustomAmountInput] = useState<string>(initialAmount.toString());
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway>(() => {
-    if (IntegrationService.isIntegrationEnabled('zoho_payments')) return 'zoho_pay';
+    return 'upi_qr';
     if (IntegrationService.isIntegrationEnabled('gpay_upi_merchant')) return 'upi_qr';
     return 'card';
   });
 
-  // Zoho Payments State
-  const [zohoSession, setZohoSession] = useState<ZohoCheckoutSession | null>(null);
-  const [zohoPayChannel, setZohoPayChannel] = useState<'upi' | 'card' | 'netbanking'>('upi');
 
   // Promo Code Engine State
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -196,18 +190,6 @@ export const PatientRealMoneyTopUpModal: React.FC<PatientRealMoneyTopUpModalProp
     return () => clearInterval(interval);
   }, [isOpen, step, selectedGateway]);
 
-  // Zoho Session Creator
-  useEffect(() => {
-    if (isOpen && (step === 2 || step === 3) && selectedGateway === 'zoho_pay') {
-      const session = ZohoPaymentService.createCheckoutSession({
-        amount: selectedAmount,
-        patientId: patient.id,
-        patientName: patient.fullName,
-        purpose: 'Prepaid Health Wallet Float'
-      });
-      setZohoSession(session);
-    }
-  }, [isOpen, step, selectedGateway, selectedAmount, patient.id, patient.fullName]);
 
   // Handle Amount selection
   const handleSelectPackage = (pkg: TopUpPackage) => {
@@ -464,20 +446,6 @@ export const PatientRealMoneyTopUpModal: React.FC<PatientRealMoneyTopUpModalProp
     });
   };
 
-  // Confirm Zoho Payment Checkout
-  const handleConfirmZohoPayment = () => {
-    setIsVerifyingWebhook(true);
-    setTimeout(() => {
-      setIsVerifyingWebhook(false);
-      const sessionOrderId = zohoSession?.orderId || `ZH_ORD_${Date.now()}`;
-      const gatewayRef = `ZOHO-${sessionOrderId.toUpperCase()}`;
-      executeSettlement(`Zoho Payments Official Gateway (${zohoPayChannel.toUpperCase()})`, gatewayRef, {
-        verificationStatus: 'verified'
-      });
-    }, 1500);
-  };
-
-  if (!isOpen) return null;
 
   return (
     <Modal
@@ -770,39 +738,6 @@ export const PatientRealMoneyTopUpModal: React.FC<PatientRealMoneyTopUpModalProp
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 0. Official Zoho Payments India Gateway (Rendered only if enabled) */}
-                {isZohoEnabled && (
-                  <div
-                    onClick={() => setSelectedGateway('zoho_pay')}
-                    className={`sm:col-span-2 p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3.5 ${
-                      selectedGateway === 'zoho_pay'
-                        ? 'bg-gradient-to-r from-indigo-950/90 via-slate-900 to-teal-950/80 border-indigo-400 shadow-lg ring-2 ring-indigo-500/50'
-                        : 'bg-slate-900 hover:bg-slate-800/80 border-slate-800'
-                    }`}
-                  >
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-teal-500 text-white flex items-center justify-center font-black shrink-0 border border-indigo-400/40 text-lg shadow-md">
-                      Z
-                    </div>
-                    <div className="space-y-1 flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <strong className="text-xs text-white">Zoho Payments Official Gateway (India)</strong>
-                          <span className="px-2 py-0.5 rounded text-[8.5px] font-black bg-indigo-500/30 text-indigo-300 border border-indigo-400/40 uppercase font-mono">
-                            🇮🇳 ACTIVE
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-teal-400 font-mono font-bold">
-                          API 1003.25e5 • ICICI Auto-Sweep
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-300">
-                        Unified secure checkout powered by Zoho Payments India: Fast UPI QR, RuPay/Cards & 50+ NetBanking.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 1. Dynamic UPI & Google Pay QR (Rendered only if enabled) */}
                 {isGpayEnabled && (
                   <div
                     onClick={() => setSelectedGateway('upi_qr')}
@@ -929,21 +864,7 @@ export const PatientRealMoneyTopUpModal: React.FC<PatientRealMoneyTopUpModalProp
         {/* ========================================================================= */}
         {step === 3 && (
           <div className="space-y-4">
-            {/* 0. Zoho Payments Official Checkout Screen */}
-            {selectedGateway === 'zoho_pay' && isZohoEnabled && (
-              <ZohoMerchantCheckout
-                amount={selectedAmount}
-                orderDescription={`Health Card Wallet Top-up (${patient.fullName})`}
-                patientId={patient.id}
-                patientName={patient.fullName}
-                onPaymentSuccess={(result) => {
-                  executeSettlement(result.gateway, result.transactionId);
-                }}
-              />
-            )}
-
-            {/* 1. UPI & Google Pay Merchant QR Code Screen */}
-            {selectedGateway === 'upi_qr' && isGpayEnabled && (
+            {selectedGateway === 'upi_qr' && (
               <div className="space-y-4">
                 <GooglePayMerchantQR
                   amount={selectedAmount}

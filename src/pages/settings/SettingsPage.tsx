@@ -62,11 +62,11 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ZohoPaymentService, ZohoTestConnectionResult } from '../../services/zohoPaymentService';
-import { ZohoPaymentConfig, NFCSettings, UpiMerchantSettings } from '../../types';
+import { NFCSettings, UpiMerchantSettings } from '../../types';
 import { GooglePayMerchantQR } from '../../components/payment/GooglePayMerchantQR';
-import { ZohoMerchantLoginModal } from '../../components/payment/ZohoMerchantLoginModal';
 import { AddressAutoPopupModal } from '../../components/common/AddressAutoPopupModal';
+import { TierConfigManager } from '../../components/settings/TierConfigManager';
+import { Crown } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { companyProfile, updateCompanyProfile } = useSettings();
@@ -85,9 +85,8 @@ export const SettingsPage: React.FC = () => {
   // Address Selection Popup Modal State
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
-  const [isZohoLoginModalOpen, setIsZohoLoginModalOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'branding' | 'helplines' | 'legal' | 'card_defaults' | 'presets' | 'nfc_config' | 'gpay_merchant' | 'zoho_payments' | 'system'>('branding');
+  const [activeTab, setActiveTab] = useState<'branding' | 'helplines' | 'legal' | 'card_defaults' | 'presets' | 'nfc_config' | 'gpay_merchant' | 'system' | 'tier_config'>('branding');
 
   // 1. Branding & Identity
   const [name, setName] = useState(companyProfile.name);
@@ -102,47 +101,6 @@ export const SettingsPage: React.FC = () => {
   const [stateVal, setStateVal] = useState(companyProfile.state);
   const [pinCode, setPinCode] = useState(companyProfile.pinCode);
 
-  // 5. Zoho Payments Integration State
-  const defaultZoho: ZohoPaymentConfig = companyProfile.zohoPayments || {
-    enabled: true,
-    environment: 'production',
-    apiKey: '1003.25e5fb49edcb6ea6aea2c2840d90cd6f.e511b7068cf53a011dedc54651946730',
-    signingKey: '1d02e6e16b86d29cf0e960bc1e933f2ac1d7c29dc8fe1ad22400f592ccd25cf716952446dafaa2ae92d746056994fe7b',
-    merchantAccountId: 'zoho_lmdx_live_9901',
-    accountHolderName: 'LABMEDIX MULTI-SPECIALITY CENTRE',
-    webhookUrl: 'https://api.labmedix.org/v1/webhooks/zoho-payments',
-    autoCapture: true,
-    enableUpi: true,
-    enableCards: true,
-    enableNetBanking: true,
-    enableInternational: true,
-    settlementSchedule: 'instant',
-    lastPingStatus: 'online',
-    lastPingLatencyMs: 68,
-    lastPingTimestamp: new Date().toISOString()
-  };
-
-  const [zohoEnabled, setZohoEnabled] = useState<boolean>(defaultZoho.enabled);
-  const [zohoEnv, setZohoEnv] = useState<'production' | 'sandbox'>(defaultZoho.environment);
-  const [zohoApiKey, setZohoApiKey] = useState<string>(defaultZoho.apiKey);
-  const [zohoSigningKey, setZohoSigningKey] = useState<string>(defaultZoho.signingKey);
-  const [zohoMerchantId, setZohoMerchantId] = useState<string>(defaultZoho.merchantAccountId);
-  const [zohoAccountHolder, setZohoAccountHolder] = useState<string>(defaultZoho.accountHolderName);
-  const [zohoWebhookUrl, setZohoWebhookUrl] = useState<string>(defaultZoho.webhookUrl);
-  const [zohoAutoCapture, setZohoAutoCapture] = useState<boolean>(defaultZoho.autoCapture);
-  const [zohoEnableUpi, setZohoEnableUpi] = useState<boolean>(defaultZoho.enableUpi);
-  const [zohoEnableCards, setZohoEnableCards] = useState<boolean>(defaultZoho.enableCards);
-  const [zohoEnableNetBanking, setZohoEnableNetBanking] = useState<boolean>(defaultZoho.enableNetBanking);
-  const [zohoEnableInternational, setZohoEnableInternational] = useState<boolean>(defaultZoho.enableInternational);
-  const [zohoSettlement, setZohoSettlement] = useState<'instant' | 't1' | 't2'>(defaultZoho.settlementSchedule);
-
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showSigningKey, setShowSigningKey] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [isTestingZoho, setIsTestingZoho] = useState(false);
-  const [zohoTestResult, setZohoTestResult] = useState<ZohoTestConnectionResult | null>(null);
-
-  // 6. NFC & Smart Chip Hardware Configuration State
   const defaultNfc: NFCSettings = companyProfile.nfcSettings || {
     enabled: true,
     defaultStandard: 'ISO/IEC 14443 Type A',
@@ -302,21 +260,6 @@ export const SettingsPage: React.FC = () => {
       currencySymbol,
       selectedPreset,
       selectedMaterial,
-      zohoPayments: {
-        enabled: zohoEnabled,
-        environment: zohoEnv,
-        apiKey: zohoApiKey,
-        signingKey: zohoSigningKey,
-        merchantAccountId: zohoMerchantId,
-        accountHolderName: zohoAccountHolder,
-        webhookUrl: zohoWebhookUrl,
-        autoCapture: zohoAutoCapture,
-        enableUpi: zohoEnableUpi,
-        enableCards: zohoEnableCards,
-        enableNetBanking: zohoEnableNetBanking,
-        enableInternational: zohoEnableInternational,
-        settlementSchedule: zohoSettlement
-      },
       exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -365,15 +308,6 @@ export const SettingsPage: React.FC = () => {
         if (importedProfile.registrationNo) setRegistrationNo(importedProfile.registrationNo);
         if (importedProfile.selectedPreset) setSelectedPreset(importedProfile.selectedPreset);
         if (importedProfile.selectedMaterial) setSelectedMaterial(importedProfile.selectedMaterial);
-        if (importedProfile.zohoPayments) {
-          setZohoEnabled(importedProfile.zohoPayments.enabled ?? true);
-          setZohoEnv(importedProfile.zohoPayments.environment ?? 'production');
-          if (importedProfile.zohoPayments.apiKey) setZohoApiKey(importedProfile.zohoPayments.apiKey);
-          if (importedProfile.zohoPayments.signingKey) setZohoSigningKey(importedProfile.zohoPayments.signingKey);
-          if (importedProfile.zohoPayments.merchantAccountId) setZohoMerchantId(importedProfile.zohoPayments.merchantAccountId);
-          if (importedProfile.zohoPayments.accountHolderName) setZohoAccountHolder(importedProfile.zohoPayments.accountHolderName);
-          if (importedProfile.zohoPayments.webhookUrl) setZohoWebhookUrl(importedProfile.zohoPayments.webhookUrl);
-        }
 
         // Save & Sync live immediately
         updateCompanyProfile(importedProfile);
@@ -397,40 +331,6 @@ export const SettingsPage: React.FC = () => {
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  // Live Test Zoho Payments Connection
-  const handleTestZohoConnection = async () => {
-    setIsTestingZoho(true);
-    try {
-      ZohoPaymentService.updateConfig({
-        enabled: zohoEnabled,
-        environment: zohoEnv,
-        apiKey: zohoApiKey.trim(),
-        signingKey: zohoSigningKey.trim(),
-        merchantAccountId: zohoMerchantId.trim(),
-        accountHolderName: zohoAccountHolder.trim(),
-        webhookUrl: zohoWebhookUrl.trim(),
-        autoCapture: zohoAutoCapture,
-        enableUpi: zohoEnableUpi,
-        enableCards: zohoEnableCards,
-        enableNetBanking: zohoEnableNetBanking,
-        enableInternational: zohoEnableInternational,
-        settlementSchedule: zohoSettlement
-      });
-
-      const result = await ZohoPaymentService.testConnection();
-      setZohoTestResult(result);
-      if (result.success) {
-        triggerCelebrationFireworks();
-        showToast('success', 'Zoho Gateway Connected! ⚡', `Handshake verified via ${result.tlsVersion} (Latency: ${result.latencyMs}ms).`);
-      } else {
-        showToast('error', 'Zoho Connection Failed', result.message);
-      }
-    } catch {
-      showToast('error', 'Test Failed', 'Could not ping Zoho Payments gateway.');
-    } finally {
-      setIsTestingZoho(false);
-    }
-  };
   // Live NFC Tag Read & Frequency Wave Simulation Tester
   const handleTestNfcTap = () => {
     setIsSimulatingNfcTap(true);
@@ -475,23 +375,6 @@ export const SettingsPage: React.FC = () => {
     const now = new Date().toISOString();
     const operator = currentUser?.fullName || 'Super Administrator';
 
-    const updatedZohoConfig: ZohoPaymentConfig = {
-      enabled: zohoEnabled,
-      environment: zohoEnv,
-      apiKey: zohoApiKey.trim(),
-      signingKey: zohoSigningKey.trim(),
-      merchantAccountId: zohoMerchantId.trim(),
-      accountHolderName: zohoAccountHolder.trim(),
-      webhookUrl: zohoWebhookUrl.trim(),
-      autoCapture: zohoAutoCapture,
-      enableUpi: zohoEnableUpi,
-      enableCards: zohoEnableCards,
-      enableNetBanking: zohoEnableNetBanking,
-      enableInternational: zohoEnableInternational,
-      settlementSchedule: zohoSettlement,
-      lastPingStatus: zohoTestResult?.success ? 'online' : (companyProfile.zohoPayments?.lastPingStatus || 'online'),
-      lastPingLatencyMs: zohoTestResult?.latencyMs || companyProfile.zohoPayments?.lastPingLatencyMs || 68,
-      lastPingTimestamp: now
     };
 
     const updatedNfcConfig: NFCSettings = {
@@ -545,7 +428,6 @@ export const SettingsPage: React.FC = () => {
       isLocked: true, // Auto-lock on save!
       lockedAt: now,
       lockedBy: operator,
-      zohoPayments: updatedZohoConfig,
       nfcSettings: updatedNfcConfig,
       upiSettings: updatedUpiConfig
     });
@@ -881,17 +763,18 @@ export const SettingsPage: React.FC = () => {
               <span>7. Google Pay & UPI</span>
             </button>
 
+
             <button
               type="button"
-              onClick={() => setActiveTab('zoho_payments')}
+              onClick={() => setActiveTab('tier_config')}
               className={`py-2 px-3.5 rounded-xl whitespace-nowrap transition-all flex items-center gap-2 ${
-                activeTab === 'zoho_payments'
+                activeTab === 'tier_config'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
               }`}
             >
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span>8. Zoho Gateway</span>
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span>Tier Configuration</span>
             </button>
 
             <button
@@ -908,7 +791,7 @@ export const SettingsPage: React.FC = () => {
             </button>
           </div>
 
-          <form onSubmit={handleSave} className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <form onSubmit={handleSave} className={`bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 ${activeTab === 'tier_config' ? 'hidden' : 'block'}`}>
             {/* TAB 1: Organization Branding & Official Logo */}
             {activeTab === 'branding' && (
               <div className="space-y-6">
@@ -1705,380 +1588,6 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 8: Zoho Payments Official Gateway Integration */}
-            {activeTab === 'zoho_payments' && (
-              <div className="space-y-6">
-                <div className="p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-2 border-indigo-500/50 text-white shadow-xl space-y-3">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-teal-500 flex items-center justify-center font-black text-white shadow-lg border border-indigo-400/50 text-xl font-mono">
-                        Z
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-black tracking-tight text-white flex items-center gap-2">
-                            Zoho Payments Official Gateway Integration
-                          </h3>
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-400/40">
-                            PCI-DSS v4.0
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-300">
-                          Unified omnichannel payment gateway for instant prepaid card top-ups, OPD bookings, and pharmacy cashless orders.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="primary"
-                        className="bg-gradient-to-r from-indigo-500 via-indigo-600 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white font-black shadow-lg text-xs"
-                        leftIcon={<Lock className="w-3.5 h-3.5" />}
-                        onClick={() => setIsZohoLoginModalOpen(true)}
-                      >
-                        ⚡ Sign in & Connect Zoho Account (OAuth 2.0)
-                      </Button>
-
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono border ${
-                        zohoEnabled
-                          ? zohoEnv === 'production'
-                            ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
-                            : 'bg-amber-950 text-amber-300 border-amber-500'
-                          : 'bg-slate-800 text-slate-400 border-slate-700'
-                      }`}>
-                        {zohoEnabled ? (zohoEnv === 'production' ? '● PRODUCTION LIVE' : '● SANDBOX TEST') : '○ DISABLED'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Top Level Gateway Switcher & Environment Bar */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-indigo-900/60 text-xs">
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/80 border border-indigo-900/40">
-                      <div>
-                        <strong className="block text-slate-200 font-bold">Gateway Operational Status</strong>
-                        <span className="text-[11px] text-slate-400">Enable Zoho in Patient Portal & Billing POS</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setZohoEnabled(!zohoEnabled)}
-                        className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-                          zohoEnabled ? 'bg-emerald-500' : 'bg-slate-700'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                          zohoEnabled ? 'translate-x-6' : 'translate-x-0'
-                        }`} />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/80 border border-indigo-900/40">
-                      <div>
-                        <strong className="block text-slate-200 font-bold">Target Environment</strong>
-                        <span className="text-[11px] text-slate-400">Switch API endpoints & keys</span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => setZohoEnv('production')}
-                          className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
-                            zohoEnv === 'production' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          Production
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setZohoEnv('sandbox')}
-                          className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
-                            zohoEnv === 'sandbox' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          Sandbox
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Verified Connected Merchant Profile Banner */}
-                  <div className="p-4 rounded-2xl bg-slate-950/90 border border-indigo-500/40 space-y-3 font-mono text-xs">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-indigo-900/60 pb-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                        <span className="text-emerald-300 font-black font-sans">
-                          ✅ Zoho Merchant Account Connected & Live in Production
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-teal-300 bg-teal-950 px-2 py-0.5 rounded-full border border-teal-500/40">
-                        OAuth 2.0 PKCE • Auto-Refreshed
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-sans">Connected Zoho ID:</span>
-                        <strong className="text-white">payments@labmedix.org</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-sans">Merchant Account ID:</span>
-                        <strong className="text-indigo-300">{zohoMerchantId}</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-sans">Settlement Account:</span>
-                        <strong className="text-amber-300">ICICI Bank (•••• 9921)</strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* API Credentials Configuration */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-                      <KeyRound className="w-4 h-4 text-indigo-500" />
-                      Zoho Payments API Credentials & Security Keys
-                    </h4>
-                    <span className="text-[11px] text-slate-400 font-mono">Encrypted at Rest (AES-256)</span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* API Key */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                          <span>Zoho API Key (Client ID / API Secret Key):</span>
-                          <span className="text-rose-500">*</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyText(zohoApiKey, 'API Key')}
-                          className="text-[11px] text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1"
-                        >
-                          {copiedKey === 'API Key' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                          {copiedKey === 'API Key' ? 'Copied' : 'Copy API Key'}
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showApiKey ? 'text' : 'password'}
-                          value={zohoApiKey}
-                          onChange={(e) => setZohoApiKey(e.target.value)}
-                          placeholder="1003.xxxxxxxx.xxxxxxxx"
-                          className="w-full px-3.5 py-2.5 pr-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-                        >
-                          {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-1">
-                        Primary Zoho authorization credential used for initiating checkouts and order capture.
-                      </p>
-                    </div>
-
-                    {/* Signing Key */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                          <span>Zoho Webhook Signing Key (HMAC Secret):</span>
-                          <span className="text-rose-500">*</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyText(zohoSigningKey, 'Signing Key')}
-                          className="text-[11px] text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1"
-                        >
-                          {copiedKey === 'Signing Key' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                          {copiedKey === 'Signing Key' ? 'Copied' : 'Copy Signing Key'}
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showSigningKey ? 'text' : 'password'}
-                          value={zohoSigningKey}
-                          onChange={(e) => setZohoSigningKey(e.target.value)}
-                          placeholder="1d02e6e16b86d29cf0e960bc1e933f2ac1d7c29dc8fe1ad22400f592ccd25cf..."
-                          className="w-full px-3.5 py-2.5 pr-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowSigningKey(!showSigningKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-                        >
-                          {showSigningKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-1">
-                        Used for SHA-256 HMAC cryptographic signature validation of inbound asynchronous payment notifications.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                          Merchant Account ID / Store ID:
-                        </label>
-                        <input
-                          type="text"
-                          value={zohoMerchantId}
-                          onChange={(e) => setZohoMerchantId(e.target.value)}
-                          placeholder="zoho_lmdx_live_9901"
-                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                          Legal Organization Name:
-                        </label>
-                        <input
-                          type="text"
-                          value={zohoAccountHolder}
-                          onChange={(e) => setZohoAccountHolder(e.target.value)}
-                          placeholder="LABMEDIX MULTI-SPECIALITY CENTRE"
-                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Webhook Endpoint */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          Webhook Listener Endpoint (Zoho Developer Portal):
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyText(zohoWebhookUrl, 'Webhook URL')}
-                          className="text-[11px] text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1"
-                        >
-                          {copiedKey === 'Webhook URL' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                          {copiedKey === 'Webhook URL' ? 'Copied' : 'Copy Endpoint'}
-                        </button>
-                      </div>
-                      <input
-                        type="text"
-                        value={zohoWebhookUrl}
-                        onChange={(e) => setZohoWebhookUrl(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Processing Rails & Features */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">
-                    Supported Payment Rails & Features
-                  </h4>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-                    <label className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between cursor-pointer">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">UPI Dynamic QR</span>
-                      <input
-                        type="checkbox"
-                        checked={zohoEnableUpi}
-                        onChange={(e) => setZohoEnableUpi(e.target.checked)}
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </label>
-
-                    <label className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between cursor-pointer">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Debit / Credit Cards</span>
-                      <input
-                        type="checkbox"
-                        checked={zohoEnableCards}
-                        onChange={(e) => setZohoEnableCards(e.target.checked)}
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </label>
-
-                    <label className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between cursor-pointer">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">NetBanking 50+</span>
-                      <input
-                        type="checkbox"
-                        checked={zohoEnableNetBanking}
-                        onChange={(e) => setZohoEnableNetBanking(e.target.checked)}
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </label>
-
-                    <label className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between cursor-pointer">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">Auto-Capture</span>
-                      <input
-                        type="checkbox"
-                        checked={zohoAutoCapture}
-                        onChange={(e) => setZohoAutoCapture(e.target.checked)}
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Live Gateway Diagnostics Tool */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-4 text-white shadow-xl">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <Activity className="w-5 h-5 text-indigo-400" />
-                      <div>
-                        <h4 className="text-xs font-black uppercase text-white tracking-wider">
-                          Zoho Payments Handshake & Signature Diagnostics
-                        </h4>
-                        <span className="text-[10px] text-slate-400">
-                          Verify live connectivity, TLS 1.3 encryption, and signing key verification.
-                        </span>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="primary"
-                      className="bg-indigo-600 hover:bg-indigo-500 font-bold whitespace-nowrap shadow-md"
-                      leftIcon={isTestingZoho ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                      onClick={handleTestZohoConnection}
-                      isLoading={isTestingZoho}
-                    >
-                      {isTestingZoho ? 'Testing Gateway...' : '⚡ Test Zoho Connection & Keys'}
-                    </Button>
-                  </div>
-
-                  {zohoTestResult && (
-                    <div className={`p-4 rounded-2xl border text-xs space-y-2 font-mono ${
-                      zohoTestResult.success
-                        ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-200'
-                        : 'bg-rose-950/60 border-rose-500/50 text-rose-200'
-                    }`}>
-                      <div className="flex items-center justify-between font-bold">
-                        <span className="flex items-center gap-2">
-                          {zohoTestResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-rose-400" />}
-                          STATUS: {zohoTestResult.httpStatus} {zohoTestResult.success ? 'OK - CONNECTED' : 'AUTH_FAILED'}
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-black/40 text-[10px]">
-                          Latency: {zohoTestResult.latencyMs}ms
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-slate-300 pt-2 border-t border-slate-800">
-                        <p>🔐 Cipher: <strong className="text-white">{zohoTestResult.tlsVersion}</strong></p>
-                        <p>☁️ Node: <strong className="text-white">{zohoTestResult.gatewayNode}</strong></p>
-                        <p>🔑 API Key: <strong className="text-white">{zohoTestResult.apiKeyMasked}</strong></p>
-                        <p>✍️ Signature: <strong className={zohoTestResult.signatureVerified ? 'text-emerald-400' : 'text-rose-400'}>{zohoTestResult.signatureVerified ? 'VERIFIED (PASS)' : 'FAILED'}</strong></p>
-                      </div>
-
-                      <p className="text-[10px] text-slate-400 font-sans pt-1">
-                        {zohoTestResult.message}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* TAB 7: System Diagnostics & Health */}
             {activeTab === 'system' && (
               <div className="space-y-6">
@@ -2144,6 +1653,34 @@ export const SettingsPage: React.FC = () => {
               </Button>
             </div>
           </form>
+
+          {activeTab === 'tier_config' && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+               <div className="space-y-6">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-brand-blue to-blue-800 p-6 sm:p-8 text-white shadow-lg shadow-blue-900/20 border border-blue-400/20">
+                  {/* Background Accents */}
+                  <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                  <div className="absolute bottom-0 right-16 -mb-6 w-24 h-24 bg-indigo-400/20 rounded-full blur-xl pointer-events-none"></div>
+                  
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-5">
+                    <div className="flex-shrink-0 w-14 h-14 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center shadow-inner">
+                      <Crown className="w-7 h-7 text-amber-300 drop-shadow-md" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                        Membership Tier Configurations
+                      </h3>
+                      <p className="text-sm text-blue-100/90 leading-relaxed max-w-2xl mt-1.5 font-medium">
+                        The centralized source of truth for Health Card tier pricing, family plan policies, dynamic discounts, and exclusive benefit packages. Changes made here apply instantly system-wide.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <TierConfigManager />
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Right 5 Cols: Live 3D CR80 PVC Card Studio Preview */}
@@ -2243,20 +1780,8 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </div>
+          )}
 
-      {/* Zoho Merchant OAuth 2.0 Login & Live Health Check Modal */}
-      <ZohoMerchantLoginModal
-        isOpen={isZohoLoginModalOpen}
-        onClose={() => setIsZohoLoginModalOpen(false)}
-        onConnected={(details) => {
-          setZohoMerchantId(details.merchantId);
-          setZohoAccountHolder(details.organization);
-          setZohoEnv(details.environment);
-          setZohoEnabled(true);
-        }}
-      />
-
-      {/* Address Selection Popup System (Super Admin & Operations) */}
       <AddressAutoPopupModal
         isOpen={isAddressModalOpen}
         onClose={() => setIsAddressModalOpen(false)}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MembershipService } from '../../services/membershipService';
+import { MembershipTierService } from '../../services/membershipTierService';
 import { Membership } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -14,53 +14,46 @@ export const MembershipListPage: React.FC = () => {
   const { showToast } = useToast();
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
-  const [memberships, setMemberships] = useState<Membership[]>(() => MembershipService.getAll());
+  const [memberships, setMemberships] = useState<Membership[]>([]);
   const [editingMem, setEditingMem] = useState<Membership | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const refreshList = () => {
-    setMemberships(MembershipService.getAll());
+    // Left for modal callback compatibility, but snapshot handles state updates
   };
 
   useEffect(() => {
-    refreshList();
-    const handleSync = () => refreshList();
-    window.addEventListener('labmedix_data_synced', handleSync);
-    return () => window.removeEventListener('labmedix_data_synced', handleSync);
+    const unsubscribe = MembershipTierService.subscribeToTiers(setMemberships);
+    return () => unsubscribe();
   }, []);
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string, currentStatus: 'active' | 'inactive') => {
     if (!isSuperAdmin || !currentUser) {
       showToast('error', 'Security Violation', 'Only Super Admin can activate or deactivate Membership Tiers.');
       return;
     }
+
     try {
-      const updated = MembershipService.toggleStatus(id, currentUser.role);
-      if (updated) {
-        showToast(
-          'info',
-          `Tier ${updated.status === 'active' ? 'Activated' : 'Deactivated'}`,
-          `Membership tier "${updated.name}" is now ${updated.status.toUpperCase()} system-wide.`
-        );
-        refreshList();
-      }
+      await MembershipTierService.toggleStatus(id, currentStatus, currentUser.role);
+      showToast(
+        'info',
+        `Tier Status Changed`,
+        `Membership tier status has been updated system-wide.`
+      );
     } catch (e: any) {
       showToast('error', 'Operation Failed', e.message);
     }
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (!isSuperAdmin || !currentUser) {
       showToast('error', 'Security Violation', 'Only Super Admin can delete Membership Tiers.');
       return;
     }
     if (window.confirm(`CRITICAL WARNING: Are you sure you want to permanently delete the "${name}" tier? This action cannot be undone and may break existing user cards linked to this tier.`)) {
       try {
-        const success = MembershipService.delete(id, currentUser.role);
-        if (success) {
-          showToast('success', 'Tier Deleted', `Membership tier "${name}" has been permanently removed.`);
-          refreshList();
-        }
+        await MembershipTierService.delete(id, currentUser.role);
+        showToast('success', 'Tier Deleted', `Membership tier "${name}" has been permanently removed.`);
       } catch (e: any) {
         showToast('error', 'Delete Failed', e.message);
       }
@@ -216,7 +209,7 @@ export const MembershipListPage: React.FC = () => {
             {isSuperAdmin ? (
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => handleToggleStatus(mem.id)}
+                  onClick={() => handleToggleStatus(mem.id, mem.status)}
                   className={`text-[11px] font-bold px-2 py-2 rounded-xl border transition-all flex items-center justify-center gap-1.5 ${
                     mem.status === 'active'
                       ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900 hover:bg-rose-100'

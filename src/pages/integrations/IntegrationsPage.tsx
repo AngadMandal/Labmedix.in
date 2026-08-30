@@ -225,7 +225,7 @@ export const IntegrationsPage: React.FC = () => {
     showToast(
       'success',
       'All 8 Core Services Activated!',
-      'Zoho Payments, Google Pay, WhatsApp, SMS OTP, PVC Printer, ABDM, AWS Backup & Zoho Books are now 100% active.'
+      'Google Pay, WhatsApp, SMS OTP, PVC Printer, ABDM, AWS Backup & Zoho Books are now 100% active.'
     );
   };
 
@@ -272,7 +272,7 @@ export const IntegrationsPage: React.FC = () => {
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
-              All 8 core hospital gateways — <strong className="text-teal-300">Zoho Payments</strong>, <strong className="text-emerald-300">Google Pay</strong>, <strong className="text-green-300">WhatsApp Cloud</strong>, <strong className="text-amber-300">SMS OTP</strong>, <strong className="text-blue-300">PVC Card Hardware</strong>, <strong className="text-purple-300">ABDM ABHA</strong>, <strong className="text-cyan-300">Cloudflare & AWS</strong>, and <strong className="text-yellow-300">Zoho Books</strong> — are active, connected, and verified.
+              All 7 core hospital gateways — <strong className="text-emerald-300">Google Pay</strong>, <strong className="text-green-300">WhatsApp Cloud</strong>, <strong className="text-amber-300">SMS OTP</strong>, <strong className="text-blue-300">PVC Card Hardware</strong>, <strong className="text-purple-300">ABDM ABHA</strong>, <strong className="text-cyan-300">Cloudflare & AWS</strong>, and <strong className="text-yellow-300">Zoho Books</strong> — are active, connected, and verified.
             </p>
           </div>
 
@@ -377,7 +377,7 @@ export const IntegrationsPage: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search Zoho, UPI, WhatsApp, Printer..."
+            placeholder="Search UPI, WhatsApp, Printer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-3.5 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 shadow-sm"
@@ -611,7 +611,7 @@ export const IntegrationsPage: React.FC = () => {
                       type="text"
                       value={editMerchantId}
                       onChange={(e) => setEditMerchantId(e.target.value)}
-                      placeholder="e.g. zoho_lmdx_live_9901"
+                      placeholder="e.g. lmdx_live_9901"
                       className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-xs focus:border-indigo-500"
                     />
                   </div>

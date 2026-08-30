@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import os
+
+content = """import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
@@ -94,3 +96,7 @@ export const PatientCardApplicationModal: React.FC<PatientCardApplicationModalPr
     </Modal>
   );
 };
+"""
+
+with open('src/components/portal/PatientCardApplicationModal.tsx', 'w') as f:
+    f.write(content)

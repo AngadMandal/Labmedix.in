@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Membership } from '../../types';
-import { MembershipService } from '../../services/membershipService';
+import { MembershipTierService } from '../../services/membershipTierService';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
-import { Users2, User } from 'lucide-react';
+import { Users2, User, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 
 interface MembershipEditModalProps {
   isOpen: boolean;
@@ -36,10 +36,37 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
   const [status, setStatus] = useState<'active' | 'inactive'>(membership?.status || 'active');
   const [isFamilyPlan, setIsFamilyPlan] = useState(membership?.isFamilyPlan || false);
   const [maxFamilyMembers, setMaxFamilyMembers] = useState(membership?.maxFamilyMembers || 4);
-  const [benefitsText, setBenefitsText] = useState(membership?.specialBenefits.join('\n') || 'Specialist Consultations Discount\nPathology & Radiology Test Discounts\nPharmacy Flat Discount');
   const [color, setColor] = useState(membership?.color || '#0B4F9C');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Dynamic Array for Special Benefits
+  const [benefitsArray, setBenefitsArray] = useState<string[]>(
+    membership?.specialBenefits?.length 
+      ? [...membership.specialBenefits] 
+      : [
+          'Specialist Consultations Discount',
+          'Pathology & Radiology Test Discounts',
+          'Pharmacy Flat Discount'
+        ]
+  );
+
+  const handleAddBenefit = () => {
+    setBenefitsArray([...benefitsArray, '']);
+  };
+
+  const handleUpdateBenefit = (index: number, value: string) => {
+    const newBenefits = [...benefitsArray];
+    newBenefits[index] = value;
+    setBenefitsArray(newBenefits);
+  };
+
+  const handleRemoveBenefit = (index: number) => {
+    const newBenefits = benefitsArray.filter((_, i) => i !== index);
+    setBenefitsArray(newBenefits);
+  };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const userRole = currentUser?.role || 'user';
     if (userRole !== 'super_admin') {
@@ -47,11 +74,13 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
       return;
     }
 
-    const benefitsArray = benefitsText.split('\n').map(s => s.trim()).filter(Boolean);
+    const finalBenefits = benefitsArray.map(s => s.trim()).filter(Boolean);
+
+    setIsSubmitting(true);
 
     try {
       if (isEditing && membership) {
-        MembershipService.update(
+        await MembershipTierService.update(
           membership.id,
           {
             name,
@@ -62,7 +91,7 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
             labDiscount,
             pharmacyDiscount,
             homeCollectionDiscount,
-            specialBenefits: benefitsArray,
+            specialBenefits: finalBenefits,
             color,
             isFamilyPlan,
             maxFamilyMembers: isFamilyPlan ? maxFamilyMembers : undefined,
@@ -72,7 +101,7 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
         );
         showToast('success', 'Tier Updated', `${name} tier configuration saved and synced system-wide.`);
       } else {
-        MembershipService.create(
+        await MembershipTierService.create(
           {
             name,
             slug: name.toLowerCase().replace(/\s+/g, '_'),
@@ -83,7 +112,7 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
             labDiscount,
             pharmacyDiscount,
             homeCollectionDiscount,
-            specialBenefits: benefitsArray,
+            specialBenefits: finalBenefits,
             color,
             badgeIcon: 'Shield',
             isFamilyPlan,
@@ -188,25 +217,63 @@ export const MembershipEditModal: React.FC<MembershipEditModalProps> = ({
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
-            Special Benefits (One benefit per line)
-          </label>
-          <textarea
-            rows={5}
-            className="w-full px-3.5 py-3 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-            value={benefitsText}
-            onChange={(e) => setBenefitsText(e.target.value)}
-            placeholder="e.g. 1 Free General Physician Consultation&#10;Free Ambulance Service within 10km&#10;Priority Queue in OPD"
-          />
+        {/* Special Benefits Builder */}
+        <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+              Special Benefits
+            </h4>
+            <button
+              type="button"
+              onClick={handleAddBenefit}
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Benefit
+            </button>
+          </div>
+          
+          <div className="space-y-2.5">
+            {benefitsArray.length === 0 && (
+              <div className="text-xs text-slate-500 dark:text-slate-400 italic py-2 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
+                No special benefits added yet.
+              </div>
+            )}
+            
+            {benefitsArray.map((benefit, index) => (
+              <div key={index} className="flex items-start gap-2 group">
+                <div className="mt-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-indigo-400 dark:text-indigo-500 shrink-0" />
+                </div>
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={benefit}
+                    onChange={(e) => handleUpdateBenefit(index, e.target.value)}
+                    placeholder="e.g. 1 Free General Physician Consultation"
+                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-colors focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveBenefit(index)}
+                  className="mt-1 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
+                  title="Remove Benefit"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary">
-            Save Membership Tier
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : 'Save Membership Tier'}
           </Button>
         </div>
       </form>

@@ -1,5 +1,5 @@
-
 import { StorageService } from './storage';
+import { AuditService } from './auditService';
 
 export type IntegrationCategory =
   | 'all'
@@ -19,30 +19,26 @@ export interface IntegrationItem {
   icon: string;
   badge?: string;
   isRecommended: boolean;
-  essentialTier?: EssentialTier;
-  whyNeeded?: string;
-  status: 'available' | 'connected' | 'error';
+  essentialTier: EssentialTier;
+  whyNeeded: string;
+  status: 'connected' | 'configured' | 'available';
   isEnabled: boolean;
+  environment: 'production' | 'sandbox';
   apiKey?: string;
   secretKey?: string;
   merchantId?: string;
   webhookUrl?: string;
   endpointUrl?: string;
-  environment?: 'sandbox' | 'production';
   domainName?: string;
-  ipRange?: string;
-  printerMacAddress?: string;
-  features?: string[];
+  features: string[];
   docSnippet?: string;
   lastPingLatencyMs?: number;
-  lastPingStatus?: 'online' | 'offline';
+  lastPingStatus?: 'online' | 'error' | 'untested';
   lastPingTimestamp?: string;
   packetTrace?: string[];
 }
 
-import { AuditService } from './auditService';
-
-export const STORAGE_KEY_INTEGRATIONS = 'labmedix_integrations_config';
+const STORAGE_KEY_INTEGRATIONS = 'labmedix_integrations_v4';
 
 export const CORE_RECOMMENDED_INTEGRATIONS: IntegrationItem[] = [
   // =========================================================================
@@ -289,34 +285,28 @@ export const CORE_RECOMMENDED_INTEGRATIONS: IntegrationItem[] = [
     ]
   }
 ];
-
-
-export class IntegrationService {
   public static getAllIntegrations(): IntegrationItem[] {
-    try {
-      const initial = CORE_RECOMMENDED_INTEGRATIONS;
-      const data = StorageService.getItem<IntegrationItem[]>(STORAGE_KEY_INTEGRATIONS, initial);
-      if (!Array.isArray(data) || data.length === 0) {
-        StorageService.setItem(STORAGE_KEY_INTEGRATIONS, initial);
-        return initial;
+    const initial = CORE_RECOMMENDED_INTEGRATIONS;
+    const data = StorageService.getItem<IntegrationItem[]>(STORAGE_KEY_INTEGRATIONS, initial);
+    if (!Array.isArray(data) || data.length === 0) {
+      StorageService.setItem(STORAGE_KEY_INTEGRATIONS, initial);
+      return initial;
+    }
+    const validIds = new Set(CORE_RECOMMENDED_INTEGRATIONS.map(i => i.id));
+    const cleaned = data.filter(p => validIds.has(p.id));
+    CORE_RECOMMENDED_INTEGRATIONS.forEach(coreItem => {
+      if (!cleaned.some(c => c.id === coreItem.id)) {
+        cleaned.push(coreItem);
       }
-      
-      const validIds = new Set(CORE_RECOMMENDED_INTEGRATIONS.map(i => i.id));
-      const cleaned = data.filter(p => validIds.has(p.id));
-      
-      CORE_RECOMMENDED_INTEGRATIONS.forEach(coreItem => {
-        if (!cleaned.some(c => c.id === coreItem.id)) {
-          cleaned.push(coreItem);
-        }
-      });
-      return cleaned;
-    } catch {
+    });
+    return cleaned;
+  }
       return CORE_RECOMMENDED_INTEGRATIONS;
     }
   }
 
   public static saveIntegrations(integrations: IntegrationItem[]): void {
-    try {
+    const initial = CORE_RECOMMENDED_INTEGRATIONS;
       StorageService.setItem(STORAGE_KEY_INTEGRATIONS, integrations);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('integrations-updated', { detail: integrations }));
@@ -346,6 +336,7 @@ export class IntegrationService {
     list[index].status = isEnabled ? 'connected' : 'available';
     this.saveIntegrations(list);
 
+
     AuditService.log(
       'SETTINGS_UPDATED',
       'settings',
@@ -353,25 +344,25 @@ export class IntegrationService {
       id,
       { isEnabled, status: list[index].status }
     );
+
     return list[index];
   }
 
   public static resetAllToRecommended(): IntegrationItem[] {
     const fresh = CORE_RECOMMENDED_INTEGRATIONS.map(item => ({
-      ...item,
-      isEnabled: true,
-      status: 'connected' as const,
       lastPingTimestamp: new Date().toISOString()
     }));
-    
+
     this.saveIntegrations(fresh);
+
     AuditService.log(
       'SETTINGS_UPDATED',
       'settings',
-      'Super Admin activated all Essential Core Integrations (100% Verified Live)',
+      'Super Admin activated all 8 Essential Core Integrations (100% Verified Live)',
       'all_core_recommended',
       {}
     );
+
     return fresh;
   }
 
@@ -389,13 +380,6 @@ export class IntegrationService {
   public static async testIntegrationPing(id: string): Promise<{
     success: boolean;
     latencyMs: number;
-    message: string;
-    packetTrace: string[];
-  }> {
-    const startTime = performance.now();
-    await new Promise((resolve) => setTimeout(resolve, 60 + Math.floor(Math.random() * 40)));
-    const latencyMs = Math.round(performance.now() - startTime);
-
     const list = this.getAllIntegrations();
     const index = list.findIndex((item) => item.id === id);
 
