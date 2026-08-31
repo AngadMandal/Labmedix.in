@@ -116,7 +116,7 @@ export const PatientListPage: React.FC = () => {
   const navigate = useNavigate();
 
   // Core Data & Real-time Subscriptions
-  const { data: patients } = useFirestoreCollection<Patient>('patients');
+  const [patients, setPatients] = useState<Patient[]>(() => StorageService.getPatients());
   const [cards, setCards] = useState<HealthCard[]>(() => StorageService.getCards());
   const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getMemberships());
   const company = StorageService.getCompanyProfile();
@@ -129,6 +129,7 @@ export const PatientListPage: React.FC = () => {
   const [cardApplications, setCardApplications] = useState<CardApplicationRequest[]>(() => PortalService.getCardApplications());
 
   const refreshList = () => {
+    setPatients(StorageService.getPatients());
     setCards(StorageService.getCards());
     setMemberships(StorageService.getMemberships());
     setWallets(StorageService.getWallets());
@@ -140,6 +141,10 @@ export const PatientListPage: React.FC = () => {
   };
 
   useEffect(() => {
+    const unsubPatients = ApiSyncService.subscribeToCollection<Patient>('patients', (items) => {
+      if (Array.isArray(items) && items.length > 0) setPatients(items);
+      else setPatients(StorageService.getPatients());
+    });
     const unsubCards = ApiSyncService.subscribeToCollection<HealthCard>('cards', (items) => {
       if (Array.isArray(items)) setCards(items);
     });
@@ -162,20 +167,20 @@ export const PatientListPage: React.FC = () => {
       if (Array.isArray(items)) setCardApplications(items);
     });
 
-    const handleSync = (e: any) => {
-      if (!e.detail || ['labmedix_patients_v1', 'labmedix_portal_card_applications_v1', 'labmedix_portal_lab_bookings_v1', 'labmedix_portal_pharmacy_orders_v1'].includes(e.detail.key)) {
-        setCards(StorageService.getCards());
-        setMemberships(StorageService.getMemberships());
-        setWallets(StorageService.getWallets());
-        setLabBookings(PortalService.getLabBookings());
-        setPharmacyOrders(PortalService.getPharmacyOrders());
-        setAppointments(EMRService.getAllAppointments());
-        setCardApplications(PortalService.getCardApplications());
-      }
+    const handleSync = () => {
+      setPatients(StorageService.getPatients());
+      setCards(StorageService.getCards());
+      setMemberships(StorageService.getMemberships());
+      setWallets(StorageService.getWallets());
+      setLabBookings(PortalService.getLabBookings());
+      setPharmacyOrders(PortalService.getPharmacyOrders());
+      setAppointments(EMRService.getAllAppointments());
+      setCardApplications(PortalService.getCardApplications());
     };
     window.addEventListener('labmedix_data_synced', handleSync as EventListener);
 
     return () => {
+      unsubPatients();
       unsubCards();
       unsubMemberships();
       unsubWallets();

@@ -101,10 +101,10 @@ export const IntegrationsPage: React.FC = () => {
         searchQuery.trim() === '' ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.whyNeeded.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.whyNeeded && item.whyNeeded.toLowerCase().includes(searchQuery.toLowerCase())) ||
         item.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.domainName && item.domainName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        item.features.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase()));
+        (item.features && item.features.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase())));
       return matchesCat && matchesTier && matchesSearch;
     });
   }, [integrations, selectedCategory, selectedTier, searchQuery]);
@@ -147,7 +147,7 @@ export const IntegrationsPage: React.FC = () => {
     setEditWebhookUrl(item.webhookUrl || '');
     setEditEndpointUrl(item.endpointUrl || '');
     setEditDomainName(item.domainName || '');
-    setEditEnv(item.environment);
+    setEditEnv(item.environment || 'production');
     setEditIsEnabled(item.isEnabled);
     setModalTab('credentials');
   };
@@ -464,7 +464,7 @@ export const IntegrationsPage: React.FC = () => {
 
                 {/* Features Bullet List */}
                 <div className="space-y-1 mb-4">
-                  {item.features.map((f, idx) => (
+                  {item.features?.map((f, idx) => (
                     <div key={idx} className="flex items-center gap-1.5 text-[11px] text-slate-300">
                       <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
                       <span>{f}</span>

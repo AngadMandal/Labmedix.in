@@ -1,0 +1,2 @@
+src/pages/settings/SettingsPage.tsx(1783,12): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/pages/settings/SettingsPage.tsx(1807,1): error TS1128: Declaration or statement expected.

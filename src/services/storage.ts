@@ -467,8 +467,34 @@ export class StorageService {
       ApiSyncService.syncKeyToFirestore(key, value).catch(() => { });
     }
 
-    // 8. Trigger Live Backup to Google Drive if configured
+    // 8. Broadcast update event locally to all listening React components
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
+    }
+
+    // 9. Trigger Live Backup to Google Drive if configured
     GoogleDriveService.triggerAutoBackup();
+  }
+
+  /**
+   * Public Helper: Update in-memory cache and localStorage immediately when real-time cloud data arrives,
+   * bypassing stale reads and notifying all React components instantly.
+   */
+  public static updateCacheAndNotify(key: string, value: any): void {
+    if (!key || value === undefined) return;
+    if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) return;
+
+    StorageService.memoryCache.set(key, value);
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch { }
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+    } catch { }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
+    }
   }
 
   /* ── PUBLIC: Read with multi-layer fallback ── */
@@ -663,6 +689,11 @@ export class StorageService {
 
   /* ── PUBLIC: Initialize and start background persistence engine ── */
   public static initPersistentEngine(): void {
+    if (typeof window !== 'undefined') {
+      (window as any).__labmedix_mem_cache = StorageService.memoryCache;
+      (window as any).__labmedix_update_cache = StorageService.updateCacheAndNotify;
+    }
+
     if (StorageService.isInitialized || typeof window === 'undefined') return;
     StorageService.isInitialized = true;
 
@@ -698,14 +729,7 @@ export class StorageService {
     // 4. Real-Time Cloud Firestore Listener Subscription (Instant second-by-second pushes across all devices)
     try {
       ApiSyncService.subscribeToAll((key, val) => {
-        if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) return;
-        const currentValStr = localStorage.getItem(key);
-        const newValStr = JSON.stringify(val);
-        if (currentValStr !== newValStr) {
-          StorageService.memoryCache.set(key, val);
-          try { localStorage.setItem(key, newValStr); } catch { }
-          window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: val } }));
-        }
+        StorageService.updateCacheAndNotify(key, val);
       });
     } catch (e) {
       console.warn('[LABMEDIX] Realtime Firestore subscribe notice:', e);
@@ -770,10 +794,8 @@ export class StorageService {
       cloudUsersCount = cloudUsers.length;
 
       const syncEntity = <T>(cloudItems: T[], key: string) => {
-        if (Array.isArray(cloudItems)) {
-          StorageService.memoryCache.set(key, cloudItems);
-          try { localStorage.setItem(key, JSON.stringify(cloudItems)); } catch { }
-          window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: cloudItems } }));
+        if (Array.isArray(cloudItems) && cloudItems.length > 0) {
+          StorageService.updateCacheAndNotify(key, cloudItems);
         }
       };
 
@@ -797,9 +819,7 @@ export class StorageService {
       syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
       syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
       if (cloudCompany && cloudCompany.name) {
-        StorageService.memoryCache.set(STORAGE_KEYS.COMPANY_PROFILE, cloudCompany);
-        try { localStorage.setItem(STORAGE_KEYS.COMPANY_PROFILE, JSON.stringify(cloudCompany)); } catch {}
-        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.COMPANY_PROFILE, value: cloudCompany } }));
+        StorageService.updateCacheAndNotify(STORAGE_KEYS.COMPANY_PROFILE, cloudCompany);
       } else {
         // Cloud company profile not set, seed DEFAULT_COMPANY_PROFILE
         ApiSyncService.syncKeyToFirestore('labmedix_company_profile_v1', DEFAULT_COMPANY_PROFILE).catch(() => {});

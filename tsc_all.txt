@@ -1,0 +1,6 @@
+src/pages/settings/SettingsPage.tsx(1805,1): error TS1005: ')' expected.
+src/pages/settings/SettingsPage.tsx(1806,1): error TS1109: Expression expected.
+src/pages/settings/SettingsPage.tsx(1807,1): error TS1109: Expression expected.
+src/pages/settings/SettingsPage.tsx(1808,1): error TS1109: Expression expected.
+src/pages/settings/SettingsPage.tsx(1809,3): error TS1109: Expression expected.
+src/pages/settings/SettingsPage.tsx(1810,1): error TS1128: Declaration or statement expected.

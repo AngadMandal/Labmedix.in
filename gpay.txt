@@ -1,0 +1,169 @@
+1423: 0 | {activeTab === 'gpay_merchant' && (
+1424: 1 | <div className="space-y-6">
+1425: 1 | {/* Header Banner */}
+1426: 2 | <div className="p-5 rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 border-2 border-blue-500/50 text-white shadow-xl space-y-3">
+1427: 3 | <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+1428: 4 | <div className="flex items-center gap-3">
+1429: 5 | <div className="w-12 h-12 rounded-2xl bg-white p-2 flex items-center justify-center font-black shadow-lg border border-slate-200">
+1430: 6 | <div className="w-full h-full rounded-xl bg-gradient-to-r from-blue-500 via-green-500 to-yellow-500 flex items-center justify-center text-white font-black text-xs font-mono">
+1431: 6 | GPay
+1432: 5 | </div>
+1433: 4 | </div>
+1434: 5 | <div>
+1435: 6 | <div className="flex items-center gap-2">
+1436: 6 | <h3 className="text-base font-black tracking-tight text-white flex items-center gap-2">
+1437: 6 | Google Pay Merchant & UPI Gateway Setup
+1438: 6 | </h3>
+1439: 6 | <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/40">
+1440: 6 | NPCI UPI 2.0
+1441: 6 | </span>
+1442: 5 | </div>
+1443: 5 | <p className="text-xs text-slate-300">
+1444: 5 | Directly connects to Google Pay for Business, PhonePe, Paytm & BHIM UPI for zero-friction scannable payment QR and instant wallet recharges.
+1445: 5 | </p>
+1446: 4 | </div>
+1447: 3 | </div>
+1448: 3 | 
+1449: 4 | <div className="flex items-center gap-2">
+1450: 4 | <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold font-mono border ${
+1451: 4 | upiEnabled
+1452: 4 | ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+1453: 4 | : 'bg-slate-800 text-slate-400 border-slate-700'
+1454: 4 | }`}>
+1455: 4 | {upiEnabled ? '● UPI QR ACTIVE' : '○ DISABLED'}
+1456: 4 | </span>
+1457: 3 | </div>
+1458: 2 | </div>
+1459: 2 | 
+1460: 2 | {/* Status Toggle Switcher */}
+1461: 3 | <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-blue-900/60 text-xs">
+1462: 4 | <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/80 border border-blue-900/40">
+1463: 5 | <div>
+1464: 5 | <strong className="block text-slate-200 font-bold">UPI QR Engine Status</strong>
+1465: 5 | <span className="text-[11px] text-slate-400">Enable live scannable QR codes across website & application</span>
+1466: 4 | </div>
+1467: 4 | <button
+1468: 4 | type="button"
+1469: 4 | onClick={() => setUpiEnabled(!upiEnabled)}
+1470: 4 | className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+1471: 4 | upiEnabled ? 'bg-emerald-500' : 'bg-slate-700'
+1472: 4 | }`}
+1473: 4 | >
+1474: 5 | <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+1475: 5 | upiEnabled ? 'translate-x-6' : 'translate-x-0'
+1476: 5 | }`} />
+1477: 5 | </button>
+1478: 4 | </div>
+1479: 4 | 
+1480: 5 | <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/80 border border-blue-900/40">
+1481: 6 | <div>
+1482: 6 | <strong className="block text-slate-200 font-bold">1-Tap App Deep Links</strong>
+1483: 6 | <span className="text-[11px] text-slate-400">Allow instant launch of GPay/PhonePe on mobile</span>
+1484: 5 | </div>
+1485: 5 | <button
+1486: 5 | type="button"
+1487: 5 | onClick={() => setUpiDeepLinks(!upiDeepLinks)}
+1488: 5 | className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+1489: 5 | upiDeepLinks ? 'bg-blue-500' : 'bg-slate-700'
+1490: 5 | }`}
+1491: 5 | >
+1492: 6 | <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+1493: 6 | upiDeepLinks ? 'translate-x-6' : 'translate-x-0'
+1494: 6 | }`} />
+1495: 6 | </button>
+1496: 5 | </div>
+1497: 4 | </div>
+1498: 3 | </div>
+1499: 3 | 
+1500: 3 | {/* Configuration Inputs */}
+1501: 4 | <div className="space-y-4">
+1502: 5 | <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+1503: 5 | <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+1504: 5 | <CreditCard className="w-4 h-4 text-blue-500" />
+1505: 5 | Merchant Account VPA & Business Identification
+1506: 5 | </h4>
+1507: 5 | <span className="text-[11px] text-slate-400 font-mono">Live In Production</span>
+1508: 4 | </div>
+1509: 4 | 
+1510: 5 | <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+1511: 6 | <div>
+1512: 6 | <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+1513: 6 | 1. Merchant VPA (UPI ID): <span className="text-rose-500">*</span>
+1514: 6 | </label>
+1515: 6 | <input
+1516: 6 | type="text"
+1517: 6 | required
+1518: 6 | value={upiVpa}
+1519: 6 | onChange={(e) => setUpiVpa(e.target.value)}
+1520: 6 | placeholder="e.g. labmedix.health@icici or hospital@okhdfcbank"
+1521: 6 | className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+1522: 6 | />
+1523: 6 | <span className="text-[10px] text-slate-500 block mt-1">This VPA will be encoded into all dynamic QR codes generated for card payments.</span>
+1524: 5 | </div>
+1525: 5 | 
+1526: 6 | <div>
+1527: 6 | <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+1528: 6 | 2. Merchant Business Name: <span className="text-rose-500">*</span>
+1529: 6 | </label>
+1530: 6 | <input
+1531: 6 | type="text"
+1532: 6 | required
+1533: 6 | value={upiMerchantName}
+1534: 6 | onChange={(e) => setUpiMerchantName(e.target.value)}
+1535: 6 | placeholder="e.g. LABMEDIX MULTI-SPECIALITY CENTRE"
+1536: 6 | className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+1537: 6 | />
+1538: 6 | <span className="text-[10px] text-slate-500 block mt-1">Appears on the patient's Google Pay / PhonePe / Paytm payment screen.</span>
+1539: 5 | </div>
+1540: 5 | 
+1541: 6 | <div>
+1542: 6 | <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+1543: 6 | 3. Google Pay Merchant ID (Optional):
+1544: 6 | </label>
+1545: 6 | <input
+1546: 6 | type="text"
+1547: 6 | value={gpayMerchantId}
+1548: 6 | onChange={(e) => setGpayMerchantId(e.target.value)}
+1549: 6 | placeholder="e.g. GPAY-LMDX-8829-LIVE"
+1550: 6 | className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+1551: 6 | />
+1552: 5 | </div>
+1553: 5 | 
+1554: 6 | <div>
+1555: 6 | <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+1556: 6 | 4. Merchant Category Code (MCC):
+1557: 6 | </label>
+1558: 6 | <input
+1559: 6 | type="text"
+1560: 6 | value={upiMcc}
+1561: 6 | onChange={(e) => setUpiMcc(e.target.value)}
+1562: 6 | placeholder="8099 (Medical Services & Hospitals)"
+1563: 6 | className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+1564: 6 | />
+1565: 5 | </div>
+1566: 4 | </div>
+1567: 3 | </div>
+1568: 3 | 
+1569: 3 | {/* Live Diagnostic Simulator of Generated Scannable QR Code */}
+1570: 4 | <div className="space-y-3 pt-2">
+1571: 5 | <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+1572: 5 | <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+1573: 5 | <QrCode className="w-4 h-4 text-emerald-500" />
+1574: 5 | Live Scannable QR Code Simulator (Test with Phone)
+1575: 5 | </h4>
+1576: 5 | <span className="text-[10px] text-emerald-500 font-bold font-mono">Real Level-H QR Ready</span>
+1577: 4 | </div>
+1578: 4 | 
+1579: 4 | <GooglePayMerchantQR
+1580: 4 | amount={1499}
+1581: 4 | referenceNo="LMDX-LIVE-TEST-01"
+1582: 4 | note="Test Health Card Payment"
+1583: 4 | merchantVpa={upiVpa}
+1584: 4 | merchantName={upiMerchantName}
+1585: 4 | merchantMcc={upiMcc}
+1586: 4 | />
+1587: 3 | </div>
+1588: 2 | </div>
+1589: 2 | )}
+1590: 2 | 
+1591: 2 | 

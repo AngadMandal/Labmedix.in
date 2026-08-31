@@ -167,6 +167,7 @@ export const SettingsPage: React.FC = () => {
   // Live 3D Preview State
   const [isFlipped, setIsFlipped] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Logo file upload handler
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,8 +375,6 @@ export const SettingsPage: React.FC = () => {
     setIsSaving(true);
     const now = new Date().toISOString();
     const operator = currentUser?.fullName || 'Super Administrator';
-
-    };
 
     const updatedNfcConfig: NFCSettings = {
       enabled: nfcEnabled,
@@ -1779,8 +1778,6 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-          )}
 
       <AddressAutoPopupModal
         isOpen={isAddressModalOpen}
@@ -1802,6 +1799,7 @@ export const SettingsPage: React.FC = () => {
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
       />
-    </div>
+</div>
+</div>
   );
 };

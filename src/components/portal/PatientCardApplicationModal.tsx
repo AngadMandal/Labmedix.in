@@ -39,7 +39,7 @@ export const PatientCardApplicationModal: React.FC<PatientCardApplicationModalPr
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Patient Health Card Application" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Patient Health Card Application" maxWidth="xl">
       <div className="p-4 space-y-4">
         {step === 1 && (
           <div className="space-y-4">

@@ -124,15 +124,19 @@ export class ApiSyncService {
 
   private static checkQuotaError(error: unknown): boolean {
     const errStr = String(error || '').toLowerCase();
-    if (errStr.includes('resource-exhausted') || errStr.includes('quota exceeded') || errStr.includes('quota') || errStr.includes('maximum backoff')) {
+    // Only detect hard resource exhaustion, avoiding false positives on standard warnings
+    if (errStr.includes('resource-exhausted') || errStr.includes('quota exceeded') || errStr.includes('maximum backoff')) {
       if (!this.quotaExceeded) {
         this.quotaExceeded = true;
-        console.warn('[ApiSync] Firestore quota exhausted. Operating in high-performance local storage mode.');
-        // Cleanup all active unsubscribers immediately
+        console.warn('[ApiSync] Firestore resource limits reached. Switching to local persistence mode with automatic reconnect in 30s.');
         this.activeUnsubscribers.forEach(u => {
           try { u(); } catch {}
         });
         this.activeUnsubscribers = [];
+        setTimeout(() => {
+          this.quotaExceeded = false;
+          this.subscribeToAll();
+        }, 30000);
       }
       return true;
     }
@@ -156,7 +160,7 @@ export class ApiSyncService {
       this.checkQuotaError(error);
       this.syncErrors++;
       if (!this.quotaExceeded) {
-        console.warn(`[ApiSync] Fallback for fetching ${collectionName} from local storage:`, error);
+        console.warn(`[ApiSync] Fetch collection notice on ${collectionName}:`, error);
       }
       return [];
     }
@@ -290,8 +294,13 @@ export class ApiSyncService {
         for (const [key, conf] of Object.entries(this.KEY_TO_FIRESTORE_MAP)) {
           if (conf.type === 'collection' && conf.path === collectionName) {
             try {
-              localStorage.setItem(key, JSON.stringify(items));
-              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: items } }));
+              if (typeof window !== 'undefined' && (window as any).__labmedix_update_cache) {
+                (window as any).__labmedix_update_cache(key, items);
+              } else {
+                localStorage.setItem(key, JSON.stringify(items));
+                sessionStorage.setItem(key, JSON.stringify(items));
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: items } }));
+              }
             } catch {}
             break;
           }
@@ -532,9 +541,13 @@ export class ApiSyncService {
 
             // Automatically persist to memory cache and localStorage, and notify UI via custom event
             try {
-              // Avoid circular overwrite if data is identical or being edited
-              localStorage.setItem(key, JSON.stringify(items));
-              window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: items } }));
+              if (typeof window !== 'undefined' && (window as any).__labmedix_update_cache) {
+                (window as any).__labmedix_update_cache(key, items);
+              } else {
+                localStorage.setItem(key, JSON.stringify(items));
+                sessionStorage.setItem(key, JSON.stringify(items));
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: items } }));
+              }
             } catch (err) {
               console.warn(`[ApiSync] Failed local persist for ${key}:`, err);
             }
@@ -568,8 +581,13 @@ export class ApiSyncService {
               const data = docSnap.data();
 
               try {
-                localStorage.setItem(key, JSON.stringify(data));
-                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: data } }));
+                if (typeof window !== 'undefined' && (window as any).__labmedix_update_cache) {
+                  (window as any).__labmedix_update_cache(key, data);
+                } else {
+                  localStorage.setItem(key, JSON.stringify(data));
+                  sessionStorage.setItem(key, JSON.stringify(data));
+                  window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value: data } }));
+                }
               } catch (err) {
                 console.warn(`[ApiSync] Failed local persist for doc ${key}:`, err);
               }

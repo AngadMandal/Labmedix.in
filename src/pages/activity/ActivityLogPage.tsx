@@ -72,6 +72,8 @@ export const ActivityLogPage: React.FC = () => {
     details: string;
   } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isExportingCert, setIsExportingCert] = useState(false);
+  const [exportingCsvType, setExportingCsvType] = useState<'filtered' | 'full' | null>(null);
 
   const refreshLogs = () => {
     setLogs(StorageService.getAuditLogs());
@@ -94,37 +96,56 @@ export const ActivityLogPage: React.FC = () => {
   };
 
   // Export Compliance Certificate
-  const handleExportCertificate = () => {
-    AuditService.exportAuditCertificate();
-    triggerCelebrationFireworks();
-    showToast('success', 'Audit Certificate Generated', 'Downloaded ISO/NABH compliant cryptographic certificate.');
+  const handleExportCertificate = async () => {
+    setIsExportingCert(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 80));
+      AuditService.exportAuditCertificate();
+      triggerCelebrationFireworks();
+      showToast('success', 'Audit Certificate Generated', 'Downloaded ISO/NABH compliant cryptographic certificate.');
+    } catch (error) {
+      console.error('Certificate error:', error);
+      showToast('error', 'Export Failed', 'Could not generate audit certificate.');
+    } finally {
+      setIsExportingCert(false);
+    }
   };
 
   // Export CSV
-  const handleExportCsv = (data: AuditLog[], filename: string) => {
-    const headers = ['Block #', 'Timestamp', 'Severity', 'Module', 'Action', 'Actor Name', 'Actor Role', 'Reference ID', 'Block Hash', 'Description'];
-    const rows = data.map(l => [
-      String(l.index || ''),
-      `"${l.timestamp}"`,
-      l.severity || 'info',
-      l.module,
-      `"${l.action}"`,
-      `"${l.userName}"`,
-      `"${l.userRole || 'USER'}"`,
-      `"${l.referenceId || ''}"`,
-      `"${l.hash || ''}"`,
-      `"${l.description.replace(/"/g, '""')}"`
-    ]);
+  const handleExportCsv = async (data: AuditLog[], filename: string, type: 'filtered' | 'full') => {
+    setExportingCsvType(type);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 80));
+      const headers = ['Block #', 'Timestamp', 'Severity', 'Module', 'Action', 'Actor Name', 'Actor Role', 'Reference ID', 'Block Hash', 'Description'];
+      const rows = data.map(l => [
+        String(l.index || ''),
+        `"${l.timestamp}"`,
+        l.severity || 'info',
+        l.module,
+        `"${l.action}"`,
+        `"${l.userName}"`,
+        `"${l.userRole || 'USER'}"`,
+        `"${l.referenceId || ''}"`,
+        `"${l.hash || ''}"`,
+        `"${l.description.replace(/"/g, '""')}"`
+      ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast('success', 'Audit CSV Exported', `Downloaded ${data.length} audit records.`);
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      triggerCelebrationFireworks();
+      showToast('success', 'Audit CSV Exported!', `Downloaded ${data.length} audit records.`);
+    } catch (error) {
+      console.error('CSV export error:', error);
+      showToast('error', 'Export Failed', 'Could not export audit CSV.');
+    } finally {
+      setExportingCsvType(null);
+    }
   };
 
   // Filtered dataset
@@ -294,24 +315,30 @@ export const ActivityLogPage: React.FC = () => {
             variant="secondary"
             leftIcon={<FileCode className="w-4 h-4 text-purple-400" />}
             onClick={handleExportCertificate}
+            isLoading={isExportingCert}
+            disabled={isVerifying || !!exportingCsvType}
           >
-            Audit Certificate
+            {isExportingCert ? 'Generating...' : 'Audit Certificate'}
           </Button>
 
           <Button
             variant="primary"
             leftIcon={<Download className="w-4 h-4" />}
-            onClick={() => handleExportCsv(filteredLogs, `LABMEDIX_AUDIT_FILTERED_${new Date().toISOString().slice(0, 10)}.csv`)}
+            onClick={() => handleExportCsv(filteredLogs, `LABMEDIX_AUDIT_FILTERED_${new Date().toISOString().slice(0, 10)}.csv`, 'filtered')}
+            isLoading={exportingCsvType === 'filtered'}
+            disabled={isVerifying || isExportingCert || exportingCsvType === 'full'}
           >
-            Export Filtered CSV
+            {exportingCsvType === 'filtered' ? 'Exporting...' : 'Export Filtered CSV'}
           </Button>
 
           <Button
             variant="primary"
             leftIcon={<Download className="w-4 h-4" />}
-            onClick={() => handleExportCsv(logs, `LABMEDIX_AUDIT_FULL_${new Date().toISOString().slice(0, 10)}.csv`)}
+            onClick={() => handleExportCsv(logs, `LABMEDIX_AUDIT_FULL_${new Date().toISOString().slice(0, 10)}.csv`, 'full')}
+            isLoading={exportingCsvType === 'full'}
+            disabled={isVerifying || isExportingCert || exportingCsvType === 'filtered'}
           >
-            Export Full Audit CSV
+            {exportingCsvType === 'full' ? 'Exporting...' : 'Export Full Audit CSV'}
           </Button>
         </div>
       </div>

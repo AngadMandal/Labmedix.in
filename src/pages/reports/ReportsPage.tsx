@@ -9,7 +9,7 @@ import { RoleBadge } from '../../components/common/RoleBadge';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
-import { ExportService } from '../../services/exportService';
+import { ExportService, AnalyticsPdfExportOptions } from '../../services/exportService';
 import {
   BarChart3,
   TrendingUp,
@@ -47,7 +47,8 @@ import {
   FlaskConical,
   Pill,
   Send,
-  FileText
+  FileText,
+  FileType
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -359,53 +360,144 @@ export const ReportsPage: React.FC = () => {
     }).sort((a, b) => b.registeredCount - a.registeredCount);
   }, [users, patients, auditLogs, branchMultiplier]);
 
-  // Export Comprehensive Multi-Sheet CSV
-  const handleExportCsv = () => {
-    const selectedBranchObj = BRANCHES.find(b => b.id === selectedBranch) || BRANCHES[0];
-    const timestamp = new Date().toISOString().slice(0, 10);
-
-    const headers = ['Executive Category', 'Operational Metric / Indicator', 'Current Value', 'Branch Scope', 'Timestamp'];
-    const rows = [
-      ['Branch Scope', 'Active Facility Branch', selectedBranchObj.name, selectedBranchObj.code, timestamp],
-      ['Branch Scope', 'Hospital Bed Occupancy Rate', `${selectedBranchObj.occupancyRate}%`, selectedBranchObj.code, timestamp],
-      ['Patient Volume', 'Total Registered Patients', activePatientsCount, selectedBranchObj.code, timestamp],
-      ['Card Operations', 'Active CR80 Health Cards', activeCardCount, selectedBranchObj.code, timestamp],
-      ['Financials', 'Card Membership Fee Revenue', formatCurrency(totalRegistrationRevenue), selectedBranchObj.code, timestamp],
-      ['Financials', 'Prepaid Patient Float Reserve', formatCurrency(totalWalletFloat), selectedBranchObj.code, timestamp],
-      ['Financials', 'Total Prepaid Wallet Deposits', formatCurrency(totalWalletDeposits), selectedBranchObj.code, timestamp],
-      ['Financials', 'Total OPD & Lab Billing Deductions', formatCurrency(totalBillingDeductions), selectedBranchObj.code, timestamp],
-      ['Compliance', 'Cryptographic Audit Trail Actions', auditLogs.length, selectedBranchObj.code, timestamp]
+  // Department Collections Data calculated dynamically
+  const deptCollectionsData = useMemo(() => {
+    return [
+      { label: 'Pathology & Molecular Lab', gross: Math.round(245000 * branchMultiplier), disc: Math.round(49000 * branchMultiplier), net: Math.round(196000 * branchMultiplier), count: Math.round(184 * branchMultiplier) },
+      { label: 'OPD Doctor Consultations', gross: Math.round(182000 * branchMultiplier), disc: Math.round(36400 * branchMultiplier), net: Math.round(145600 * branchMultiplier), count: Math.round(142 * branchMultiplier) },
+      { label: 'Pharmacy & Dispensary', gross: Math.round(124000 * branchMultiplier), disc: Math.round(18600 * branchMultiplier), net: Math.round(105400 * branchMultiplier), count: Math.round(210 * branchMultiplier) },
+      { label: 'Daycare OT & Procedures', gross: Math.round(95000 * branchMultiplier), disc: Math.round(14250 * branchMultiplier), net: Math.round(80750 * branchMultiplier), count: Math.round(32 * branchMultiplier) },
+      { label: 'Health Card Subscriptions', gross: Math.round(112000 * branchMultiplier), disc: Math.round(11200 * branchMultiplier), net: Math.round(100800 * branchMultiplier), count: Math.round(98 * branchMultiplier) }
     ];
+  }, [branchMultiplier]);
 
-    const staffHeaders = ['', '', '', '', ''];
-    const staffTitle = ['--- STAFF PRODUCTIVITY MATRIX ---', '', '', '', ''];
-    const staffSubHeaders = ['Staff Name', 'Assigned Role', 'Patients Registered', 'Cards Printed', 'Accuracy Score'];
-    const staffRows = staffProductivityData.map(s => [
-      `"${s.user.fullName}"`,
-      s.user.role,
-      s.registeredCount,
-      s.cardsPrinted,
-      `${s.accuracyScore}%`
-    ]);
+  // Export Modal & Execution States
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'csv'>('pdf');
+  const [exportScope, setExportScope] = useState<AnalyticsPdfExportOptions['scope']>('all');
+  const [exportingTarget, setExportingTarget] = useState<{ format: 'pdf' | 'csv'; scope: string } | null>(null);
 
-    const csvLines = [
-      headers.join(','),
-      ...rows.map(r => r.join(',')),
-      staffHeaders.join(','),
-      staffTitle.join(','),
-      staffSubHeaders.join(','),
-      ...staffRows.map(r => r.join(','))
-    ].join('\n');
+  const isExporting = exportingTarget !== null;
+  const isTargetExporting = (format: 'pdf' | 'csv', scope?: string) => {
+    if (!exportingTarget) return false;
+    if (exportingTarget.format !== format) return false;
+    if (scope && exportingTarget.scope !== scope) return false;
+    return true;
+  };
 
-    const blob = new Blob([csvLines], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `LABMEDIX_EXECUTIVE_AUDIT_${selectedBranchObj.code}_${timestamp}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    triggerCelebrationFireworks();
-    showToast('success', 'Executive Report Exported', `Downloaded financial & operational CSV for ${selectedBranchObj.name}.`);
+  const getExportPayload = (targetScope: AnalyticsPdfExportOptions['scope'] = exportScope): AnalyticsPdfExportOptions => {
+    const selectedBranchObj = BRANCHES.find(b => b.id === selectedBranch) || BRANCHES[0];
+    return {
+      scope: targetScope,
+      branchName: selectedBranchObj.name,
+      branchCode: selectedBranchObj.code,
+      timeRange: timeRange,
+      operatorName: currentUser?.fullName || 'Senior Administrative Auditor',
+      operatorRole: currentUser?.role || 'Super Admin',
+      companyName: company?.name || 'LABMEDIX HEALTHCARE NETWORK',
+      companySubtitle: (company as any)?.subtitle || 'Advanced Clinical Diagnostics & Patient Health Card Management System',
+      companyRegistrationNo: company?.registrationNo || 'WB-MED-2025-0892',
+      kpis: {
+        totalRegistrationRevenue,
+        totalWalletFloat,
+        totalWalletDeposits,
+        totalBillingDeductions,
+        activeCardCount,
+        activePatientsCount
+      },
+      deptCollections: deptCollectionsData,
+      staffProductivity: staffProductivityData.map(s => ({
+        fullName: s.user.fullName,
+        staffId: s.user.staffId,
+        role: s.user.role,
+        registeredCount: s.registeredCount,
+        cardsPrinted: s.cardsPrinted,
+        avgProcessMinutes: s.avgProcessMinutes,
+        accuracyScore: s.accuracyScore,
+        rankBadge: s.rankBadge
+      })),
+      doctorReferrals: doctors.map(d => ({
+        name: d.name,
+        doctorCode: d.doctorCode,
+        speciality: d.speciality,
+        totalTestsReferredCount: d.totalTestsReferredCount,
+        totalReferredLabRevenue: d.totalReferredLabRevenue,
+        bloodCommissionPercent: d.bloodCommissionPercent,
+        totalCommissionEarned: d.totalCommissionEarned,
+        totalCommissionPaid: d.totalCommissionPaid,
+        payableCommissionBalance: d.payableCommissionBalance
+      })),
+      velocityTrend: registrationVelocityData,
+      auditTrail: auditLogs.slice(0, 20).map(a => ({
+        action: a.action,
+        module: a.module,
+        description: a.description,
+        userName: a.userName,
+        timestamp: a.timestamp,
+        hash: a.hash
+      })),
+      myReportData: currentUser ? {
+        userName: currentUser.fullName,
+        staffId: currentUser.staffId || 'STF-001',
+        role: currentUser.role,
+        department: currentUser.department || 'General',
+        patientsCount: myPatients.length,
+        auditActionsCount: myAuditLogs.length,
+        colleaguesCount: myDepartmentUsers.length
+      } : undefined
+    };
+  };
+
+  // Export Comprehensive PDF Document using jsPDF
+  const handleExportPdf = async (targetScope: AnalyticsPdfExportOptions['scope'] = exportScope) => {
+    setExportingTarget({ format: 'pdf', scope: targetScope });
+    try {
+      // Small pause to allow React to paint the loading spinner
+      await new Promise(resolve => setTimeout(resolve, 60));
+      const payload = getExportPayload(targetScope);
+      await ExportService.exportAnalyticsReportToPdf(payload);
+      triggerCelebrationFireworks();
+      const scopeLabel = targetScope === 'all' 
+        ? 'Consolidated Master Executive' 
+        : targetScope.replace(/_/g, ' ').toUpperCase();
+      showToast(
+        'success',
+        'PDF Export Succeeded!',
+        `Successfully generated and downloaded ${scopeLabel} PDF report for ${payload.branchName}.`
+      );
+      setIsExportModalOpen(false);
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      showToast('error', 'Export Failed', 'Could not generate PDF report. Please try again.');
+    } finally {
+      setExportingTarget(null);
+    }
+  };
+
+  // Export Comprehensive Multi-Sheet CSV
+  const handleExportCsv = async (targetScope: AnalyticsPdfExportOptions['scope'] = exportScope) => {
+    setExportingTarget({ format: 'csv', scope: targetScope });
+    try {
+      // Small pause to allow React to paint the loading spinner
+      await new Promise(resolve => setTimeout(resolve, 80));
+      const payload = getExportPayload(targetScope);
+      ExportService.exportAnalyticsToCsv(payload);
+      triggerCelebrationFireworks();
+      const scopeLabel = targetScope === 'all' 
+        ? 'Consolidated Master' 
+        : targetScope.replace(/_/g, ' ').toUpperCase();
+      showToast(
+        'success',
+        'CSV Export Succeeded!',
+        `Successfully exported ${scopeLabel} CSV spreadsheet for ${payload.branchName}.`
+      );
+      setIsExportModalOpen(false);
+    } catch (error) {
+      console.error('Export CSV error:', error);
+      showToast('error', 'Export Failed', 'Could not generate CSV spreadsheet.');
+    } finally {
+      setExportingTarget(null);
+    }
   };
 
   const handlePrintReport = () => {
@@ -460,21 +552,55 @@ export const ReportsPage: React.FC = () => {
             </Button>
 
             <Button
-              variant="secondary"
+              variant="primary"
               size="sm"
-              leftIcon={<FileSpreadsheet className="w-4 h-4 text-emerald-400" />}
-              onClick={handleExportCsv}
+              leftIcon={
+                isTargetExporting('pdf', activeViewTab === 'overview' ? 'all' : activeViewTab) ? (
+                  <RefreshCw className="w-4 h-4 text-teal-200 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4 text-teal-200" />
+                )
+              }
+              onClick={() => handleExportPdf(activeViewTab === 'overview' ? 'all' : activeViewTab)}
+              disabled={isExporting}
+              className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-md"
             >
-              Export CSV
+              {isTargetExporting('pdf', activeViewTab === 'overview' ? 'all' : activeViewTab) ? 'Generating PDF...' : 'Export PDF'}
             </Button>
 
             <Button
-              variant="primary"
+              variant="secondary"
+              size="sm"
+              leftIcon={
+                isTargetExporting('csv', activeViewTab === 'overview' ? 'all' : activeViewTab) ? (
+                  <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                )
+              }
+              onClick={() => handleExportCsv(activeViewTab === 'overview' ? 'all' : activeViewTab)}
+              disabled={isExporting}
+            >
+              {isTargetExporting('csv', activeViewTab === 'overview' ? 'all' : activeViewTab) ? 'Exporting CSV...' : 'Export CSV'}
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => setIsExportModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/80 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Sliders className="w-3.5 h-3.5 text-purple-400" />
+              <span>Export Options</span>
+            </button>
+
+            <Button
+              variant="outline"
               size="sm"
               leftIcon={<Printer className="w-4 h-4" />}
               onClick={handlePrintReport}
+              className="bg-slate-800/60 border-slate-700 text-slate-300 hover:bg-slate-700"
             >
-              Print Executive Report
+              Print
             </Button>
           </div>
         </div>
@@ -821,8 +947,33 @@ export const ReportsPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-mono">Scope: {activeBranchData.code}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExportPdf('velocity')}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTargetExporting('pdf', 'velocity') ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isTargetExporting('pdf', 'velocity') ? 'Generating PDF...' : 'Export Velocity (PDF)'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportCsv('velocity')}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTargetExporting('csv', 'velocity') ? (
+                    <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                  <span>{isTargetExporting('csv', 'velocity') ? 'Exporting CSV...' : 'Export Velocity (CSV)'}</span>
+                </button>
               </div>
             </div>
 
@@ -851,6 +1002,46 @@ export const ReportsPage: React.FC = () => {
       {/* ================= TAB 3: PREPAID FLOAT LEDGER ================= */}
       {activeViewTab === 'wallet_float' && (
         <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                Prepaid Patient Float Reserve & Escrow Movement Ledger
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Real-time tracking of patient float recharge deposits, test redemptions, and active vault liquidity balance.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleExportPdf('wallet_float')}
+                disabled={isExporting}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('pdf', 'wallet_float') ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5" />
+                )}
+                <span>{isTargetExporting('pdf', 'wallet_float') ? 'Generating PDF...' : 'Export Float (PDF)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportCsv('wallet_float')}
+                disabled={isExporting}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('csv', 'wallet_float') ? (
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                )}
+                <span>{isTargetExporting('csv', 'wallet_float') ? 'Exporting CSV...' : 'Export Float (CSV)'}</span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Deposits Collected</span>
@@ -923,7 +1114,7 @@ export const ReportsPage: React.FC = () => {
       {activeViewTab === 'staff_productivity' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Crown className="w-5 h-5 text-amber-500" />
@@ -934,9 +1125,34 @@ export const ReportsPage: React.FC = () => {
                 </p>
               </div>
 
-              <span className="px-3 py-1 rounded-xl text-xs font-mono font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200">
-                {users.length} Healthcare Staff Tracked
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExportPdf('staff_productivity')}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTargetExporting('pdf', 'staff_productivity') ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isTargetExporting('pdf', 'staff_productivity') ? 'Generating PDF...' : 'Export Staff Matrix (PDF)'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportCsv('staff_productivity')}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTargetExporting('csv', 'staff_productivity') ? (
+                    <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                  <span>{isTargetExporting('csv', 'staff_productivity') ? 'Exporting CSV...' : 'Export Staff Matrix (CSV)'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1018,7 +1234,7 @@ export const ReportsPage: React.FC = () => {
       {activeViewTab === 'audit_ledger' && (
         <div className="space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-purple-600" />
@@ -1029,9 +1245,34 @@ export const ReportsPage: React.FC = () => {
                 </p>
               </div>
 
-              <span className="text-xs font-mono font-bold text-emerald-500 flex items-center gap-1">
-                🔒 SHA-256 HASH VERIFIED
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExportPdf('audit_ledger')}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTargetExporting('pdf', 'audit_ledger') ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isTargetExporting('pdf', 'audit_ledger') ? 'Generating PDF...' : 'Export Audit (PDF)'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportCsv('audit_ledger')}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTargetExporting('csv', 'audit_ledger') ? (
+                    <RefreshCw className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                  <span>{isTargetExporting('csv', 'audit_ledger') ? 'Exporting CSV...' : 'Export Audit (CSV)'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -1081,29 +1322,43 @@ export const ReportsPage: React.FC = () => {
                 Real-time collection audit across Pathology, OPD Consultations, Pharmacy, Daycare OT, and Health Card Subscriptions.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              <span>Export Dept Report (CSV)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleExportPdf('dept_collections')}
+                disabled={isExporting}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('pdf', 'dept_collections') ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                <span>{isTargetExporting('pdf', 'dept_collections') ? 'Generating PDF...' : 'Export Dept (PDF)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportCsv('dept_collections')}
+                disabled={isExporting}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('csv', 'dept_collections') ? (
+                  <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>{isTargetExporting('csv', 'dept_collections') ? 'Exporting CSV...' : 'Export Dept (CSV)'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Department Metrics Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {[
-              { label: 'Pathology & Molecular Lab', gross: 245000, disc: 49000, net: 196000, count: 184, icon: FlaskConical, color: 'from-purple-600 to-indigo-600' },
-              { label: 'OPD Doctor Consultations', gross: 182000, disc: 36400, net: 145600, count: 142, icon: Stethoscope, color: 'from-teal-600 to-emerald-600' },
-              { label: 'Pharmacy & Dispensary', gross: 124000, disc: 18600, net: 105400, count: 210, icon: Pill, color: 'from-emerald-600 to-green-600' },
-              { label: 'Daycare OT & Procedures', gross: 95000, disc: 14250, net: 80750, count: 32, icon: Building2, color: 'from-amber-600 to-orange-600' },
-              { label: 'Health Card Subscriptions', gross: 112000, disc: 11200, net: 100800, count: 98, icon: CreditCard, color: 'from-blue-600 to-cyan-600' }
-            ].map((dept, idx) => (
+            {deptCollectionsData.map((dept, idx) => (
               <div key={idx} className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className={`p-2 rounded-xl bg-gradient-to-r ${dept.color} text-white shadow-sm`}>
-                    <dept.icon className="w-4 h-4" />
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm">
+                    <FlaskConical className="w-4 h-4" />
                   </div>
                   <span className="text-[10px] font-mono font-bold text-slate-400">{dept.count} Bills</span>
                 </div>
@@ -1131,13 +1386,12 @@ export const ReportsPage: React.FC = () => {
               <div className="h-72 w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={[
-                      { name: 'Pathology Lab', Gross: 245000, Discount: 49000, Net: 196000 },
-                      { name: 'OPD Consult', Gross: 182000, Discount: 36400, Net: 145600 },
-                      { name: 'Pharmacy', Gross: 124000, Discount: 18600, Net: 105400 },
-                      { name: 'Daycare OT', Gross: 95000, Discount: 14250, Net: 80750 },
-                      { name: 'Health Cards', Gross: 112000, Discount: 11200, Net: 100800 }
-                    ]}
+                    data={deptCollectionsData.map(d => ({
+                      name: d.label.split(' ')[0],
+                      Gross: d.gross,
+                      Discount: d.disc,
+                      Net: d.net
+                    }))}
                     margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
@@ -1202,14 +1456,34 @@ export const ReportsPage: React.FC = () => {
                 Automated tracking of diagnostic test recommendations, referral commissions, revenue attribution, and instant payouts.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              <span>Export Referral Report (CSV)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleExportPdf('doctor_referrals')}
+                disabled={isExporting}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('pdf', 'doctor_referrals') ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                <span>{isTargetExporting('pdf', 'doctor_referrals') ? 'Generating PDF...' : 'Export Referrals (PDF)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportCsv('doctor_referrals')}
+                disabled={isExporting}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('csv', 'doctor_referrals') ? (
+                  <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>{isTargetExporting('csv', 'doctor_referrals') ? 'Exporting CSV...' : 'Export Referrals (CSV)'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Doctor Master Referral Table */}
@@ -1441,7 +1715,7 @@ export const ReportsPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* ================= TAB: MY PERSONAL & DEPT REPORT ================= */}
+      {/* ================= TAB 8: MY PERSONAL & DEPT REPORT ================= */}
       {activeViewTab === 'my_reports' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -1454,22 +1728,41 @@ export const ReportsPage: React.FC = () => {
                 Real-time performance metrics, patient registrations, audit actions, and departmental logs tied to your secure staff ID ({currentUser?.staffId || currentUser?.username || 'ID'}).
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={handleExportMyReportCsv}
-                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
+                onClick={() => handleExportPdf('my_reports')}
+                disabled={isExporting}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
               >
-                <Download className="w-4 h-4" />
-                <span>Export My Report (CSV)</span>
+                {isTargetExporting('pdf', 'my_reports') ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                <span>{isTargetExporting('pdf', 'my_reports') ? 'Generating PDF...' : 'Export My Report (PDF)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportCsv('my_reports')}
+                disabled={isExporting}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+              >
+                {isTargetExporting('csv', 'my_reports') ? (
+                  <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>{isTargetExporting('csv', 'my_reports') ? 'Exporting CSV...' : 'Export My Report (CSV)'}</span>
               </button>
               <button
                 type="button"
                 onClick={handlePrintReport}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
+                disabled={isExporting}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-50"
               >
                 <Printer className="w-4 h-4" />
-                <span>Print My Report</span>
+                <span>Print</span>
               </button>
             </div>
           </div>
@@ -1592,6 +1885,189 @@ export const ReportsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ================= COMPREHENSIVE EXPORT ANALYTICS & AUDIT MODAL ================= */}
+      {isExportModalOpen && (
+        <Modal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          title="📊 Export Analytical Reports & Financial Audit Intelligence"
+          maxWidth="lg"
+        >
+          <div className="space-y-5 text-xs text-slate-700 dark:text-slate-300">
+            <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+              Generate standardized executive reports, financial audits, staff rankings, and commission ledgers formatted for compliance review or analytical spreadsheet processing.
+            </p>
+
+            {/* 1. Format Selection */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-900 dark:text-white uppercase font-mono tracking-wider">
+                1. Select Export Format
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExportFormat('pdf')}
+                  className={`p-4 rounded-2xl border text-left transition-all flex items-start gap-3 ${
+                    exportFormat === 'pdf'
+                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500 shadow-md ring-2 ring-teal-400/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500 shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <strong className="text-slate-900 dark:text-white text-xs block font-bold">
+                      PDF Document (jsPDF Engine)
+                    </strong>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Formatted multi-page A4 executive briefing with corporate headers, KPI grids, styled tables, and auditor sign-off section.
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setExportFormat('csv')}
+                  className={`p-4 rounded-2xl border text-left transition-all flex items-start gap-3 ${
+                    exportFormat === 'csv'
+                      ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500 shadow-md ring-2 ring-teal-400/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <strong className="text-slate-900 dark:text-white text-xs block font-bold">
+                      CSV Data Spreadsheet
+                    </strong>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Raw structured tabular data compatible with Excel, Google Sheets, PowerBI, and accounting ERP import pipelines.
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Report Scope Selection */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-900 dark:text-white uppercase font-mono tracking-wider">
+                2. Report Module & Scope
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: 'all', label: 'Consolidated Master Report', desc: 'All metrics & tables' },
+                  { id: 'dept_collections', label: 'Department Collections', desc: 'Lab, OPD, Pharmacy' },
+                  { id: 'staff_productivity', label: 'Staff Productivity', desc: 'Leaderboard & Accuracy' },
+                  { id: 'doctor_referrals', label: 'Doctor Referrals', desc: 'Commissions & Payouts' },
+                  { id: 'velocity', label: 'Intake Velocity', desc: 'Daily Registration Curves' },
+                  { id: 'wallet_float', label: 'Wallet Float Ledger', desc: 'Deposits & Vault Escrow' },
+                  { id: 'audit_ledger', label: 'Audit Trail Ledger', desc: 'Cryptographic SHA-256' },
+                  { id: 'my_reports', label: 'My Personal Audit', desc: 'Staff Officer Records' }
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setExportScope(s.id as AnalyticsPdfExportOptions['scope'])}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      exportScope === s.id
+                        ? 'bg-teal-500 text-white font-bold border-teal-600 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="block text-[11px] font-bold truncate">{s.label}</span>
+                    <span className={`block text-[9px] truncate ${exportScope === s.id ? 'text-teal-100' : 'text-slate-400'}`}>{s.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Parameter Controls: Branch & Time Filter */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">Target Facility Branch:</label>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value as BranchId)}
+                  className="w-full p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-xs"
+                >
+                  {BRANCHES.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">Time Interval Range:</label>
+                <select
+                  value={timeRange}
+                  onChange={(e) => setTimeRange(e.target.value as 'all' | 'month' | 'year' | 'week' | 'today')}
+                  className="w-full p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-xs"
+                >
+                  <option value="today">Today (Real-time Live Ingestion)</option>
+                  <option value="week">Past 7 Days</option>
+                  <option value="month">Current Month to Date</option>
+                  <option value="year">Full Operational Year</option>
+                  <option value="all">Full History (All Time)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Live Summary Box */}
+            <div className="p-3.5 rounded-2xl bg-slate-900 text-white font-mono text-[11px] space-y-1 border border-slate-800">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Export Scope:</span>
+                <span className="text-teal-400 font-bold uppercase">{exportScope}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Output Engine:</span>
+                <span className="text-amber-400 font-bold">{exportFormat === 'pdf' ? 'jsPDF Vector Document' : 'CSV Structured Sheet'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Auditor Officer:</span>
+                <span className="text-white">{currentUser?.fullName || 'Senior Auditor'}</span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (exportFormat === 'pdf') {
+                    handleExportPdf(exportScope);
+                  } else {
+                    handleExportCsv(exportScope);
+                  }
+                }}
+                disabled={isExporting}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-teal-500/20 disabled:opacity-50"
+              >
+                {isExporting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Rendering {exportFormat.toUpperCase()} Document...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>Download {exportFormat.toUpperCase()} Report</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
