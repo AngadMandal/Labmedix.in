@@ -35,6 +35,7 @@ import { CashDeskBillVouchersPage } from './pages/vouchers/CashDeskBillVouchersP
 import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
 import { PatientPortalPage } from './pages/portal/PatientPortalPage';
 import { HomePage } from './pages/public/HomePage';
+import { NgoWelfare } from './pages/NgoWelfare';
 import { NotFoundPage } from './pages/not-found/NotFoundPage';
 
 import { SystemModuleKey } from './constants/roles';
@@ -275,6 +276,9 @@ export const App: React.FC = () => {
 
                   {/* 3D Website Customizer & CMS Studio (Super Admin Exclusive) */}
                   <Route path="/website-cms" element={<ModuleGuard moduleKey="website_cms"><WebsiteCmsPage /></ModuleGuard>} />
+
+                  {/* NGO & CSR Welfare Hub */}
+                  <Route path="/ngo-welfare" element={<ModuleGuard moduleKey="ngo_welfare"><NgoWelfare /></ModuleGuard>} />
 
                   {/* System & Audit */}
                   <Route path="/activity" element={<ModuleGuard moduleKey="activity"><ActivityLogPage /></ModuleGuard>} />

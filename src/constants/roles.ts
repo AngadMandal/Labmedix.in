@@ -26,7 +26,8 @@ export const ROLE_CONFIGS: Record<Role, RoleConfig> = {
       'card_create', 'card_read', 'card_print', 'card_export', 'card_status_change', 'card_renew', 'card_replace',
       'wallet_read', 'wallet_credit', 'wallet_debit', 'wallet_adjust',
       'membership_manage', 'family_manage', 'backup_manage', 'settings_manage', 'audit_view',
-      'reports_view', 'catalog_manage', 'package_manage'
+      'reports_view', 'catalog_manage', 'package_manage',
+      'ngo_manage', 'ngo_view', 'camp_manage', 'grant_manage'
     ]
   },
   doctor: {
@@ -105,22 +106,23 @@ export const MODULE_KEYS = [
   'dashboard',
   'patients',
   'emr',
+  'doctor_master',
   'test_master',
+  'ngo_welfare',
   'cards',
   'card_studio',
   'print_sheet',
   'memberships',
   'families',
   'wallet',
+  'cash_desk_vouchers',
   'reports',
   'users',
   'integrations',
   'activity',
   'backup',
   'settings',
-  'website_cms',
-  'doctor_master',
-  'cash_desk_vouchers'
+  'website_cms'
 ] as const;
 
 export type SystemModuleKey = typeof MODULE_KEYS[number];
@@ -174,6 +176,14 @@ export const SYSTEM_MODULES: SystemModuleInfo[] = [
     category: 'clinical',
     description: 'Master diagnostic tests directory, rates, bulk upload, and Auto Health Package bundling engine.',
     associatedPermissions: ['all', 'catalog_manage', 'package_manage', 'patient_read']
+  },
+  {
+    key: 'ngo_welfare',
+    name: 'NGO & CSR Welfare Hub',
+    href: '/ngo-welfare',
+    category: 'clinical',
+    description: 'NGO & CSR partners, free medical & diagnostic camps, rural outreach, patient charity grants & 80G tax fund ledger.',
+    associatedPermissions: ['all', 'ngo_manage', 'ngo_view', 'camp_manage', 'grant_manage']
   },
   {
     key: 'cards',
@@ -291,22 +301,22 @@ export const SYSTEM_MODULES: SystemModuleInfo[] = [
 
 export const ROLE_DEFAULT_MODULES: Record<Role, SystemModuleKey[]> = {
   super_admin: [
-    'dashboard', 'patients', 'doctor_master', 'test_master', 'cards', 'card_studio', 'print_sheet',
+    'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet',
     'memberships', 'families', 'wallet', 'reports', 'users', 'website_cms', 'integrations',
     'activity', 'settings', 'cash_desk_vouchers'
   ],
   admin: [
-    'dashboard', 'patients', 'doctor_master', 'test_master', 'cards', 'card_studio', 'print_sheet',
+    'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet',
     'memberships', 'families', 'wallet', 'reports', 'integrations',
     'activity', 'backup', 'settings'
   ],
-  doctor: ['emr', 'dashboard', 'patients', 'cards', 'wallet'],
-  reception: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'wallet', 'families'],
-  manager: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'memberships', 'families', 'wallet', 'reports', 'activity'],
-  lab_staff: ['dashboard', 'patients', 'cards', 'wallet', 'test_master'],
-  marketing: ['dashboard', 'patients', 'cards'],
-  card_operator: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet'],
-  read_only: ['dashboard', 'patients', 'cards', 'wallet', 'activity']
+  doctor: ['emr', 'dashboard', 'patients', 'ngo_welfare', 'cards', 'wallet'],
+  reception: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'wallet', 'families'],
+  manager: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'memberships', 'families', 'wallet', 'reports', 'activity'],
+  lab_staff: ['dashboard', 'patients', 'cards', 'wallet', 'test_master', 'ngo_welfare'],
+  marketing: ['dashboard', 'patients', 'ngo_welfare', 'cards'],
+  card_operator: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'ngo_welfare'],
+  read_only: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'wallet', 'activity']
 };
 
 export function hasPermission(userRole: Role, permission: Permission): boolean {

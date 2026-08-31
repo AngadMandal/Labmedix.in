@@ -48,12 +48,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const expiredCount = cards.filter(c => c.status === 'expired' || new Date(c.expiryDate) < new Date()).length;
 
   // Real-time Cardholder Service Requests
-  const rawLabBookings = localStorage.getItem('labmedix_portal_lab_bookings');
-  const labBookings = rawLabBookings ? JSON.parse(rawLabBookings) : [];
+  const labBookings = StorageService.getItem<any[]>('labmedix_portal_lab_bookings', []);
   const pendingLabCount = labBookings.filter((b: any) => b.status === 'confirmed' || b.status === 'phlebotomist_assigned').length;
 
-  const rawAppointments = localStorage.getItem('labmedix_emr_appointments');
-  const appointments = rawAppointments ? JSON.parse(rawAppointments) : [];
+  const appointments = StorageService.getItem<any[]>('labmedix_emr_appointments', []);
   const pendingAptCount = appointments.filter((a: any) => a.status === 'doctor_confirmed' || a.status === 'pending_doctor_approval' || a.status === 'in_consultation').length;
 
   const totalNotificationCount = expiredCount + pendingLabCount + pendingAptCount;

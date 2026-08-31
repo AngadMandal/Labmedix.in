@@ -41,7 +41,11 @@ export type Permission =
   | 'catalog_manage'
   | 'package_manage'
   | 'voucher_manage'
-  | 'voucher_redeem';
+  | 'voucher_redeem'
+  | 'ngo_manage'
+  | 'ngo_view'
+  | 'camp_manage'
+  | 'grant_manage';
 
 export interface User {
   id: string;
@@ -590,6 +594,25 @@ export interface ClinicalVitals {
   bmi?: string;
 }
 
+export interface VitalsRecord {
+  id: string;
+  patientId: string;
+  recordedAt: string;
+  bpSystolic: number;
+  bpDiastolic: number;
+  pulseRate: number;
+  bloodSugar: number;
+  sugarType: 'fasting' | 'post_prandial' | 'random';
+  temperature?: number;
+  spo2?: number;
+  respiratoryRate?: number;
+  weightKg?: number;
+  heightCm?: number;
+  bmi?: string;
+  notes?: string;
+  recordedBy?: string;
+}
+
 export interface ClinicalEncounter {
   id: string;
   encounterNo: string;
@@ -814,4 +837,185 @@ export interface VoucherBatchCreatePayload {
   doctorRestrictionName?: string;
   notes?: string;
   pinLength?: 6 | 8;
+}
+
+// ── NGO & Social Welfare Module Interfaces ──
+
+export type NgoPartnerCategory =
+  | 'charity_trust'
+  | 'corporate_csr'
+  | 'rotary_lions'
+  | 'gov_welfare'
+  | 'religious_trust'
+  | 'foundation';
+
+export interface NgoPartner {
+  id: string; // ngo_xxxx
+  ngoCode: string; // e.g. NGO-ROTARY-01
+  name: string;
+  category: NgoPartnerCategory;
+  registrationNumber: string;
+  taxExemption80G: string;
+  taxExemption12A?: string;
+  contactPerson: string;
+  designation: string;
+  phone: string;
+  email: string;
+  address: string;
+  district?: string;
+  state?: string;
+  logoUrl?: string;
+  mouSignedDate: string;
+  mouValidTill: string;
+  mouScope: string;
+  totalGrantDeposited: number;
+  totalAidDisbursed: number;
+  activeBalance: number;
+  status: 'active' | 'inactive' | 'suspended';
+  coBrandedCardEnabled: boolean;
+  coBrandCardPrefix?: string;
+  defaultDiscountPercent?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type HealthCampCategory =
+  | 'general_health'
+  | 'diabetes_cardiac'
+  | 'eye_vision'
+  | 'pediatric_maternal'
+  | 'senior_citizen'
+  | 'blood_donation'
+  | 'specialist_opd';
+
+export type HealthCampStatus = 'scheduled' | 'active_today' | 'completed' | 'cancelled';
+
+export interface HealthCamp {
+  id: string; // camp_xxxx
+  campCode: string; // e.g. CAMP-2026-081
+  title: string;
+  ngoPartnerId: string;
+  ngoPartnerName: string;
+  category: HealthCampCategory;
+  campDate: string;
+  startTime: string;
+  endTime: string;
+  venueName: string;
+  locationAddress: string;
+  villageOrPanchayat?: string;
+  district: string;
+  assignedDoctorIds: string[];
+  assignedDoctorNames: string[];
+  coordinatorName: string;
+  coordinatorPhone: string;
+  targetBeneficiaries: number;
+  registeredCount: number;
+  attendedCount: number;
+  testsConductedCount: number;
+  freeCardsIssuedCount: number;
+  allocatedBudget: number;
+  actualSpent: number;
+  status: HealthCampStatus;
+  freeServicesOffered: string[];
+  summaryNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CampAttendeeStatus = 'registered' | 'screened' | 'investigated' | 'prescribed' | 'referred';
+
+export interface CampAttendee {
+  id: string; // att_xxxx
+  campId: string;
+  campCode: string;
+  tokenNumber: string; // e.g. T-001
+  patientId?: string;
+  fullName: string;
+  age: number;
+  gender: 'male' | 'female' | 'other';
+  phone: string;
+  villageOrLocality: string;
+  vitals?: {
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    bloodSugar?: number;
+    spo2?: number;
+    pulseRate?: number;
+    weightKg?: number;
+    heightCm?: number;
+    bmi?: string;
+  };
+  prescribedTests: string[];
+  doctorObservations?: string;
+  freeMedicinesDispensed?: string;
+  healthCardIssued: boolean;
+  cardNumber?: string;
+  subsidyAmount: number;
+  registeredAt: string;
+  status: CampAttendeeStatus;
+}
+
+export type CharityGrantCategory =
+  | 'bpl_relief'
+  | 'emergency_icu'
+  | 'cancer_care'
+  | 'dialysis_subsidy'
+  | 'free_surgery'
+  | 'lab_diagnostics'
+  | 'senior_aid';
+
+export type CharityGrantStatus = 'pending' | 'approved' | 'disbursed' | 'rejected';
+
+export interface CharityGrant {
+  id: string; // grt_xxxx
+  grantNumber: string; // e.g. GRANT-2026-0045
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  bplOrAadhaar: string;
+  ngoPartnerId: string;
+  ngoPartnerName: string;
+  medicalCaseTitle: string;
+  category: CharityGrantCategory;
+  estimatedTotalBill: number;
+  subsidyPercent: number;
+  approvedGrantAmount: number;
+  approvalStatus: CharityGrantStatus;
+  approvedBy?: string;
+  approvalDate?: string;
+  disbursementDate?: string;
+  justification: string;
+  voucherId?: string;
+  walletTxId?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NgoTransactionType = 'deposit' | 'grant_disbursement' | 'camp_expense' | 'adjustment';
+
+export interface NgoFundTransaction {
+  id: string; // ngotx_xxxx
+  receiptNumber: string; // e.g. 80G-REC-2026-102
+  ngoPartnerId: string;
+  ngoPartnerName: string;
+  type: NgoTransactionType;
+  amount: number;
+  paymentMethod: 'bank_transfer' | 'cheque' | 'neft_rtgs' | 'upi_csr' | 'grant_allocation';
+  referenceNumber: string;
+  date: string;
+  purpose: string;
+  taxExemption80GIssued: boolean;
+  balanceAfter: number;
+  recordedBy: string;
+  createdAt: string;
+}
+
+export interface NgoCoBrandCardPayload {
+  patientId: string;
+  ngoPartnerId: string;
+  tierName: string;
+  sponsorSubsidy: number;
+  notes?: string;
 }

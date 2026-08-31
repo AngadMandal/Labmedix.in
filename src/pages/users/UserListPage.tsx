@@ -105,7 +105,11 @@ const PERMISSION_LABELS: Record<Permission, { label: string; category: string }>
   catalog_manage: { label: 'Manage Diagnostic Tests & Rates Catalog', category: 'Clinical Admin' },
   package_manage: { label: 'Create & Publish Health Packages', category: 'Clinical Admin' },
   voucher_manage: { label: 'Sovereign Cash Desk Voucher Creation & PIN Governance', category: 'Financial' },
-  voucher_redeem: { label: 'Hospital POS Cash Desk Voucher Redemption', category: 'Financial' }
+  voucher_redeem: { label: 'Hospital POS Cash Desk Voucher Redemption', category: 'Financial' },
+  ngo_manage: { label: 'Manage NGO Partners & CSR Fund Deposits', category: 'Welfare & NGO' },
+  ngo_view: { label: 'View NGO Programs & Beneficiary Records', category: 'Welfare & NGO' },
+  camp_manage: { label: 'Organize & Operate Rural Health Camps', category: 'Welfare & NGO' },
+  grant_manage: { label: 'Approve & Disburse Patient Charity Grants', category: 'Welfare & NGO' }
 };
 
 // Preset high-res clinical avatar gallery

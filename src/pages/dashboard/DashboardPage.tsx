@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import { StatsCard } from '../../components/common/StatsCard';
 import { TodayClinicalSummaryWidget } from '../../components/dashboard/TodayClinicalSummaryWidget';
 import { MonthlyActivityHeatmap } from '../../components/dashboard/MonthlyActivityHeatmap';
+import { PatientVitalsDashboardWidget } from '../../components/dashboard/PatientVitalsDashboardWidget';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { Input } from '../../components/common/Input';
@@ -351,6 +352,9 @@ export const DashboardPage: React.FC = () => {
           onClick={() => navigate('/wallet')}
         />
       </div>
+
+      {/* Patient Vitals & Bio-Telemetry Trends Module */}
+      <PatientVitalsDashboardWidget />
 
       {/* Analytics Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

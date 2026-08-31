@@ -24,7 +24,8 @@ import {
   Sparkles,
   Crown,
   Mail,
-  Receipt
+  Receipt,
+  HeartHandshake
 } from 'lucide-react';
 
 import { SystemModuleKey } from '../../constants/roles';
@@ -60,6 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { name: 'Patients', href: '/patients', icon: Users, moduleKey: 'patients', permission: 'patient_read' },
     { name: 'Doctor Master & Commission', href: '/doctor-master', icon: Crown, moduleKey: 'doctor_master', permission: 'all' },
     { name: 'Test Master & Packages', href: '/test-master', icon: TestTube, moduleKey: 'test_master', permission: 'all' },
+    { name: 'NGO & CSR Welfare Hub', href: '/ngo-welfare', icon: HeartHandshake, moduleKey: 'ngo_welfare', permission: 'all' },
     { name: 'Health Cards', href: '/cards', icon: CreditCard, moduleKey: 'cards', permission: 'card_read' },
     { name: 'CR80 PVC Studio', href: '/card-studio', icon: Palette, moduleKey: 'card_studio', permission: 'card_print' },
     { name: 'A4 Print Sheet', href: '/cards/print-sheet', icon: Layers, moduleKey: 'print_sheet', permission: 'card_print' },

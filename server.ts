@@ -292,8 +292,59 @@ setInterval(processBackupQueue, 120000);
 
 // Central Store Persistence Engine (Cloud Run Container Storage)
 const CENTRAL_STORE_FILE = path.join(process.cwd(), 'data', 'labmedix_central_store.json');
+const CENTRAL_STORE_BACKUP_FILE = path.join(process.cwd(), 'data', 'labmedix_central_store.backup.json');
+
+let inMemoryStore: Record<string, any> | null = null;
+let diskWriteTimer: NodeJS.Timeout | null = null;
+
+const safeParseJson = (raw: string): any => {
+  if (!raw || !raw.trim()) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (firstErr: any) {
+    // Attempt to sanitize illegal control characters in string literals
+    try {
+      const cleaned = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+      return JSON.parse(cleaned);
+    } catch {
+      try {
+        const repaired = raw.replace(/[\u0000-\u001F]/g, (char) => {
+          if (char === '\n' || char === '\r') return char;
+          if (char === '\t') return ' ';
+          return '';
+        });
+        return JSON.parse(repaired);
+      } catch {
+        throw firstErr;
+      }
+    }
+  }
+};
+
+const persistToDisk = () => {
+  if (!inMemoryStore) return;
+  try {
+    const backupDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const dataStr = JSON.stringify(inMemoryStore, null, 2);
+    const tempFile = path.join(backupDir, `labmedix_central_store.${Date.now()}.${Math.random().toString(36).substring(2, 6)}.tmp`);
+    fs.writeFileSync(tempFile, dataStr, 'utf-8');
+    fs.renameSync(tempFile, CENTRAL_STORE_FILE);
+    try {
+      fs.copyFileSync(CENTRAL_STORE_FILE, CENTRAL_STORE_BACKUP_FILE);
+    } catch {}
+  } catch (e: any) {
+    console.error('Central store atomic write error:', e?.message || e);
+  }
+};
 
 const getCentralStore = (): Record<string, any> => {
+  if (inMemoryStore !== null && Object.keys(inMemoryStore).length > 0) {
+    return inMemoryStore;
+  }
+
   try {
     const backupDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(backupDir)) {
@@ -301,29 +352,55 @@ const getCentralStore = (): Record<string, any> => {
     }
     if (fs.existsSync(CENTRAL_STORE_FILE)) {
       const raw = fs.readFileSync(CENTRAL_STORE_FILE, 'utf-8');
-      return JSON.parse(raw);
+      if (raw && raw.trim().length > 0) {
+        inMemoryStore = safeParseJson(raw);
+        return inMemoryStore || {};
+      }
+    }
+    if (fs.existsSync(CENTRAL_STORE_BACKUP_FILE)) {
+      const raw = fs.readFileSync(CENTRAL_STORE_BACKUP_FILE, 'utf-8');
+      if (raw && raw.trim().length > 0) {
+        console.warn('Restored central store from backup file.');
+        inMemoryStore = safeParseJson(raw);
+        return inMemoryStore || {};
+      }
     }
     const legacyFile = path.join(backupDir, 'labmedix_live_backup.json');
     if (fs.existsSync(legacyFile)) {
       const raw = fs.readFileSync(legacyFile, 'utf-8');
-      return JSON.parse(raw);
+      if (raw && raw.trim().length > 0) {
+        inMemoryStore = safeParseJson(raw);
+        return inMemoryStore || {};
+      }
     }
   } catch (e: any) {
-    console.warn('Central store read error:', e?.message || e);
+    console.warn('Central store read error handled:', e?.message || e);
   }
-  return {};
+  if (inMemoryStore === null) {
+    inMemoryStore = {};
+  }
+  return inMemoryStore;
 };
 
-const saveCentralStore = (storeData: Record<string, any>): void => {
-  try {
-    const backupDir = path.join(process.cwd(), 'data');
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
+const saveCentralStore = (storeData: Record<string, any>, immediate = false): void => {
+  inMemoryStore = { ...(inMemoryStore || {}), ...storeData };
+
+  if (immediate) {
+    if (diskWriteTimer) {
+      clearTimeout(diskWriteTimer);
+      diskWriteTimer = null;
     }
-    fs.writeFileSync(CENTRAL_STORE_FILE, JSON.stringify(storeData, null, 2), 'utf-8');
-  } catch (e: any) {
-    console.error('Central store save error:', e?.message || e);
+    persistToDisk();
+    return;
   }
+
+  if (diskWriteTimer) {
+    clearTimeout(diskWriteTimer);
+  }
+  diskWriteTimer = setTimeout(() => {
+    persistToDisk();
+    diskWriteTimer = null;
+  }, 100);
 };
 
 // API Routes for Central Store Synchronization

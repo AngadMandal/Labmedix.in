@@ -11,10 +11,22 @@ import {
   SnapshotRecord,
   BackupData,
   CashDeskVoucher,
-  SampleDispatchRecord
+  SampleDispatchRecord,
+  NgoPartner,
+  HealthCamp,
+  CampAttendee,
+  CharityGrant,
+  NgoFundTransaction
 } from '../types';
 import { DEFAULT_COMPANY_PROFILE, DEFAULT_CARD_DESIGN } from '../constants/defaults';
 import { DEFAULT_MEMBERSHIPS } from '../constants/memberships';
+import {
+  DEFAULT_NGO_PARTNERS,
+  DEFAULT_HEALTH_CAMPS,
+  DEFAULT_CAMP_ATTENDEES,
+  DEFAULT_CHARITY_GRANTS,
+  DEFAULT_NGO_FUND_TRANSACTIONS
+} from '../constants/ngoDefaults';
 
 import { GoogleDriveService } from './googleDriveService';
 import { getGoogleAccessToken } from './googleAuth';
@@ -51,7 +63,12 @@ export const STORAGE_KEYS = {
   VOUCHER_SETTINGS: 'labmedix_voucher_user_settings_v1',
   SAMPLE_DISPATCHES: 'labmedix_sample_dispatches_v1',
   LAST_BACKUP_TIMESTAMP: 'labmedix_last_backup_timestamp_v1',
-  LAST_BACKUP_PROMPT_TIMESTAMP: 'labmedix_last_backup_prompt_timestamp_v1'
+  LAST_BACKUP_PROMPT_TIMESTAMP: 'labmedix_last_backup_prompt_timestamp_v1',
+  NGO_PARTNERS: 'labmedix_ngo_partners_v1',
+  HEALTH_CAMPS: 'labmedix_health_camps_v1',
+  CAMP_ATTENDEES: 'labmedix_camp_attendees_v1',
+  CHARITY_GRANTS: 'labmedix_charity_grants_v1',
+  NGO_FUND_TRANSACTIONS: 'labmedix_ngo_fund_transactions_v1'
 };
 
 const INITIAL_USERS: User[] = [
@@ -767,7 +784,12 @@ export class StorageService {
         cloudVouchers,
         cloudDispatches,
         cloudSnapshots,
-        cloudCompany
+        cloudCompany,
+        cloudNgoPartners,
+        cloudHealthCamps,
+        cloudCampAttendees,
+        cloudCharityGrants,
+        cloudNgoTxns
       ] = await Promise.all([
         ApiSyncService.fetchCollection<Patient>('patients').catch(() => []),
         ApiSyncService.fetchCollection<HealthCard>('cards').catch(() => []),
@@ -788,7 +810,12 @@ export class StorageService {
         ApiSyncService.fetchCollection<any>('vouchers').catch(() => []),
         ApiSyncService.fetchCollection<SampleDispatchRecord>('sampleDispatches').catch(() => []),
         ApiSyncService.fetchCollection<SnapshotRecord>('snapshots').catch(() => []),
-        ApiSyncService.fetchDocument<CompanyProfile>('settings/companyProfile').catch(() => null)
+        ApiSyncService.fetchDocument<CompanyProfile>('settings/companyProfile').catch(() => null),
+        ApiSyncService.fetchCollection<NgoPartner>('ngoPartners').catch(() => []),
+        ApiSyncService.fetchCollection<HealthCamp>('healthCamps').catch(() => []),
+        ApiSyncService.fetchCollection<CampAttendee>('campAttendees').catch(() => []),
+        ApiSyncService.fetchCollection<CharityGrant>('charityGrants').catch(() => []),
+        ApiSyncService.fetchCollection<NgoFundTransaction>('ngoTransactions').catch(() => [])
       ]);
 
       cloudUsersCount = cloudUsers.length;
@@ -818,6 +845,11 @@ export class StorageService {
       syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
       syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
       syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
+      syncEntity(cloudNgoPartners, STORAGE_KEYS.NGO_PARTNERS);
+      syncEntity(cloudHealthCamps, STORAGE_KEYS.HEALTH_CAMPS);
+      syncEntity(cloudCampAttendees, STORAGE_KEYS.CAMP_ATTENDEES);
+      syncEntity(cloudCharityGrants, STORAGE_KEYS.CHARITY_GRANTS);
+      syncEntity(cloudNgoTxns, STORAGE_KEYS.NGO_FUND_TRANSACTIONS);
       if (cloudCompany && cloudCompany.name) {
         StorageService.updateCacheAndNotify(STORAGE_KEYS.COMPANY_PROFILE, cloudCompany);
       } else {
@@ -1055,6 +1087,314 @@ export class StorageService {
     this.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches).catch(() => { });
     window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.SAMPLE_DISPATCHES, value: dispatches } }));
+  }
+
+  // ── NGO & CSR Social Welfare Services ──
+
+  public static getNgoPartners(): NgoPartner[] {
+    const partners = this.getItem<NgoPartner[]>(STORAGE_KEYS.NGO_PARTNERS, []);
+    if (!partners || partners.length === 0) {
+      this.setItem(STORAGE_KEYS.NGO_PARTNERS, DEFAULT_NGO_PARTNERS);
+      return DEFAULT_NGO_PARTNERS;
+    }
+    return partners;
+  }
+
+  public static saveNgoPartners(partners: NgoPartner[]): void {
+    this.setItem(STORAGE_KEYS.NGO_PARTNERS, partners);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.NGO_PARTNERS, partners).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.NGO_PARTNERS, value: partners } }));
+  }
+
+  public static getHealthCamps(): HealthCamp[] {
+    const camps = this.getItem<HealthCamp[]>(STORAGE_KEYS.HEALTH_CAMPS, []);
+    if (!camps || camps.length === 0) {
+      this.setItem(STORAGE_KEYS.HEALTH_CAMPS, DEFAULT_HEALTH_CAMPS);
+      return DEFAULT_HEALTH_CAMPS;
+    }
+    return camps;
+  }
+
+  public static saveHealthCamps(camps: HealthCamp[]): void {
+    this.setItem(STORAGE_KEYS.HEALTH_CAMPS, camps);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_CAMPS, camps).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.HEALTH_CAMPS, value: camps } }));
+  }
+
+  public static getCampAttendees(campId?: string): CampAttendee[] {
+    const attendees = this.getItem<CampAttendee[]>(STORAGE_KEYS.CAMP_ATTENDEES, []);
+    const list = (!attendees || attendees.length === 0) ? DEFAULT_CAMP_ATTENDEES : attendees;
+    if (campId) {
+      return list.filter(a => a.campId === campId);
+    }
+    return list;
+  }
+
+  public static saveCampAttendees(attendees: CampAttendee[]): void {
+    this.setItem(STORAGE_KEYS.CAMP_ATTENDEES, attendees);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CAMP_ATTENDEES, attendees).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.CAMP_ATTENDEES, value: attendees } }));
+  }
+
+  public static getCharityGrants(): CharityGrant[] {
+    const grants = this.getItem<CharityGrant[]>(STORAGE_KEYS.CHARITY_GRANTS, []);
+    if (!grants || grants.length === 0) {
+      this.setItem(STORAGE_KEYS.CHARITY_GRANTS, DEFAULT_CHARITY_GRANTS);
+      return DEFAULT_CHARITY_GRANTS;
+    }
+    return grants;
+  }
+
+  public static saveCharityGrants(grants: CharityGrant[]): void {
+    this.setItem(STORAGE_KEYS.CHARITY_GRANTS, grants);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CHARITY_GRANTS, grants).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.CHARITY_GRANTS, value: grants } }));
+  }
+
+  public static getNgoFundTransactions(): NgoFundTransaction[] {
+    const txns = this.getItem<NgoFundTransaction[]>(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, []);
+    if (!txns || txns.length === 0) {
+      this.setItem(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, DEFAULT_NGO_FUND_TRANSACTIONS);
+      return DEFAULT_NGO_FUND_TRANSACTIONS;
+    }
+    return txns;
+  }
+
+  public static saveNgoFundTransactions(txns: NgoFundTransaction[]): void {
+    this.setItem(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, txns);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, txns).catch(() => { });
+    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.NGO_FUND_TRANSACTIONS, value: txns } }));
+  }
+
+  /** Deposit CSR or donation funds into an NGO Partner's dedicated grant pool */
+  /** Deposit CSR/Donation funds to an NGO Partner's balance and record 80G transaction */
+  public static depositNgoFund(
+    txnOrPartnerId: string | NgoFundTransaction,
+    amount?: number,
+    paymentMethod?: 'bank_transfer' | 'cheque' | 'neft_rtgs' | 'upi_csr' | 'grant_allocation',
+    referenceNumber?: string,
+    purpose?: string,
+    recordedBy?: string
+  ): { success: boolean; transaction?: NgoFundTransaction; error?: string } {
+    let txn: NgoFundTransaction;
+    const partners = this.getNgoPartners();
+
+    if (typeof txnOrPartnerId === 'object') {
+      txn = txnOrPartnerId;
+      const partner = partners.find(p => p.id === txn.ngoPartnerId);
+      if (!partner) return { success: false, error: 'NGO Partner record not found' };
+
+      const newBalance = (partner.activeBalance || 0) + txn.amount;
+      const newTotalDeposited = (partner.totalGrantDeposited || 0) + txn.amount;
+
+      const updatedPartner: NgoPartner = {
+        ...partner,
+        activeBalance: newBalance,
+        totalGrantDeposited: newTotalDeposited,
+        updatedAt: new Date().toISOString()
+      };
+
+      this.saveNgoPartners(partners.map(p => (p.id === partner.id ? updatedPartner : p)));
+      this.saveNgoFundTransactions([txn, ...this.getNgoFundTransactions()]);
+      return { success: true, transaction: txn };
+    }
+
+    const partner = partners.find(p => p.id === txnOrPartnerId);
+    if (!partner) return { success: false, error: 'NGO Partner record not found' };
+
+    const depAmount = amount || 0;
+    const newBalance = (partner.activeBalance || 0) + depAmount;
+    const newTotalDeposited = (partner.totalGrantDeposited || 0) + depAmount;
+
+    const updatedPartner: NgoPartner = {
+      ...partner,
+      activeBalance: newBalance,
+      totalGrantDeposited: newTotalDeposited,
+      updatedAt: new Date().toISOString()
+    };
+
+    const newTxn: NgoFundTransaction = {
+      id: `ngotx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      receiptNumber: `80G-REC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      ngoPartnerId: partner.id,
+      ngoPartnerName: partner.name,
+      type: 'deposit',
+      amount: depAmount,
+      paymentMethod: paymentMethod || 'neft_rtgs',
+      referenceNumber: referenceNumber || 'DIRECT-CSR',
+      date: new Date().toISOString().split('T')[0],
+      purpose: purpose || 'CSR Grant / Health Welfare Deposit',
+      taxExemption80GIssued: true,
+      balanceAfter: newBalance,
+      recordedBy: recordedBy || 'Super Administrator',
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedPartners = partners.map(p => (p.id === txnOrPartnerId ? updatedPartner : p));
+    const existingTxns = this.getNgoFundTransactions();
+    const updatedTxns = [newTxn, ...existingTxns];
+
+    this.saveNgoPartners(updatedPartners);
+    this.saveNgoFundTransactions(updatedTxns);
+
+    return { success: true, transaction: newTxn };
+  }
+
+  /** Create and directly approve/disburse a Patient Charity Grant against partner pool */
+  public static createAndDisburseCharityGrant(grant: CharityGrant): { success: boolean; error?: string; grant?: CharityGrant } {
+    const partners = this.getNgoPartners();
+    const partner = partners.find(p => p.id === grant.ngoPartnerId);
+    if (!partner) return { success: false, error: 'Sponsoring NGO partner not found' };
+
+    if (partner.activeBalance < grant.approvedGrantAmount) {
+      return {
+        success: false,
+        error: `Insufficient NGO Grant Pool balance. Available: ₹${partner.activeBalance.toLocaleString('en-IN')}, Required: ₹${grant.approvedGrantAmount.toLocaleString('en-IN')}`
+      };
+    }
+
+    const newBalance = partner.activeBalance - grant.approvedGrantAmount;
+    const newAidDisbursed = (partner.totalAidDisbursed || 0) + grant.approvedGrantAmount;
+
+    const updatedPartner: NgoPartner = {
+      ...partner,
+      activeBalance: newBalance,
+      totalAidDisbursed: newAidDisbursed,
+      updatedAt: new Date().toISOString()
+    };
+
+    const newTxn: NgoFundTransaction = {
+      id: `ngotx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      receiptNumber: `DISB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      ngoPartnerId: partner.id,
+      ngoPartnerName: partner.name,
+      type: 'grant_disbursement',
+      amount: grant.approvedGrantAmount,
+      paymentMethod: 'grant_allocation',
+      referenceNumber: grant.grantNumber,
+      date: new Date().toISOString().split('T')[0],
+      purpose: `Charity grant subsidy for patient ${grant.patientName} (${grant.medicalCaseTitle})`,
+      taxExemption80GIssued: false,
+      balanceAfter: newBalance,
+      recordedBy: grant.approvedBy || 'Super Administrator',
+      createdAt: new Date().toISOString()
+    };
+
+    this.saveNgoPartners(partners.map(p => (p.id === partner.id ? updatedPartner : p)));
+    this.saveCharityGrants([grant, ...this.getCharityGrants()]);
+    this.saveNgoFundTransactions([newTxn, ...this.getNgoFundTransactions()]);
+
+    return { success: true, grant };
+  }
+
+  /** Approve and Disburse a Patient Charity Grant against the Sponsoring NGO's Pool */
+  public static approveAndDisburseCharityGrant(
+    grantId: string,
+    approvedBy: string,
+    notes?: string
+  ): { success: boolean; error?: string; grant?: CharityGrant } {
+    const grants = this.getCharityGrants();
+    const grant = grants.find(g => g.id === grantId);
+    if (!grant) return { success: false, error: 'Charity grant application not found' };
+    if (grant.approvalStatus === 'approved' || grant.approvalStatus === 'disbursed') {
+      return { success: false, error: 'This grant has already been approved and settled' };
+    }
+
+    const partners = this.getNgoPartners();
+    const partner = partners.find(p => p.id === grant.ngoPartnerId);
+    if (!partner) return { success: false, error: 'Sponsoring NGO partner not found' };
+
+    if (partner.activeBalance < grant.approvedGrantAmount) {
+      return {
+        success: false,
+        error: `Insufficient NGO Grant Pool balance. Available: ₹${partner.activeBalance.toLocaleString('en-IN')}, Required: ₹${grant.approvedGrantAmount.toLocaleString('en-IN')}`
+      };
+    }
+
+    // Deduct from partner pool
+    const newBalance = partner.activeBalance - grant.approvedGrantAmount;
+    const newAidDisbursed = (partner.totalAidDisbursed || 0) + grant.approvedGrantAmount;
+
+    const updatedPartner: NgoPartner = {
+      ...partner,
+      activeBalance: newBalance,
+      totalAidDisbursed: newAidDisbursed,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Update grant record
+    const updatedGrant: CharityGrant = {
+      ...grant,
+      approvalStatus: 'approved',
+      approvedBy,
+      approvalDate: new Date().toISOString().split('T')[0],
+      disbursementDate: new Date().toISOString().split('T')[0],
+      notes: notes || grant.notes,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Record financial ledger transaction
+    const newTxn: NgoFundTransaction = {
+      id: `ngotx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      receiptNumber: `DISB-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      ngoPartnerId: partner.id,
+      ngoPartnerName: partner.name,
+      type: 'grant_disbursement',
+      amount: grant.approvedGrantAmount,
+      paymentMethod: 'grant_allocation',
+      referenceNumber: grant.grantNumber,
+      date: new Date().toISOString().split('T')[0],
+      purpose: `Charity grant subsidy for patient ${grant.patientName} (${grant.medicalCaseTitle})`,
+      taxExemption80GIssued: false,
+      balanceAfter: newBalance,
+      recordedBy: approvedBy,
+      createdAt: new Date().toISOString()
+    };
+
+    this.saveNgoPartners(partners.map(p => p.id === partner.id ? updatedPartner : p));
+    this.saveCharityGrants(grants.map(g => g.id === grant.id ? updatedGrant : g));
+    this.saveNgoFundTransactions([newTxn, ...this.getNgoFundTransactions()]);
+
+    return { success: true, grant: updatedGrant };
+  }
+
+  /** Quick add or update a Health Camp Attendee with live count update */
+  public static saveOrUpdateCampAttendee(attendee: CampAttendee): { success: boolean; attendee: CampAttendee } {
+    const attendees = this.getCampAttendees();
+    const existingIndex = attendees.findIndex(a => a.id === attendee.id);
+    let updatedList: CampAttendee[];
+
+    if (existingIndex >= 0) {
+      updatedList = [...attendees];
+      updatedList[existingIndex] = attendee;
+    } else {
+      updatedList = [attendee, ...attendees];
+    }
+
+    this.saveCampAttendees(updatedList);
+
+    // Update camp metrics
+    const camps = this.getHealthCamps();
+    const camp = camps.find(c => c.id === attendee.campId);
+    if (camp) {
+      const campAttendees = updatedList.filter(a => a.campId === camp.id);
+      const attendedCount = campAttendees.filter(a => a.status !== 'registered').length;
+      const freeCardsCount = campAttendees.filter(a => a.healthCardIssued).length;
+      const testsCount = campAttendees.reduce((acc, a) => acc + (a.prescribedTests?.length || 0), 0);
+
+      const updatedCamp: HealthCamp = {
+        ...camp,
+        registeredCount: campAttendees.length,
+        attendedCount: Math.max(attendedCount, camp.attendedCount),
+        freeCardsIssuedCount: freeCardsCount,
+        testsConductedCount: testsCount,
+        updatedAt: new Date().toISOString()
+      };
+
+      this.saveHealthCamps(camps.map(c => c.id === camp.id ? updatedCamp : c));
+    }
+
+    return { success: true, attendee };
   }
 
   // Full Database Reset & Sample Data

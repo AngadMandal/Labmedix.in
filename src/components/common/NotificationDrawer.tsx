@@ -35,13 +35,11 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
   const auditLogs = StorageService.getAuditLogs().slice(0, 5);
 
   // Live Cardholder Portal Requests
-  const rawLabBookings = localStorage.getItem('labmedix_portal_lab_bookings');
   const [labBookings, setLabBookings] = useState<BloodTestBooking[]>(() =>
-    rawLabBookings ? JSON.parse(rawLabBookings) : []
+    PortalService.getLabBookings()
   );
 
-  const rawAppointments = localStorage.getItem('labmedix_emr_appointments');
-  const appointments: any[] = rawAppointments ? JSON.parse(rawAppointments) : [];
+  const appointments: any[] = StorageService.getItem<any[]>('labmedix_emr_appointments', []);
 
   const expiredCards = cards.filter(c => c.status === 'expired' || new Date(c.expiryDate) < new Date());
   const pendingLabBookings = labBookings.filter(b => b.status === 'confirmed' || b.status === 'phlebotomist_assigned');

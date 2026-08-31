@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Patient, ClinicalVitals } from '../../types';
+import { Patient, ClinicalVitals, VitalsRecord } from '../../types';
 import { StorageService } from '../../services/storage';
 import { EMRService } from '../../services/emrService';
+import { VitalsService } from '../../services/vitalsService';
 import { AuditService } from '../../services/auditService';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../common/Button';
@@ -38,24 +39,6 @@ import {
   Legend
 } from 'recharts';
 
-export interface VitalsRecord {
-  id: string;
-  patientId: string;
-  recordedAt: string;
-  bpSystolic: number;
-  bpDiastolic: number;
-  pulseRate: number;
-  bloodSugar: number;
-  sugarType: 'fasting' | 'post_prandial' | 'random';
-  temperature?: number;
-  spo2?: number;
-  weightKg?: number;
-  heightCm?: number;
-  bmi?: string;
-  notes?: string;
-  recordedBy?: string;
-}
-
 interface PatientVitalsModuleProps {
   patient: Patient;
   className?: string;
@@ -79,158 +62,15 @@ export const PatientVitalsModule: React.FC<PatientVitalsModuleProps> = ({ patien
   const [heightCm, setHeightCm] = useState<number | ''>(168);
   const [notes, setNotes] = useState('');
 
-  // Storage Key
-  const storageKey = `labmedix_patient_vitals_${patient.id}`;
-
-  // Initial Load with Fallback / Seed from EMR Encounters
+  // Initial Load with Fallback / Seed from VitalsService
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setVitalsList(JSON.parse(saved));
-        return;
-      } catch (e) {
-        console.error('Error parsing vitals:', e);
-      }
-    }
-
-    // Seed from existing EMR encounters if available
-    const encounters = EMRService.getEncountersByPatient(patient.id);
-    const initialRecords: VitalsRecord[] = [];
-
-    encounters.forEach((enc) => {
-      if (enc.vitals) {
-        initialRecords.push({
-          id: `vit_${enc.id}`,
-          patientId: patient.id,
-          recordedAt: enc.date || enc.createdAt,
-          bpSystolic: enc.vitals.bpSystolic || 120,
-          bpDiastolic: enc.vitals.bpDiastolic || 80,
-          pulseRate: enc.vitals.pulseRate || 75,
-          bloodSugar: enc.vitals.bloodSugar || 110,
-          sugarType: 'random',
-          temperature: enc.vitals.temperature || 98.4,
-          spo2: enc.vitals.spo2 || 99,
-          weightKg: enc.vitals.weightKg || 70,
-          heightCm: enc.vitals.heightCm || 170,
-          bmi: enc.vitals.bmi || '24.2',
-          notes: `Routine consultation vitals check by ${enc.doctorName}`,
-          recordedBy: enc.doctorName
-        });
-      }
-    });
-
-    // If still empty, create realistic historical timeline records for rich trend analysis
-    if (initialRecords.length === 0) {
-      const now = new Date();
-      const sampleDates = [
-        new Date(now.getTime() - 45 * 24 * 3600 * 1000).toISOString(),
-        new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString(),
-        new Date(now.getTime() - 15 * 24 * 3600 * 1000).toISOString(),
-        new Date(now.getTime() - 3 * 24 * 3600 * 1000).toISOString(),
-        now.toISOString()
-      ];
-
-      const samples: VitalsRecord[] = [
-        {
-          id: 'vit_sample_1',
-          patientId: patient.id,
-          recordedAt: sampleDates[0],
-          bpSystolic: 136,
-          bpDiastolic: 88,
-          pulseRate: 84,
-          bloodSugar: 142,
-          sugarType: 'post_prandial',
-          temperature: 98.6,
-          spo2: 98,
-          weightKg: 73,
-          heightCm: 170,
-          bmi: '25.3',
-          notes: 'Initial OPD baseline assessment',
-          recordedBy: 'Clinical Nurse Triage'
-        },
-        {
-          id: 'vit_sample_2',
-          patientId: patient.id,
-          recordedAt: sampleDates[1],
-          bpSystolic: 130,
-          bpDiastolic: 84,
-          pulseRate: 78,
-          bloodSugar: 118,
-          sugarType: 'fasting',
-          temperature: 98.4,
-          spo2: 99,
-          weightKg: 72,
-          heightCm: 170,
-          bmi: '24.9',
-          notes: 'Post-medication review',
-          recordedBy: 'Dr. Subhashish Roy'
-        },
-        {
-          id: 'vit_sample_3',
-          patientId: patient.id,
-          recordedAt: sampleDates[2],
-          bpSystolic: 124,
-          bpDiastolic: 82,
-          pulseRate: 76,
-          bloodSugar: 110,
-          sugarType: 'random',
-          temperature: 98.2,
-          spo2: 99,
-          weightKg: 71.5,
-          heightCm: 170,
-          bmi: '24.7',
-          notes: 'Routine follow-up check',
-          recordedBy: 'Clinical Nurse Triage'
-        },
-        {
-          id: 'vit_sample_4',
-          patientId: patient.id,
-          recordedAt: sampleDates[3],
-          bpSystolic: 122,
-          bpDiastolic: 80,
-          pulseRate: 72,
-          bloodSugar: 104,
-          sugarType: 'fasting',
-          temperature: 98.4,
-          spo2: 100,
-          weightKg: 71,
-          heightCm: 170,
-          bmi: '24.6',
-          notes: 'Pre-procedure vitals clearance',
-          recordedBy: 'Dr. Anita Sen'
-        },
-        {
-          id: 'vit_sample_5',
-          patientId: patient.id,
-          recordedAt: sampleDates[4],
-          bpSystolic: 118,
-          bpDiastolic: 78,
-          pulseRate: 70,
-          bloodSugar: 98,
-          sugarType: 'fasting',
-          temperature: 98.4,
-          spo2: 99,
-          weightKg: 70.5,
-          heightCm: 170,
-          bmi: '24.4',
-          notes: 'Optimal healthy response & normal vitals',
-          recordedBy: 'Clinical Nurse Triage'
-        }
-      ];
-
-      setVitalsList(samples);
-      localStorage.setItem(storageKey, JSON.stringify(samples));
-      return;
-    }
-
-    setVitalsList(initialRecords);
-    localStorage.setItem(storageKey, JSON.stringify(initialRecords));
+    const list = VitalsService.getPatientVitals(patient.id);
+    setVitalsList(list);
   }, [patient.id]);
 
   const saveVitalsList = (newList: VitalsRecord[]) => {
     setVitalsList(newList);
-    localStorage.setItem(storageKey, JSON.stringify(newList));
+    VitalsService.savePatientVitals(patient.id, newList);
   };
 
   const handleAddVitals = (e: React.FormEvent) => {

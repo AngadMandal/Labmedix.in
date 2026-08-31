@@ -344,6 +344,11 @@ export class ApiSyncService {
     'labmedix_sample_dispatches_v1': { type: 'collection', path: 'sampleDispatches' },
     'labmedix_recovery_vault_v1': { type: 'collection', path: 'recoveryVault' },
     'labmedix_snapshots_v1': { type: 'collection', path: 'snapshots' },
+    'labmedix_ngo_partners_v1': { type: 'collection', path: 'ngoPartners' },
+    'labmedix_health_camps_v1': { type: 'collection', path: 'healthCamps' },
+    'labmedix_camp_attendees_v1': { type: 'collection', path: 'campAttendees' },
+    'labmedix_charity_grants_v1': { type: 'collection', path: 'charityGrants' },
+    'labmedix_ngo_fund_transactions_v1': { type: 'collection', path: 'ngoTransactions' },
     'labmedix_company_profile_v1': { type: 'doc', path: 'settings/companyProfile' },
     'LABMEDIX_WEBSITE_CMS_CONFIG': { type: 'doc', path: 'settings/websiteCms' },
     'labmedix_integrations_v4': { type: 'doc', path: 'settings/integrations' }
@@ -580,7 +585,12 @@ export class ApiSyncService {
       { path: 'cardApplications', items: d.portalCardApplications || [] },
       { path: 'vouchers', items: d.cashVouchers || [] },
       { path: 'sampleDispatches', items: d.sampleDispatches || [] },
-      { path: 'recoveryVault', items: d.recoveryVault || [] }
+      { path: 'recoveryVault', items: d.recoveryVault || [] },
+      { path: 'ngoPartners', items: d.ngoPartners || [] },
+      { path: 'healthCamps', items: d.healthCamps || [] },
+      { path: 'campAttendees', items: d.campAttendees || [] },
+      { path: 'charityGrants', items: d.charityGrants || [] },
+      { path: 'ngoTransactions', items: d.ngoTransactions || [] }
     ];
 
     for (const entry of collectionsToRestore) {
