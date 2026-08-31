@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 
 interface LabMedixLogoProps {
   logoUrl?: string;
+  companyName?: string;
+  tagline?: string;
+  estdYear?: string;
   variant?: 'monogram' | 'horizontal' | 'stacked' | 'badge' | 'seal';
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   theme?: 'dark' | 'light' | 'teal' | 'gold' | 'white';
@@ -11,6 +14,9 @@ interface LabMedixLogoProps {
 
 export const LabMedixLogo: React.FC<LabMedixLogoProps> = ({
   logoUrl,
+  companyName,
+  tagline,
+  estdYear,
   variant = 'horizontal',
   size = 'md',
   theme = 'teal',
@@ -18,6 +24,9 @@ export const LabMedixLogo: React.FC<LabMedixLogoProps> = ({
   className = ''
 }) => {
   const [imageError, setImageError] = useState(false);
+  const displayName = companyName || 'LABMEDIX';
+  const displayTagline = tagline || 'CONFIDENT IN CARE';
+  const displayEstd = estdYear || '2025';
 
   // Size mapping
   const sizeMap = {
@@ -189,7 +198,7 @@ export const LabMedixLogo: React.FC<LabMedixLogoProps> = ({
           <circle cx="80" cy="80" r="68" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
           <text className="text-[10.5px] font-black uppercase tracking-[3.8px] fill-current" style={{ fill: theme === 'white' ? '#FFFFFF' : '#0D9488' }}>
             <textPath href="#sealTextPath" startOffset="0%">
-              • LABMEDIX HEALTHCARE • CONFIDENT IN CARE •
+              • {displayName} • {displayTagline} •
             </textPath>
           </text>
         </svg>
@@ -208,10 +217,17 @@ export const LabMedixLogo: React.FC<LabMedixLogoProps> = ({
         {renderIconOrImage(currentSize.icon)}
         <div>
           <h2 className={`font-black tracking-wider uppercase leading-none font-sans ${currentSize.textTitle} ${currentTheme.title}`}>
-            LAB<span className="text-teal-400">MEDIX</span>
+            {displayName.includes(' ') ? (
+              <>
+                <span>{displayName.split(' ')[0]} </span>
+                <span className="text-teal-400">{displayName.split(' ').slice(1).join(' ')}</span>
+              </>
+            ) : (
+              displayName
+            )}
           </h2>
           <p className={`font-semibold tracking-tight uppercase ${currentSize.textSub} ${currentTheme.sub}`}>
-            CONFIDENT IN CARE
+            {displayTagline}
           </p>
           {showAccreditation && (
             <span className="text-[8px] font-mono font-bold text-slate-400 block mt-0.5 tracking-wider">
@@ -230,7 +246,7 @@ export const LabMedixLogo: React.FC<LabMedixLogoProps> = ({
         {renderIconOrImage(currentSize.icon * 0.75)}
         <div className="text-left">
           <div className="flex items-center gap-1">
-            <span className="font-black text-xs text-white tracking-wide">LABMEDIX</span>
+            <span className="font-black text-xs text-white tracking-wide truncate max-w-[120px]">{displayName}</span>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
           </div>
           <span className="text-[9px] font-bold text-teal-400 uppercase tracking-tighter block leading-none">
@@ -248,18 +264,25 @@ export const LabMedixLogo: React.FC<LabMedixLogoProps> = ({
       <div className="flex flex-col text-left">
         <div className="flex items-center gap-1.5 leading-none">
           <h1 className={`font-black tracking-wider uppercase font-sans ${currentSize.textTitle} ${currentTheme.title}`}>
-            LAB<span className="text-teal-400">MEDIX</span>
+            {displayName.includes(' ') ? (
+              <>
+                <span>{displayName.split(' ')[0]} </span>
+                <span className="text-teal-400">{displayName.split(' ').slice(1).join(' ')}</span>
+              </>
+            ) : (
+              displayName
+            )}
           </h1>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className={`font-bold tracking-tight uppercase ${currentSize.textSub} ${currentTheme.sub}`}>
-            CONFIDENT IN CARE
+            {displayTagline}
           </span>
           {showAccreditation && (
             <>
               <span className="text-slate-400 text-[9px]">•</span>
               <span className="text-[8px] font-mono font-bold text-teal-400 tracking-tight">
-                ESTD. 2025
+                ESTD. {displayEstd}
               </span>
             </>
           )}

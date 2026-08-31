@@ -96,6 +96,15 @@ export const DEFAULT_COMPANY_PROFILE: CompanyProfile = {
     googlePayBusinessName: 'LABMEDIX HEALTHCARE',
     enableDeepLinks: true,
     autoVerifySimulation: true
+  },
+  nfcSettings: {
+    enabled: true,
+    defaultStandard: 'ISO/IEC 14443 Type A',
+    frequency: '13.56 MHz',
+    payloadType: 'verification_url',
+    autoWriteOnIssue: true,
+    securityKey: 'A0B1C2D3E4F5',
+    enableWebNfcApi: true
   }
 };
 

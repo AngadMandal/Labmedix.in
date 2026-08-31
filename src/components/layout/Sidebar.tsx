@@ -100,7 +100,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
       >
         {/* Brand Header */}
         <div className="p-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/40">
-          <LabMedixLogo logoUrl={companyProfile.logoUrl} variant="horizontal" size="sm" theme="white" showAccreditation={true} />
+          <LabMedixLogo
+            logoUrl={companyProfile.logoUrl}
+            companyName={companyProfile.name}
+            tagline={companyProfile.tagline}
+            estdYear={companyProfile.estdYear}
+            variant="horizontal"
+            size="sm"
+            theme="white"
+            showAccreditation={true}
+          />
         </div>
 
         {/* Navigation Items */}

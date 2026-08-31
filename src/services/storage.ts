@@ -947,15 +947,45 @@ export class StorageService {
       profile = DEFAULT_COMPANY_PROFILE;
       this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
     } else {
-      profile = { ...DEFAULT_COMPANY_PROFILE, ...profile };
+      profile = {
+        ...DEFAULT_COMPANY_PROFILE,
+        ...profile,
+        nfcSettings: {
+          defaultStandard: 'ISO/IEC 14443 Type A',
+          frequency: '13.56 MHz',
+          payloadType: 'verification_url',
+          autoWriteOnIssue: true,
+          securityKey: 'A0B1C2D3E4F5',
+          enableWebNfcApi: true,
+          ...(DEFAULT_COMPANY_PROFILE.nfcSettings || {}),
+          ...(profile.nfcSettings || {}),
+          enabled: profile.nfcSettings?.enabled ?? DEFAULT_COMPANY_PROFILE.nfcSettings?.enabled ?? true
+        },
+        upiSettings: {
+          merchantVpa: '7047108226@okbizaxis',
+          merchantName: 'LABMEDIX MULTI-SPECIALITY CENTRE',
+          merchantMcc: '8099',
+          googlePayMerchantId: 'GPAY-LMDX-8829-LIVE',
+          googlePayBusinessName: 'LABMEDIX HEALTHCARE',
+          enableDeepLinks: true,
+          autoVerifySimulation: true,
+          ...(DEFAULT_COMPANY_PROFILE.upiSettings || {}),
+          ...(profile.upiSettings || {}),
+          enabled: profile.upiSettings?.enabled ?? DEFAULT_COMPANY_PROFILE.upiSettings?.enabled ?? true
+        }
+      };
     }
     return profile;
   }
   public static saveCompanyProfile(profile: CompanyProfile): void {
     this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
+    ApiSyncService.saveCompanyProfile(profile).catch(() => {});
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, profile).catch(() => {});
+    this.triggerServerBackupSync();
     // Explicitly broadcast to ensure all modules/portals update instantly
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.COMPANY_PROFILE, value: profile } }));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.COMPANY_PROFILE, value: profile } }));
+    }
   }
 
   // Cash Desk Vouchers (Super Admin Sovereign PIN & Voucher Ledger)

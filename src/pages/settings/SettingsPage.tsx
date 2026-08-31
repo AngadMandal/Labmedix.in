@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
@@ -69,10 +69,11 @@ import { TierConfigManager } from '../../components/settings/TierConfigManager';
 import { Crown } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
-  const { companyProfile, updateCompanyProfile } = useSettings();
+  const { companyProfile, updateCompanyProfile, refreshCompanyProfile, isCentralSynced } = useSettings();
   const { theme, isDark, currentTimeString, isDaytime } = useTheme();
   const { showToast } = useToast();
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isSyncingCentral, setIsSyncingCentral] = useState(false);
 
   const currentUser = StorageService.getCurrentUser();
   const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -168,6 +169,61 @@ export const SettingsPage: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Live Reactive Sync with Central Firestore updates across devices
+  useEffect(() => {
+    if (companyProfile && !isSaving) {
+      setName(companyProfile.name || '');
+      setTagline(companyProfile.tagline || '');
+      setEstdYear(companyProfile.estdYear || '2025');
+      setSubtitle(companyProfile.subtitle || '');
+      setLogoUrl(companyProfile.logoUrl || '/logo.jpg');
+      setAddress(companyProfile.address || '');
+      setPostOffice(companyProfile.postOffice || 'Civil Lines P.O.');
+      setPoliceStation(companyProfile.policeStation || 'Central Station');
+      setDistrict(companyProfile.district || '');
+      setStateVal(companyProfile.state || '');
+      setPinCode(companyProfile.pinCode || '');
+      setPhone(companyProfile.phone || '');
+      setHelpline(companyProfile.helpline || '');
+      setAmbulanceHelpline(companyProfile.ambulanceHelpline || '1800 123 4567');
+      setBloodBankHelpline(companyProfile.bloodBankHelpline || '+91 98765 43211');
+      setWhatsapp(companyProfile.whatsapp || '');
+      setEmail(companyProfile.email || '');
+      setWebsite(companyProfile.website || '');
+      setRegistrationNo(companyProfile.registrationNo || '');
+      setIsoCertification(companyProfile.isoCertification || 'ISO 9001:2015 MED-QC-8841');
+      setClinicalLicenseNo(companyProfile.clinicalLicenseNo || 'CEA/WB/KOL/2025/1102');
+      setGstin(companyProfile.gstin || '19AAACL1234F1Z5');
+      setCardValidityMonths(companyProfile.cardValidityMonths || 12);
+      setCardFooterNotice(companyProfile.cardFooterNotice || 'Present this card or digital QR at LABMEDIX front desk to redeem medical discounts.');
+      setCardSecurityWatermark(companyProfile.cardSecurityWatermark || 'LABMEDIX SECURE HEALTHCARE');
+      setCurrencySymbol(companyProfile.currencySymbol || '₹');
+      setIsLocked(companyProfile.isLocked ?? true);
+      setLockedBy(companyProfile.lockedBy || 'Super Administrator');
+      setLockedAt(companyProfile.lockedAt || '');
+
+      if (companyProfile.nfcSettings) {
+        setNfcEnabled(companyProfile.nfcSettings.enabled ?? true);
+        setNfcStandard(companyProfile.nfcSettings.defaultStandard || 'ISO/IEC 14443 Type A');
+        setNfcFrequency(companyProfile.nfcSettings.frequency || '13.56 MHz');
+        setNfcPayloadType(companyProfile.nfcSettings.payloadType || 'verification_url');
+        setNfcAutoWrite(companyProfile.nfcSettings.autoWriteOnIssue ?? true);
+        setNfcKey(companyProfile.nfcSettings.securityKey || 'A0B1C2D3E4F5');
+        setNfcWebApi(companyProfile.nfcSettings.enableWebNfcApi ?? true);
+      }
+
+      if (companyProfile.upiSettings) {
+        setUpiEnabled(companyProfile.upiSettings.enabled ?? true);
+        setUpiVpa(companyProfile.upiSettings.merchantVpa || 'labmedix.health@icici');
+        setUpiMerchantName(companyProfile.upiSettings.merchantName || companyProfile.name || 'LABMEDIX MULTI-SPECIALITY CENTRE');
+        setUpiMcc(companyProfile.upiSettings.merchantMcc || '8099');
+        setGpayMerchantId(companyProfile.upiSettings.googlePayMerchantId || 'GPAY-LMDX-8829-LIVE');
+        setGpayBusinessName(companyProfile.upiSettings.googlePayBusinessName || 'LABMEDIX HEALTHCARE');
+        setUpiDeepLinks(companyProfile.upiSettings.enableDeepLinks ?? true);
+      }
+    }
+  }, [companyProfile, isSaving]);
 
   // Logo file upload handler
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -359,7 +415,7 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isSuperAdmin) {
@@ -397,7 +453,7 @@ export const SettingsPage: React.FC = () => {
       autoVerifySimulation: true
     };
 
-    updateCompanyProfile({
+    const updatedProfile: CompanyProfile = {
       name: name.trim(),
       tagline: tagline.trim(),
       estdYear: estdYear.trim(),
@@ -428,15 +484,39 @@ export const SettingsPage: React.FC = () => {
       lockedAt: now,
       lockedBy: operator,
       nfcSettings: updatedNfcConfig,
-      upiSettings: updatedUpiConfig
-    });
+      upiSettings: updatedUpiConfig,
+      services: companyProfile.services || [],
+      termsAndConditions: companyProfile.termsAndConditions || []
+    };
+
+    updateCompanyProfile(updatedProfile);
+    await ApiSyncService.saveCompanyProfile(updatedProfile);
 
     setIsLocked(true);
     setLockedAt(now);
     setLockedBy(operator);
     setIsSaving(false);
     triggerCelebrationFireworks();
-    showToast('success', 'Settings Synchronized & Auto-Locked! 🔒', 'Executive branding, helpline numbers & CR80 templates saved and locked into read-only mode.');
+    showToast('success', 'Central Firestore Synchronized & Saved! ⚡🔒', 'Executive branding, helpline numbers & organization settings are live across all devices and Central Database.');
+  };
+
+  // Manual Force-Refresh from Central Firestore
+  const handleSyncWithCentral = async () => {
+    setIsSyncingCentral(true);
+    try {
+      const cloudData = await ApiSyncService.fetchCompanyProfile();
+      if (cloudData && cloudData.name) {
+        StorageService.updateCacheAndNotify('labmedix_company_profile_v1', cloudData);
+        refreshCompanyProfile();
+        showToast('success', 'Central Firestore Data Fetched! ⚡', `Synchronized profile (${cloudData.name}) from Central Cloud Database.`);
+      } else {
+        showToast('info', 'Central Cloud Up-To-Date', 'Local device is already in complete sync with Central Firestore.');
+      }
+    } catch (err: any) {
+      showToast('error', 'Sync Check Failed', err?.message || 'Could not contact Central Firestore.');
+    } finally {
+      setIsSyncingCentral(false);
+    }
   };
 
   // Dynamic Patient & Live Card Setup for true-to-life 300 DPI Preview
@@ -570,7 +650,26 @@ export const SettingsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Central Cloud Realtime Status Indicator */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-950/60 border border-blue-500/30 text-blue-300 text-xs font-semibold shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Central Firestore Live</span>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncingCentral ? 'animate-spin' : ''}`} />}
+            onClick={handleSyncWithCentral}
+            isLoading={isSyncingCentral}
+            className="border-slate-700 hover:border-blue-500 text-xs"
+            title="Fetch and verify latest organization details directly from Central Cloud Database"
+          >
+            Fetch Central
+          </Button>
+
           <Button
             type="button"
             variant="outline"

@@ -23,7 +23,8 @@ import {
   AuditLog, 
   Wallet, 
   FamilyGroup,
-  SampleDispatchRecord
+  SampleDispatchRecord,
+  CompanyProfile
 } from '../types';
 import { BloodTestBooking, MedicineOrder } from './portalService';
 
@@ -347,6 +348,91 @@ export class ApiSyncService {
     'LABMEDIX_WEBSITE_CMS_CONFIG': { type: 'doc', path: 'settings/websiteCms' },
     'labmedix_integrations_v4': { type: 'doc', path: 'settings/integrations' }
   };
+
+  /** Dedicated Real-time subscriber for Central Firestore Company Profile */
+  public static subscribeToCompanyProfile(callback: (profile: CompanyProfile) => void): () => void {
+    try {
+      const docRef = doc(db, 'settings', 'companyProfile');
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (this.quotaExceeded) return;
+        if (docSnap.exists()) {
+          const data = docSnap.data() as CompanyProfile;
+          if (data && data.name) {
+            try {
+              if (typeof window !== 'undefined' && (window as any).__labmedix_update_cache) {
+                (window as any).__labmedix_update_cache('labmedix_company_profile_v1', data);
+              } else if (typeof window !== 'undefined') {
+                localStorage.setItem('labmedix_company_profile_v1', JSON.stringify(data));
+                sessionStorage.setItem('labmedix_company_profile_v1', JSON.stringify(data));
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_company_profile_v1', value: data } }));
+              }
+            } catch (err) {
+              console.warn('[ApiSync] Failed local cache write for company profile snapshot:', err);
+            }
+            callback(data);
+          }
+        }
+      }, (err) => {
+        if (this.checkQuotaError(err)) return;
+        console.warn('[ApiSync] Real-time company profile subscription notice:', err);
+      });
+      return unsubscribe;
+    } catch (e) {
+      console.warn('[ApiSync] Failed to subscribe to central company profile:', e);
+      return () => {};
+    }
+  }
+
+  /** Direct Fetch Company Profile from Central Firestore */
+  public static async fetchCompanyProfile(): Promise<CompanyProfile | null> {
+    try {
+      const docRef = doc(db, 'settings', 'companyProfile');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data() as CompanyProfile;
+        if (data && data.name) {
+          return data;
+        }
+      }
+      return null;
+    } catch (err) {
+      console.warn('[ApiSync] Fetch company profile error from Central Firestore:', err);
+      return null;
+    }
+  }
+
+  /** Direct Save Company Profile to Central Firestore with high-priority dual path & audit log */
+  public static async saveCompanyProfile(profile: CompanyProfile): Promise<boolean> {
+    try {
+      const sanitized = JSON.parse(JSON.stringify(profile));
+      const payload = {
+        ...sanitized,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const docRef = doc(db, 'settings', 'companyProfile');
+      await setDoc(docRef, payload, { merge: true });
+
+      // Dual-path mirror for maximum platform backward-compatibility
+      const mirrorRef = doc(db, 'settings', 'company_profile');
+      setDoc(mirrorRef, payload, { merge: true }).catch(() => {});
+
+      this.lastSyncTimestamp = new Date().toISOString();
+      this.isConnected = true;
+      this.addDiagnosticLog({
+        type: 'WRITE',
+        pathOrCollection: 'settings/companyProfile',
+        details: `Saved Company Profile (${profile.name}) to Central Firestore`
+      });
+      return true;
+    } catch (error: any) {
+      this.checkQuotaError(error);
+      this.syncErrors++;
+      console.warn('[ApiSync] Failed to save company profile to Central Firestore:', error);
+      this.enqueueWorkerTask('settings', 'companyProfile', profile);
+      return false;
+    }
+  }
 
   /** Dynamically sync any STORAGE_KEY value to Firestore */
   public static async syncKeyToFirestore(key: string, value: any): Promise<void> {
