@@ -850,6 +850,19 @@ export class StorageService {
       syncEntity(cloudCampAttendees, STORAGE_KEYS.CAMP_ATTENDEES);
       syncEntity(cloudCharityGrants, STORAGE_KEYS.CHARITY_GRANTS);
       syncEntity(cloudNgoTxns, STORAGE_KEYS.NGO_FUND_TRANSACTIONS);
+
+      // Seed initial records to Firestore if remote cloud collections are currently empty
+      if (cloudPatients.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, StorageService.getPatients()).catch(() => {});
+      if (cloudCards.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, StorageService.getCards()).catch(() => {});
+      if (cloudMemberships.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.MEMBERSHIPS, StorageService.getMemberships()).catch(() => {});
+      if (cloudDoctors.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTORS, StorageService.getItem(STORAGE_KEYS.DOCTORS, [])).catch(() => {});
+      if (cloudLabTests.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.LAB_TESTS, StorageService.getItem(STORAGE_KEYS.LAB_TESTS, [])).catch(() => {});
+      if (cloudHealthPackages.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_PACKAGES, StorageService.getItem(STORAGE_KEYS.HEALTH_PACKAGES, [])).catch(() => {});
+      if (cloudWallets.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, StorageService.getWallets()).catch(() => {});
+      if (cloudTxns.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, StorageService.getTransactions()).catch(() => {});
+      if (cloudNgoPartners.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.NGO_PARTNERS, StorageService.getNgoPartners()).catch(() => {});
+      if (cloudHealthCamps.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_CAMPS, StorageService.getHealthCamps()).catch(() => {});
+
       if (cloudCompany && cloudCompany.name) {
         StorageService.updateCacheAndNotify(STORAGE_KEYS.COMPANY_PROFILE, cloudCompany);
       } else {

@@ -25,7 +25,8 @@ import {
   Crown,
   Mail,
   Receipt,
-  HeartHandshake
+  HeartHandshake,
+  FileText
 } from 'lucide-react';
 
 import { SystemModuleKey } from '../../constants/roles';
@@ -59,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, moduleKey: 'dashboard' as SystemModuleKey, permission: 'all' },
         ]),
     { name: 'Patients', href: '/patients', icon: Users, moduleKey: 'patients', permission: 'patient_read' },
+    { name: 'Offline Intake Form', href: '/offline-form', icon: FileText, moduleKey: 'patients', permission: 'patient_read' },
     { name: 'Doctor Master & Commission', href: '/doctor-master', icon: Crown, moduleKey: 'doctor_master', permission: 'all' },
     { name: 'Test Master & Packages', href: '/test-master', icon: TestTube, moduleKey: 'test_master', permission: 'all' },
     { name: 'NGO & CSR Welfare Hub', href: '/ngo-welfare', icon: HeartHandshake, moduleKey: 'ngo_welfare', permission: 'all' },

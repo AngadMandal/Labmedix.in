@@ -468,7 +468,7 @@ export const PatientCreatePage: React.FC = () => {
         <form onSubmit={handleSubmit} className="lg:col-span-8 space-y-6">
           
           {/* Main Title Banner */}
-          <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
               <CreditCard className="w-64 h-64 text-white" />
             </div>
@@ -482,6 +482,16 @@ export const PatientCreatePage: React.FC = () => {
               <p className="text-xs text-blue-200/80 leading-relaxed">
                 Enroll primary patient, attach multiple family dependents, configure referral channels, and instantly auto-issue encrypted CR80 Health Cards with QR & NFC verification.
               </p>
+            </div>
+
+            <div className="relative z-10 flex flex-col sm:flex-row gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate('/offline-form')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all shadow-md backdrop-blur-md"
+              >
+                <span>📝 Switch to Offline / Camp Form</span>
+              </button>
             </div>
           </div>
 

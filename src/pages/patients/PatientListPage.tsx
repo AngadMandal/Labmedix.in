@@ -73,6 +73,7 @@ import {
   Layers,
   Flame,
   ArrowRight,
+  FileText,
   TrendingUp,
   MapPin,
   Stethoscope,
@@ -947,15 +948,27 @@ export const PatientListPage: React.FC = () => {
             </Button>
 
             {can('patient_create') && (
-              <Button
-                variant="primary"
-                size="sm"
-                className="bg-gradient-to-r from-teal-600 to-emerald-600 font-bold shadow-lg"
-                leftIcon={<Plus className="w-4 h-4" />}
-                onClick={() => navigate('/patients/new')}
-              >
-                Register Patient
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-indigo-500/50 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/60 font-bold shadow-md flex items-center gap-1.5"
+                  onClick={() => navigate('/offline-form')}
+                >
+                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Offline Form / Field Camp</span>
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="bg-gradient-to-r from-teal-600 to-emerald-600 font-bold shadow-lg"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={() => navigate('/patients/new')}
+                >
+                  Register Patient
+                </Button>
+              </>
             )}
           </div>
         </div>

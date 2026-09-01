@@ -26,7 +26,8 @@ import {
   Globe,
   ShieldCheck,
   Clock,
-  Laptop
+  Laptop,
+  FileText
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -119,6 +120,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         >
           <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
           <span className="hidden md:inline">3D Website</span>
+        </Link>
+
+        {/* Offline Form & Field Camp Button */}
+        <Link
+          to="/offline-form"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold hover:bg-indigo-100 transition-colors shadow-sm"
+          title="Offline Intake Form & Field Camp Queue"
+        >
+          <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <span className="hidden lg:inline">Offline Form</span>
         </Link>
 
         {/* Persistent Sync Health Traffic-Light Indicator */}

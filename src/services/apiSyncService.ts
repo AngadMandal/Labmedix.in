@@ -441,8 +441,37 @@ export class ApiSyncService {
 
   /** Dynamically sync any STORAGE_KEY value to Firestore */
   public static async syncKeyToFirestore(key: string, value: any): Promise<void> {
+    if (!key || value === undefined || value === null) return;
+
+    // Handle dynamic patient vitals keys (e.g. labmedix_patient_vitals_pat_12345)
+    if (key.startsWith('labmedix_patient_vitals_')) {
+      const patientId = key.replace('labmedix_patient_vitals_', '').trim();
+      if (!patientId) return;
+      try {
+        const docRef = doc(db, 'patientVitals', patientId);
+        const sanitizedRecords = JSON.parse(JSON.stringify(Array.isArray(value) ? value : []));
+        await setDoc(docRef, {
+          patientId,
+          records: sanitizedRecords,
+          count: sanitizedRecords.length,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        this.lastSyncTimestamp = new Date().toISOString();
+        this.isConnected = true;
+        this.addDiagnosticLog({
+          type: 'WRITE',
+          pathOrCollection: `patientVitals/${patientId}`,
+          details: `Synced vitals for patient ${patientId} (${sanitizedRecords.length} records)`
+        });
+      } catch (e) {
+        this.syncErrors++;
+        console.warn(`[ApiSync] Firestore sync failed for patient vitals ${patientId}:`, e);
+      }
+      return;
+    }
+
     const config = this.KEY_TO_FIRESTORE_MAP[key];
-    if (!config || value === undefined || value === null) return;
+    if (!config) return;
 
     try {
       if (config.type === 'collection' && Array.isArray(value)) {
@@ -453,6 +482,7 @@ export class ApiSyncService {
         await setDoc(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
       }
       this.lastSyncTimestamp = new Date().toISOString();
+      this.isConnected = true;
     } catch (e) {
       this.syncErrors++;
       console.warn(`[ApiSync] Firestore sync failed for ${key}:`, e);
@@ -716,6 +746,45 @@ export class ApiSyncService {
         this.syncErrors++;
         console.warn(`[ApiSync] Failed to subscribe to ${config.path}:`, e);
       }
+    }
+
+    // Real-time listener for Patient Vitals collection
+    try {
+      const qVitals = query(collection(db, 'patientVitals'));
+      const unsubVitals = onSnapshot(qVitals, (snapshot) => {
+        if (this.quotaExceeded) return;
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const patientId = docSnap.id || data?.patientId;
+          if (patientId && data?.records) {
+            const vKey = `labmedix_patient_vitals_${patientId}`;
+            const records = data.records;
+            try {
+              if (typeof window !== 'undefined' && (window as any).__labmedix_update_cache) {
+                (window as any).__labmedix_update_cache(vKey, records);
+              } else if (typeof window !== 'undefined') {
+                localStorage.setItem(vKey, JSON.stringify(records));
+                sessionStorage.setItem(vKey, JSON.stringify(records));
+                window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: vKey, value: records } }));
+              }
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('labmedix_vitals_updated', { detail: { patientId, count: records.length } }));
+              }
+            } catch (err) {
+              console.warn(`[ApiSync] Failed local persist for vitals ${vKey}:`, err);
+            }
+          }
+        });
+        this.lastSyncTimestamp = new Date().toISOString();
+        this.isConnected = true;
+      }, (err) => {
+        if (!this.checkQuotaError(err)) {
+          console.warn('[ApiSync] patientVitals snapshot warning:', err);
+        }
+      });
+      this.activeUnsubscribers.push(unsubVitals);
+    } catch (e) {
+      console.warn('[ApiSync] Failed to subscribe to patientVitals:', e);
     }
 
     return () => {

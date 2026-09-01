@@ -36,6 +36,7 @@ import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
 import { PatientPortalPage } from './pages/portal/PatientPortalPage';
 import { HomePage } from './pages/public/HomePage';
 import { NgoWelfare } from './pages/NgoWelfare';
+import { OfflineFormPage } from './pages/offline/OfflineFormPage';
 import { NotFoundPage } from './pages/not-found/NotFoundPage';
 
 import { SystemModuleKey } from './constants/roles';
@@ -238,6 +239,8 @@ export const App: React.FC = () => {
                   {/* Patient Routes */}
                   <Route path="/patients" element={<ModuleGuard moduleKey="patients"><PatientListPage /></ModuleGuard>} />
                   <Route path="/patients/new" element={<ModuleGuard moduleKey="patients"><PatientCreatePage /></ModuleGuard>} />
+                  <Route path="/patients/offline" element={<ModuleGuard moduleKey="patients"><OfflineFormPage /></ModuleGuard>} />
+                  <Route path="/offline-form" element={<ModuleGuard moduleKey="patients"><OfflineFormPage /></ModuleGuard>} />
                   <Route path="/patients/:id" element={<ModuleGuard moduleKey="patients"><PatientDetailPage /></ModuleGuard>} />
                   <Route path="/patients/:id/edit" element={<ModuleGuard moduleKey="patients"><PatientEditPage /></ModuleGuard>} />
 
