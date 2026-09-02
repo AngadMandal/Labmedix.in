@@ -516,7 +516,7 @@ export const DirectLabAndPackageBookingModal: React.FC<DirectLabAndPackageBookin
               <Home className="w-5 h-5 text-amber-300 shrink-0" />
               <div>
                 <strong className="block text-xs">🏡 Certified Home Sample Collection</strong>
-                <span className="text-[10px] opacity-80 block">NABL Phlebotomist visits doorstep with vacutainer kit</span>
+                <span className="text-[10px] opacity-80 block">Certified Phlebotomist visits doorstep with vacutainer kit</span>
               </div>
             </button>
 

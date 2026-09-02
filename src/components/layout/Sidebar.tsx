@@ -26,7 +26,9 @@ import {
   Mail,
   Receipt,
   HeartHandshake,
-  FileText
+  FileText,
+  Cpu,
+  Truck
 } from 'lucide-react';
 
 import { SystemModuleKey } from '../../constants/roles';
@@ -67,6 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { name: 'Health Cards', href: '/cards', icon: CreditCard, moduleKey: 'cards', permission: 'card_read' },
     { name: 'CR80 PVC Studio', href: '/card-studio', icon: Palette, moduleKey: 'card_studio', permission: 'card_print' },
     { name: 'A4 Print Sheet', href: '/cards/print-sheet', icon: Layers, moduleKey: 'print_sheet', permission: 'card_print' },
+    { name: 'Card Print & Dispatch', href: '/cards/printing-dispatch', icon: Truck, moduleKey: 'card_dispatch', permission: 'card_print' },
     { name: 'Memberships', href: '/memberships', icon: Award, moduleKey: 'memberships', permission: 'membership_manage' },
     { name: 'Family Groups', href: '/families', icon: Users2, moduleKey: 'families', permission: 'family_manage' },
     { name: 'Health Wallet', href: '/wallet', icon: Wallet, moduleKey: 'wallet', permission: 'wallet_read' },
@@ -77,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { name: 'Integrations Hub', href: '/integrations', icon: Globe, moduleKey: 'integrations', permission: 'settings_manage' },
     { name: 'Gmail Workspace Hub', href: '/gmail-integration', icon: Mail, moduleKey: 'integrations', permission: 'settings_manage' },
     { name: 'Audit & Activity', href: '/activity', icon: History, moduleKey: 'activity', permission: 'audit_view' },
+    { name: 'System Monitoring', href: '/system-monitoring', icon: Cpu, moduleKey: 'system_monitoring', permission: 'all' },
     { name: 'Backup & Restore', href: '/backup', icon: Database, moduleKey: 'backup', permission: 'backup_manage' },
     { name: 'Company Settings', href: '/settings', icon: Settings, moduleKey: 'settings', permission: 'settings_manage' }
   ];

@@ -34,7 +34,8 @@ import {
   UserCheck,
   CreditCard,
   Wallet,
-  Users2
+  Users2,
+  Cpu
 } from 'lucide-react';
 
 export const ActivityLogPage: React.FC = () => {
@@ -302,6 +303,14 @@ export const ActivityLogPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            leftIcon={<Cpu className="w-4 h-4 text-indigo-400" />}
+            onClick={() => navigate('/system-monitoring')}
+          >
+            Telemetry & Metrics
+          </Button>
+
           <Button
             variant="outline"
             leftIcon={<ShieldCheck className="w-4 h-4 text-emerald-500" />}

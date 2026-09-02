@@ -62,7 +62,7 @@ export class PatientRecordPdfService {
         17
       );
       doc.text(
-        `ACCREDITATION: ${company.isoCertification || 'ISO 9001:2015 • NABH STANDARDS • NABL LABS'} | REG: ${company.registrationNo || 'WB-MED-REG-2025'}`,
+        `ACCREDITATION: ${company.isoCertification || 'ISO 9001:2015 • NABH STANDARDS • DIAGNOSTIC LABS'} | REG: ${company.registrationNo || 'WB-MED-REG-2025'}`,
         margin,
         22
       );

@@ -87,7 +87,7 @@ export const LabReportPrintModal: React.FC<LabReportPrintModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Official Diagnostic Pathology Report (ISO 9001:2015 / NABL Accredited)"
+      title="Official Diagnostic Pathology Report (ISO 9001:2015 Accredited)"
       maxWidth="4xl"
     >
       <div className="space-y-4">
@@ -95,7 +95,7 @@ export const LabReportPrintModal: React.FC<LabReportPrintModalProps> = ({
         <div className="flex flex-wrap items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Digital Cryptographic QR Verified • NABL Legal Clinical Record</span>
+            <span>Digital Cryptographic QR Verified • Legal Clinical Diagnostic Record</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleShareWhatsApp} leftIcon={<Share2 className="w-3.5 h-3.5 text-emerald-400" />}>
@@ -126,7 +126,7 @@ export const LabReportPrintModal: React.FC<LabReportPrintModalProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight text-indigo-950 uppercase">{company.name || 'LABMEDIX MULTI-SPECIALITY HEALTHCARE & RESEARCH CENTRE'}</h1>
                   <span className="text-[10px] px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full border border-emerald-300 font-mono">
-                    ISO 9001:2015 ACCREDITED • NABH STANDARDS • NABL LABS
+                    ISO 9001:2015 ACCREDITED • NABH STANDARDS • DIAGNOSTIC LABS
                   </span>
                 </div>
                 <p className="text-xs font-bold text-indigo-700 tracking-wide mt-0.5">
@@ -284,7 +284,7 @@ export const LabReportPrintModal: React.FC<LabReportPrintModalProps> = ({
             <div>
               <div className="inline-flex items-center justify-center gap-1 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-full text-[10px] font-bold">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>NABL Quality Control OK</span>
+                <span>Internal Quality Control OK</span>
               </div>
               <p className="text-[9px] text-slate-400 mt-1">Ref No: {booking.bookingNo}</p>
             </div>
@@ -299,7 +299,7 @@ export const LabReportPrintModal: React.FC<LabReportPrintModalProps> = ({
 
           {/* End of Report Disclaimer */}
           <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-400">
-            <span>ISO 9001:2015 & NABL Certified Pathology Report • {company.name} Automated LIS Cloud</span>
+            <span>ISO 9001:2015 Certified Pathology Report • {company.name} Automated LIS Cloud</span>
             <span>Page 1 of 1 • *** END OF DIAGNOSTIC REPORT ***</span>
           </div>
           </div>

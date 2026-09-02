@@ -16,7 +16,9 @@ import {
   HealthCamp,
   CampAttendee,
   CharityGrant,
-  NgoFundTransaction
+  NgoFundTransaction,
+  CardDispatchRecord,
+  CardDispatchBatch
 } from '../types';
 import { DEFAULT_COMPANY_PROFILE, DEFAULT_CARD_DESIGN } from '../constants/defaults';
 import { DEFAULT_MEMBERSHIPS } from '../constants/memberships';
@@ -62,6 +64,8 @@ export const STORAGE_KEYS = {
   CASH_DESK_VOUCHERS: 'LABMEDIX_CASH_DESK_VOUCHERS_V1',
   VOUCHER_SETTINGS: 'labmedix_voucher_user_settings_v1',
   SAMPLE_DISPATCHES: 'labmedix_sample_dispatches_v1',
+  CARD_DISPATCHES: 'labmedix_card_dispatches_v1',
+  CARD_DISPATCH_BATCHES: 'labmedix_card_dispatch_batches_v1',
   LAST_BACKUP_TIMESTAMP: 'labmedix_last_backup_timestamp_v1',
   LAST_BACKUP_PROMPT_TIMESTAMP: 'labmedix_last_backup_prompt_timestamp_v1',
   NGO_PARTNERS: 'labmedix_ngo_partners_v1',
@@ -484,9 +488,11 @@ export class StorageService {
       ApiSyncService.syncKeyToFirestore(key, value).catch(() => { });
     }
 
-    // 8. Broadcast update event locally to all listening React components
+    // 8. Broadcast update event locally to all listening React components asynchronously (outside React render cycles)
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
+      }, 0);
     }
 
     // 9. Trigger Live Backup to Google Drive if configured
@@ -510,7 +516,9 @@ export class StorageService {
     } catch { }
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
+      }, 0);
     }
   }
 
@@ -944,6 +952,13 @@ export class StorageService {
     }
     return memberships;
   }
+  public static getActiveMemberships(): Membership[] {
+    return this.getMemberships().filter(m => m.status === 'active');
+  }
+  public static getRecommendedMembership(): Membership | undefined {
+    const active = this.getActiveMemberships();
+    return active.find(m => m.isRecommended) || active.find(m => m.isPopular) || active[0];
+  }
   public static saveMemberships(memberships: Membership[]): void {
     this.setItem(STORAGE_KEYS.MEMBERSHIPS, memberships);
     ApiSyncService.syncMemberships(memberships).catch(() => { });
@@ -989,48 +1004,41 @@ export class StorageService {
   public static getCompanyProfile(): CompanyProfile {
     let profile = this.getItem<CompanyProfile>(STORAGE_KEYS.COMPANY_PROFILE, DEFAULT_COMPANY_PROFILE);
     if (!profile) {
-      profile = DEFAULT_COMPANY_PROFILE;
-      this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
-    } else {
-      profile = {
-        ...DEFAULT_COMPANY_PROFILE,
-        ...profile,
-        nfcSettings: {
-          defaultStandard: 'ISO/IEC 14443 Type A',
-          frequency: '13.56 MHz',
-          payloadType: 'verification_url',
-          autoWriteOnIssue: true,
-          securityKey: 'A0B1C2D3E4F5',
-          enableWebNfcApi: true,
-          ...(DEFAULT_COMPANY_PROFILE.nfcSettings || {}),
-          ...(profile.nfcSettings || {}),
-          enabled: profile.nfcSettings?.enabled ?? DEFAULT_COMPANY_PROFILE.nfcSettings?.enabled ?? true
-        },
-        upiSettings: {
-          merchantVpa: '7047108226@okbizaxis',
-          merchantName: 'LABMEDIX MULTI-SPECIALITY CENTRE',
-          merchantMcc: '8099',
-          googlePayMerchantId: 'GPAY-LMDX-8829-LIVE',
-          googlePayBusinessName: 'LABMEDIX HEALTHCARE',
-          enableDeepLinks: true,
-          autoVerifySimulation: true,
-          ...(DEFAULT_COMPANY_PROFILE.upiSettings || {}),
-          ...(profile.upiSettings || {}),
-          enabled: profile.upiSettings?.enabled ?? DEFAULT_COMPANY_PROFILE.upiSettings?.enabled ?? true
-        }
-      };
+      return DEFAULT_COMPANY_PROFILE;
     }
-    return profile;
+    return {
+      ...DEFAULT_COMPANY_PROFILE,
+      ...profile,
+      nfcSettings: {
+        defaultStandard: 'ISO/IEC 14443 Type A',
+        frequency: '13.56 MHz',
+        payloadType: 'verification_url',
+        autoWriteOnIssue: true,
+        securityKey: 'A0B1C2D3E4F5',
+        enableWebNfcApi: true,
+        ...(DEFAULT_COMPANY_PROFILE.nfcSettings || {}),
+        ...(profile.nfcSettings || {}),
+        enabled: profile.nfcSettings?.enabled ?? DEFAULT_COMPANY_PROFILE.nfcSettings?.enabled ?? true
+      },
+      upiSettings: {
+        merchantVpa: '7047108226@okbizaxis',
+        merchantName: 'LABMEDIX MULTI-SPECIALITY CENTRE',
+        merchantMcc: '8099',
+        googlePayMerchantId: 'GPAY-LMDX-8829-LIVE',
+        googlePayBusinessName: 'LABMEDIX HEALTHCARE',
+        enableDeepLinks: true,
+        autoVerifySimulation: true,
+        ...(DEFAULT_COMPANY_PROFILE.upiSettings || {}),
+        ...(profile.upiSettings || {}),
+        enabled: profile.upiSettings?.enabled ?? DEFAULT_COMPANY_PROFILE.upiSettings?.enabled ?? true
+      }
+    };
   }
   public static saveCompanyProfile(profile: CompanyProfile): void {
     this.setItem(STORAGE_KEYS.COMPANY_PROFILE, profile);
     ApiSyncService.saveCompanyProfile(profile).catch(() => {});
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.COMPANY_PROFILE, profile).catch(() => {});
     this.triggerServerBackupSync();
-    // Explicitly broadcast to ensure all modules/portals update instantly
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.COMPANY_PROFILE, value: profile } }));
-    }
   }
 
   // Cash Desk Vouchers (Super Admin Sovereign PIN & Voucher Ledger)
@@ -1040,7 +1048,6 @@ export class StorageService {
   public static saveCashDeskVouchers(vouchers: CashDeskVoucher[]): void {
     this.setItem(STORAGE_KEYS.CASH_DESK_VOUCHERS, vouchers);
     ApiSyncService.syncVouchers(vouchers).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.CASH_DESK_VOUCHERS, value: vouchers } }));
   }
 
   // Cash Desk Voucher User Settings (Auto-print, default formats)
@@ -1065,7 +1072,6 @@ export class StorageService {
     }
     this.setItem(STORAGE_KEYS.SNAPSHOTS, snapshots);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SNAPSHOTS, snapshots).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.SNAPSHOTS, value: snapshots } }));
   }
 
   // Screen Lock
@@ -1099,15 +1105,32 @@ export class StorageService {
   public static saveSampleDispatches(dispatches: SampleDispatchRecord[]): void {
     this.setItem(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.SAMPLE_DISPATCHES, dispatches).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.SAMPLE_DISPATCHES, value: dispatches } }));
+  }
+
+  // ── Card Production, Printing & Doorstep Dispatch Hub ──
+  public static getCardDispatches(): CardDispatchRecord[] {
+    return this.getItem<CardDispatchRecord[]>(STORAGE_KEYS.CARD_DISPATCHES, []);
+  }
+
+  public static saveCardDispatches(dispatches: CardDispatchRecord[]): void {
+    this.setItem(STORAGE_KEYS.CARD_DISPATCHES, dispatches);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARD_DISPATCHES, dispatches).catch(() => { });
+  }
+
+  public static getCardDispatchBatches(): CardDispatchBatch[] {
+    return this.getItem<CardDispatchBatch[]>(STORAGE_KEYS.CARD_DISPATCH_BATCHES, []);
+  }
+
+  public static saveCardDispatchBatches(batches: CardDispatchBatch[]): void {
+    this.setItem(STORAGE_KEYS.CARD_DISPATCH_BATCHES, batches);
+    ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARD_DISPATCH_BATCHES, batches).catch(() => { });
   }
 
   // ── NGO & CSR Social Welfare Services ──
 
   public static getNgoPartners(): NgoPartner[] {
-    const partners = this.getItem<NgoPartner[]>(STORAGE_KEYS.NGO_PARTNERS, []);
+    const partners = this.getItem<NgoPartner[]>(STORAGE_KEYS.NGO_PARTNERS, DEFAULT_NGO_PARTNERS);
     if (!partners || partners.length === 0) {
-      this.setItem(STORAGE_KEYS.NGO_PARTNERS, DEFAULT_NGO_PARTNERS);
       return DEFAULT_NGO_PARTNERS;
     }
     return partners;
@@ -1116,13 +1139,11 @@ export class StorageService {
   public static saveNgoPartners(partners: NgoPartner[]): void {
     this.setItem(STORAGE_KEYS.NGO_PARTNERS, partners);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.NGO_PARTNERS, partners).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.NGO_PARTNERS, value: partners } }));
   }
 
   public static getHealthCamps(): HealthCamp[] {
-    const camps = this.getItem<HealthCamp[]>(STORAGE_KEYS.HEALTH_CAMPS, []);
+    const camps = this.getItem<HealthCamp[]>(STORAGE_KEYS.HEALTH_CAMPS, DEFAULT_HEALTH_CAMPS);
     if (!camps || camps.length === 0) {
-      this.setItem(STORAGE_KEYS.HEALTH_CAMPS, DEFAULT_HEALTH_CAMPS);
       return DEFAULT_HEALTH_CAMPS;
     }
     return camps;
@@ -1131,11 +1152,10 @@ export class StorageService {
   public static saveHealthCamps(camps: HealthCamp[]): void {
     this.setItem(STORAGE_KEYS.HEALTH_CAMPS, camps);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_CAMPS, camps).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.HEALTH_CAMPS, value: camps } }));
   }
 
   public static getCampAttendees(campId?: string): CampAttendee[] {
-    const attendees = this.getItem<CampAttendee[]>(STORAGE_KEYS.CAMP_ATTENDEES, []);
+    const attendees = this.getItem<CampAttendee[]>(STORAGE_KEYS.CAMP_ATTENDEES, DEFAULT_CAMP_ATTENDEES);
     const list = (!attendees || attendees.length === 0) ? DEFAULT_CAMP_ATTENDEES : attendees;
     if (campId) {
       return list.filter(a => a.campId === campId);
@@ -1146,13 +1166,11 @@ export class StorageService {
   public static saveCampAttendees(attendees: CampAttendee[]): void {
     this.setItem(STORAGE_KEYS.CAMP_ATTENDEES, attendees);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CAMP_ATTENDEES, attendees).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.CAMP_ATTENDEES, value: attendees } }));
   }
 
   public static getCharityGrants(): CharityGrant[] {
-    const grants = this.getItem<CharityGrant[]>(STORAGE_KEYS.CHARITY_GRANTS, []);
+    const grants = this.getItem<CharityGrant[]>(STORAGE_KEYS.CHARITY_GRANTS, DEFAULT_CHARITY_GRANTS);
     if (!grants || grants.length === 0) {
-      this.setItem(STORAGE_KEYS.CHARITY_GRANTS, DEFAULT_CHARITY_GRANTS);
       return DEFAULT_CHARITY_GRANTS;
     }
     return grants;
@@ -1161,13 +1179,11 @@ export class StorageService {
   public static saveCharityGrants(grants: CharityGrant[]): void {
     this.setItem(STORAGE_KEYS.CHARITY_GRANTS, grants);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CHARITY_GRANTS, grants).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.CHARITY_GRANTS, value: grants } }));
   }
 
   public static getNgoFundTransactions(): NgoFundTransaction[] {
-    const txns = this.getItem<NgoFundTransaction[]>(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, []);
+    const txns = this.getItem<NgoFundTransaction[]>(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, DEFAULT_NGO_FUND_TRANSACTIONS);
     if (!txns || txns.length === 0) {
-      this.setItem(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, DEFAULT_NGO_FUND_TRANSACTIONS);
       return DEFAULT_NGO_FUND_TRANSACTIONS;
     }
     return txns;
@@ -1176,7 +1192,6 @@ export class StorageService {
   public static saveNgoFundTransactions(txns: NgoFundTransaction[]): void {
     this.setItem(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, txns);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, txns).catch(() => { });
-    window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: STORAGE_KEYS.NGO_FUND_TRANSACTIONS, value: txns } }));
   }
 
   /** Deposit CSR or donation funds into an NGO Partner's dedicated grant pool */

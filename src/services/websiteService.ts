@@ -63,10 +63,10 @@ export interface WebsiteCMSConfig {
 const WEBSITE_CMS_STORAGE_KEY = 'LABMEDIX_WEBSITE_CMS_CONFIG';
 
 export const DEFAULT_WEBSITE_CMS_CONFIG: WebsiteCMSConfig = {
-  announcementTicker: '🎉 LABMEDIX.IN ANNUAL MEGA HEALTH FESTIVAL 2026 • OFFICIAL REPO: AngadMandal/Labmedix.in • UP TO 60% DISCOUNT ON ALL NABL HEALTH PACKAGES & DUAL-CHIP CR80 HEALTH CARDS • 24/7 FREE HOME SAMPLE COLLECTION AVAILABLE!',
-  heroBadge: 'NABL & ISO 9001 ACCREDITED • AngadMandal/Labmedix.in DIAGNOSTIC NETWORK',
+  announcementTicker: '🎉 LABMEDIX.IN ANNUAL MEGA HEALTH FESTIVAL 2026 • OFFICIAL REPO: AngadMandal/Labmedix.in • UP TO 60% DISCOUNT ON ALL HEALTH PACKAGES & DUAL-CHIP CR80 HEALTH CARDS • 24/7 FREE HOME SAMPLE COLLECTION AVAILABLE!',
+  heroBadge: 'ISO 9001:2015 ACCREDITED • AngadMandal/Labmedix.in DIAGNOSTIC NETWORK',
   heroTitle: 'Universal Digital Health Card & Smart Diagnostic Ecosystem',
-  heroSubtitle: 'Empowering 500,000+ families with Cashless Automated Health Cards, Instant Doctor Consultations, 350+ NABL Lab Tests, and 30-Minute Emergency Ambulance Dispatch.',
+  heroSubtitle: 'Empowering 500,000+ families with Cashless Automated Health Cards, Instant Doctor Consultations, 350+ Lab Tests, and 30-Minute Emergency Ambulance Dispatch.',
   heroCtaPrimaryText: 'Apply for Health Card',
   heroCtaSecondaryText: 'Explore Diagnostic Packages',
   emergencyHotline: '+91 98765 43210',
@@ -106,7 +106,7 @@ export const DEFAULT_WEBSITE_CMS_CONFIG: WebsiteCMSConfig = {
       cashbackPercentage: 5,
       familyMembersCovered: 4,
       colorTheme: 'from-amber-600 via-yellow-700 to-amber-950',
-      popular: true,
+      popular: false,
       perks: [
         '25% Flat Discount on Pathology & Radiology',
         '4 Family Members Covered with Family Wallet',
@@ -208,7 +208,7 @@ export const DEFAULT_WEBSITE_CMS_CONFIG: WebsiteCMSConfig = {
       answer: 'You can top up your wallet anytime via bKash, Nagad, Rocket, Credit/Debit Card, or cash deposit at our center. Wallet balance can be used for tests, doctor fees, medicine purchases, and family care.'
     }
   ],
-  footerAboutText: 'LabMedix Auto Health Card System is an ultra-modern automated healthcare diagnostic platform connecting accredited NABL pathology laboratories, certified medical specialists, and cashless smart health cards for accessible, affordable, and accurate care.'
+  footerAboutText: 'LabMedix Auto Health Card System is an ultra-modern automated healthcare diagnostic platform connecting accredited pathology laboratories, certified medical specialists, and cashless smart health cards for accessible, affordable, and accurate care.'
 };
 
 export class WebsiteService {
@@ -249,7 +249,7 @@ export class WebsiteService {
           cashbackPercentage: Math.round((mem.labDiscount || 25) / 3),
           familyMembersCovered: mem.isFamilyPlan ? 6 : 4,
           colorTheme: custom?.colorTheme || 'from-amber-600 via-yellow-700 to-amber-950',
-          popular: custom?.popular || mem.name.toLowerCase().includes('gold') || mem.name.toLowerCase().includes('executive'),
+          popular: custom?.popular === true,
           perks: mem.specialBenefits && mem.specialBenefits.length > 0 ? mem.specialBenefits : [
             `${mem.labDiscount}% Flat Discount on pathology & radiology`,
             `${mem.opdDiscount}% OPD Doctor Consultation Discount`,

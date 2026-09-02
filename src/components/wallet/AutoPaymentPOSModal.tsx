@@ -531,7 +531,7 @@ export const AutoPaymentPOSModal: React.FC<AutoPaymentPOSModalProps> = ({
                 <h3 style="margin: 0; color: #0f766e;">OFFICIAL TAX INVOICE</h3>
                 <p style="margin: 2px 0; font-family: monospace; font-weight: bold;">${completedInvoice.invoiceNo}</p>
                 <p style="margin: 2px 0; font-size: 10px;">Date: ${formatDateTime(completedInvoice.date)}</p>
-                <span class="badge">NABL ISO 9001:2015</span>
+                <span class="badge">ISO 9001:2015 ACCREDITED</span>
               </div>
             </div>
 

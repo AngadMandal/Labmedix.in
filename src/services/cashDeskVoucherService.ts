@@ -179,10 +179,9 @@ export class CashDeskVoucherService {
   }
 
   public static getAllVouchers(): CashDeskVoucher[] {
-    let vouchers = StorageService.getCashDeskVouchers();
+    const vouchers = StorageService.getCashDeskVouchers();
     if (!vouchers || vouchers.length === 0) {
-      vouchers = this.getInitialSampleVouchers();
-      StorageService.saveCashDeskVouchers(vouchers);
+      return this.getInitialSampleVouchers();
     }
     return vouchers;
   }

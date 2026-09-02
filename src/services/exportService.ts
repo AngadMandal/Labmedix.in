@@ -201,19 +201,71 @@ export class ExportService {
   }
 
   /**
-   * Generates single or multi-page A4 PDF for Clinical Prescriptions
+   * Generates single or multi-page PDF for Clinical Prescriptions with Smart Layout sizing (A4, 80mm Thermal, A5)
    */
-  public static async exportPrescriptionToPdf(element: HTMLElement, filename = 'LABMEDIX_PRESCRIPTION.pdf'): Promise<void> {
+  public static async exportPrescriptionToPdf(
+    element: HTMLElement,
+    filename = 'LABMEDIX_PRESCRIPTION.pdf',
+    layoutMode: 'detailed_a4' | 'thermal_slip' | 'compact_a5' | 'clinical_summary' = 'detailed_a4'
+  ): Promise<void> {
     try {
+      const canvas = await this.captureElementToCanvas(element, 2.5);
+      const imgData = canvas.toDataURL('image/png', 1.0);
+
+      if (layoutMode === 'thermal_slip') {
+        // 80mm Thermal Roll format: dynamic continuous height
+        const rollWidthMm = 80;
+        const rollHeightMm = Math.max(80, Math.round((canvas.height * rollWidthMm) / canvas.width));
+        
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: [rollWidthMm, rollHeightMm]
+        });
+
+        pdf.addImage(imgData, 'PNG', 0, 0, rollWidthMm, rollHeightMm, undefined, 'FAST');
+        pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+        AuditService.log('PRESCRIPTION_EXPORTED', 'patient', `Exported Thermal 80mm POS Prescription PDF: ${filename}`);
+        return;
+      }
+
+      if (layoutMode === 'compact_a5') {
+        // A5 Portrait format: 148mm x 210mm
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a5'
+        });
+
+        const imgWidth = 148;
+        const pageHeight = 210;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+        AuditService.log('PRESCRIPTION_EXPORTED', 'patient', `Exported A5 Compact Prescription PDF: ${filename}`);
+        return;
+      }
+
+      // Standard A4 Portrait format: 210mm x 297mm
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4' // 210 x 297 mm
+        format: 'a4'
       });
 
-      const canvas = await this.captureElementToCanvas(element, 2.5);
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      
       const imgWidth = 210;
       const pageHeight = 297;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -232,7 +284,7 @@ export class ExportService {
       }
 
       pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
-      AuditService.log('PRESCRIPTION_EXPORTED', 'patient', `Exported A4 Prescription PDF: ${filename}`);
+      AuditService.log('PRESCRIPTION_EXPORTED', 'patient', `Exported ${layoutMode === 'clinical_summary' ? 'Clinical Case Summary' : 'A4'} Prescription PDF: ${filename}`);
     } catch (error) {
       console.error('Error generating Prescription PDF export:', error);
       throw error;

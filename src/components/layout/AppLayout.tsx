@@ -12,24 +12,30 @@ export const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col print:bg-white print:text-black print:min-h-0">
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+      <div className="print:hidden">
+        <Sidebar isOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+      </div>
 
       {/* Main Content Area with Header */}
-      <div className="lg:pl-64 flex flex-col flex-1 min-h-screen transition-all duration-200">
-        <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+      <div className="lg:pl-64 flex flex-col flex-1 min-h-screen transition-all duration-200 print:pl-0 print:m-0 print:min-h-0">
+        <div className="print:hidden">
+          <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+        </div>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
           <Outlet />
         </main>
       </div>
 
       {/* Global Modals & Notifications */}
-      <ScreenLockModal />
-      <IdleSessionWarningModal />
-      <BackupReminderNotification />
-      <ToastContainer />
-      <FloatingActionButton />
+      <div className="print:hidden">
+        <ScreenLockModal />
+        <IdleSessionWarningModal />
+        <BackupReminderNotification />
+        <ToastContainer />
+        <FloatingActionButton />
+      </div>
     </div>
   );
 };

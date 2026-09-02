@@ -30,8 +30,8 @@ export const CardPrintSheetPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 print:space-y-0 print:p-0 print:m-0">
+      <div className="flex items-center justify-between print:hidden">
         <div>
           <button
             onClick={() => navigate('/cards')}

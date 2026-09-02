@@ -177,7 +177,7 @@ export const SuperAdminWebsiteEditorModal: React.FC<SuperAdminWebsiteEditorModal
                 <Input
                   value={formData.heroBadge}
                   onChange={(e) => setFormData({ ...formData, heroBadge: e.target.value })}
-                  placeholder="e.g. NABL ACCREDITED"
+                  placeholder="e.g. ISO 9001 ACCREDITED"
                   required
                 />
               </div>
@@ -286,18 +286,64 @@ export const SuperAdminWebsiteEditorModal: React.FC<SuperAdminWebsiteEditorModal
         {/* TAB 3: 3D HEALTH CARDS TIERS */}
         {activeTab === 'cards' && (
           <div className="space-y-4 p-4 rounded-3xl bg-slate-900 border border-slate-800">
-            <h4 className="font-bold text-white uppercase font-mono text-[11px]">
-              💳 3D Health Cards Configuration & Discount Rates:
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-white uppercase font-mono text-[11px]">
+                💳 3D Health Cards Configuration &amp; Discount Rates:
+              </h4>
+              {formData.cardTiers.some(t => t.popular) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-[10px] text-rose-300 border-rose-500/30 hover:bg-rose-500/20"
+                  onClick={() => {
+                    const updated = formData.cardTiers.map(t => ({ ...t, popular: false }));
+                    setFormData({ ...formData, cardTiers: updated });
+                    showToast('info', 'Recommendations Removed', 'Cleared Recommended / Popular flag on all cards.');
+                  }}
+                >
+                  ✕ Remove All Recommended
+                </Button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {formData.cardTiers.map((tier, idx) => (
                 <div key={tier.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <strong className="text-sm font-black text-white">{tier.name}</strong>
+                    <div className="flex items-center gap-1.5">
+                      <strong className="text-sm font-black text-white">{tier.name}</strong>
+                      {tier.popular && (
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500 text-slate-950">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-teal-500/20 text-teal-300">
                       {tier.tier} Tier
                     </span>
+                  </div>
+
+                  {/* Recommendation Checkbox & Remove */}
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px]">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={!!tier.popular}
+                        onChange={(e) => updateCardTier(idx, 'popular', e.target.checked)}
+                        className="rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0"
+                      />
+                      <span>Mark Recommended</span>
+                    </label>
+                    {tier.popular && (
+                      <button
+                        type="button"
+                        onClick={() => updateCardTier(idx, 'popular', false)}
+                        className="text-rose-400 font-bold hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">

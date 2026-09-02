@@ -59,9 +59,9 @@ export const CardA4Sheet: React.FC<CardA4SheetProps> = ({
   const displayedItems = patientsWithCards.slice(0, cardsCount);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:space-y-0 print:p-0 print:m-0">
       {/* Control Toolbar */}
-      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div className="flex flex-wrap items-center gap-4">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">

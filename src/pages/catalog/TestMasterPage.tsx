@@ -1058,7 +1058,7 @@ export const TestMasterPage: React.FC = () => {
                   </span>
                 </h1>
                 <p className="text-xs text-slate-300">
-                  Manage official NABL pathology rates, AI doctor prescription text drafting, sample tube labeling, and Health Package creation.
+                  Manage official diagnostic pathology rates, AI doctor prescription text drafting, sample tube labeling, and Health Package creation.
                 </p>
               </div>
             </div>
@@ -3158,7 +3158,7 @@ export const TestMasterPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>NABL Quality Control Standards</span>
+                <span>Diagnostic Quality Control Standards</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setSelectedBookingForResults(null)}>
@@ -3171,7 +3171,7 @@ export const TestMasterPage: React.FC = () => {
                   leftIcon={<CheckCircle2 className="w-4 h-4" />}
                   onClick={handleSaveTestResults}
                 >
-                  ✓ Verify & Authorize Report (NABL Final)
+                  ✓ Verify & Authorize Report (Final)
                 </Button>
               </div>
             </div>

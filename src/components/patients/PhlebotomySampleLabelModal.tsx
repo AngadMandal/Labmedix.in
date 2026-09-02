@@ -442,7 +442,7 @@ export const PhlebotomySampleLabelModal: React.FC<PhlebotomySampleLabelModalProp
 
           <div className="flex items-center gap-2 font-mono text-[11px] text-emerald-400 font-bold shrink-0">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            ISO 15189 / NABL Compliant
+            ISO 15189 / Quality Compliant
           </div>
         </div>
 

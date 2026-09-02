@@ -77,9 +77,23 @@ export interface OfflinePatientData {
   referralDoctorName?: string;
   generalNotes?: string;
 
-  // Media
+  // Media & Extras
   photoBase64?: string;
   signatureBase64?: string;
+  audioVoiceMemoBase64?: string;
+
+  // Clinical Triage & Risk Stratification
+  triageLevel?: 'normal' | 'moderate' | 'high_risk' | 'emergency';
+  triageReasons?: string[];
+
+  // Field Dispensed Medicines
+  dispensedMedicines?: Array<{
+    id: string;
+    name: string;
+    dosage: string;
+    quantity: number;
+    instructions: string;
+  }>;
 }
 
 export interface OfflineSubmission {
@@ -442,5 +456,257 @@ export class OfflineFormService {
     document.body.appendChild(link);
     link.click();
     link.remove();
+  }
+
+  // --- Clinical Triage & Risk Stratification ---
+  public static calculateTriage(
+    vitals?: OfflinePatientData['vitals'],
+    conditions?: { isDiabetic?: boolean; isHypertensive?: boolean; hasHeartDisease?: boolean; hasAsthma?: boolean }
+  ): { level: 'normal' | 'moderate' | 'high_risk' | 'emergency'; reasons: string[]; color: string; label: string; action: string } {
+    const reasons: string[] = [];
+    let isEmergency = false;
+    let isHighRisk = false;
+    let isModerate = false;
+
+    if (vitals) {
+      const { bpSystolic = 0, bpDiastolic = 0, spo2 = 0, bloodSugar = 0, temperature = 0, pulseRate = 0 } = vitals;
+
+      // 1. Blood Pressure Evaluation (AHA / ESH criteria)
+      if (bpSystolic >= 180 || bpDiastolic >= 120) {
+        isEmergency = true;
+        reasons.push(`Hypertensive Crisis Alert (BP ${bpSystolic}/${bpDiastolic} mmHg)`);
+      } else if (bpSystolic >= 140 || bpDiastolic >= 90) {
+        isHighRisk = true;
+        reasons.push(`Stage 2 Hypertension (BP ${bpSystolic}/${bpDiastolic} mmHg)`);
+      } else if (bpSystolic >= 130 || bpDiastolic >= 80) {
+        isModerate = true;
+        reasons.push(`Stage 1 Pre-Hypertension (BP ${bpSystolic}/${bpDiastolic} mmHg)`);
+      }
+
+      // 2. Oxygen Saturation (SpO2)
+      if (spo2 > 0 && spo2 < 90) {
+        isEmergency = true;
+        reasons.push(`Severe Hypoxia Alert (SpO2 ${spo2}%)`);
+      } else if (spo2 >= 90 && spo2 < 94) {
+        isHighRisk = true;
+        reasons.push(`Moderate Hypoxia (SpO2 ${spo2}%)`);
+      }
+
+      // 3. Blood Glucose
+      if (bloodSugar >= 350) {
+        isEmergency = true;
+        reasons.push(`Critical Hyperglycemia Alert (${bloodSugar} mg/dL)`);
+      } else if (bloodSugar <= 50 && bloodSugar > 0) {
+        isEmergency = true;
+        reasons.push(`Hypoglycemia Emergency (${bloodSugar} mg/dL)`);
+      } else if (bloodSugar >= 200) {
+        isHighRisk = true;
+        reasons.push(`High Random Blood Sugar (${bloodSugar} mg/dL)`);
+      } else if (bloodSugar > 140) {
+        isModerate = true;
+        reasons.push(`Elevated Blood Sugar (${bloodSugar} mg/dL)`);
+      }
+
+      // 4. Body Temperature
+      if (temperature >= 103) {
+        isHighRisk = true;
+        reasons.push(`High Grade Fever (${temperature}°F)`);
+      } else if (temperature >= 100.4) {
+        isModerate = true;
+        reasons.push(`Fever (${temperature}°F)`);
+      }
+
+      // 5. Pulse Rate
+      if (pulseRate > 130 || (pulseRate > 0 && pulseRate < 45)) {
+        isHighRisk = true;
+        reasons.push(`Abnormal Heart Rate (${pulseRate} BPM)`);
+      }
+    }
+
+    if (conditions) {
+      if (conditions.hasHeartDisease) {
+        isModerate = true;
+        reasons.push('Known Cardiac History');
+      }
+      if (conditions.isDiabetic && conditions.isHypertensive) {
+        isModerate = true;
+        reasons.push('Co-morbid Diabetes & Hypertension');
+      }
+    }
+
+    if (isEmergency) {
+      return {
+        level: 'emergency',
+        reasons,
+        color: 'rose',
+        label: 'EMERGENCY / CRITICAL TRIAGE',
+        action: '🚨 Immediate Medical Officer evaluation & emergency stabilization required.'
+      };
+    }
+
+    if (isHighRisk) {
+      return {
+        level: 'high_risk',
+        reasons,
+        color: 'amber',
+        label: 'HIGH RISK / PRIORITY',
+        action: '⚠️ Fast-track to Medical Officer & order confirmatory diagnostic panel.'
+      };
+    }
+
+    if (isModerate) {
+      return {
+        level: 'moderate',
+        reasons,
+        color: 'yellow',
+        label: 'MODERATE RISK',
+        action: 'ℹ️ Routine physician consultation and lifestyle / dietary counseling advised.'
+      };
+    }
+
+    return {
+      level: 'normal',
+      reasons: reasons.length > 0 ? reasons : ['Vitals within physiological normal range'],
+      color: 'emerald',
+      label: 'OPTIMAL / NORMAL',
+      action: '✅ Baseline normal. Routine preventive follow-up & wellness health card issued.'
+    };
+  }
+
+  // --- Duplicate Detection across Offline Queue & Live Local Records ---
+  public static findDuplicates(mobile: string, govtIdNumber?: string): {
+    found: boolean;
+    inOfflineQueue: boolean;
+    inLocalDb: boolean;
+    matchDetails: string[];
+    matchedName?: string;
+  } {
+    const cleanMobile = (mobile || '').trim();
+    const cleanGovtId = (govtIdNumber || '').trim().toLowerCase();
+    const matchDetails: string[] = [];
+    let matchedName: string | undefined;
+    let inOfflineQueue = false;
+    let inLocalDb = false;
+
+    if (!cleanMobile && !cleanGovtId) {
+      return { found: false, inOfflineQueue: false, inLocalDb: false, matchDetails: [] };
+    }
+
+    // Check Offline Queue
+    const submissions = this.getAllSubmissions();
+    for (const sub of submissions) {
+      const subMobile = (sub.data.mobile || '').trim();
+      const subGovtId = (sub.data.governmentIdNumber || '').trim().toLowerCase();
+
+      if (cleanMobile && subMobile === cleanMobile) {
+        inOfflineQueue = true;
+        matchedName = sub.data.fullName;
+        matchDetails.push(`Matches offline queue record #${sub.offlineToken} (${sub.data.fullName}) by Mobile ${cleanMobile}`);
+      }
+      if (cleanGovtId && subGovtId && subGovtId === cleanGovtId) {
+        inOfflineQueue = true;
+        matchedName = sub.data.fullName;
+        matchDetails.push(`Matches offline queue record #${sub.offlineToken} (${sub.data.fullName}) by Govt ID ${govtIdNumber}`);
+      }
+    }
+
+    // Check Local Patients DB
+    const patients = StorageService.getPatients();
+    for (const p of patients) {
+      const pMobile = (p.mobile || '').trim();
+      const pGovtId = (p.governmentIdNumber || '').trim().toLowerCase();
+
+      if (cleanMobile && pMobile === cleanMobile) {
+        inLocalDb = true;
+        matchedName = matchedName || p.fullName;
+        matchDetails.push(`Matches existing registered Patient #${p.id} (${p.fullName}) by Mobile ${cleanMobile}`);
+      }
+      if (cleanGovtId && pGovtId && pGovtId === cleanGovtId) {
+        inLocalDb = true;
+        matchedName = matchedName || p.fullName;
+        matchDetails.push(`Matches existing registered Patient #${p.id} (${p.fullName}) by Govt ID ${govtIdNumber}`);
+      }
+    }
+
+    return {
+      found: inOfflineQueue || inLocalDb,
+      inOfflineQueue,
+      inLocalDb,
+      matchDetails,
+      matchedName
+    };
+  }
+
+  // --- Batch JSON Importer ---
+  public static batchImportSubmissions(jsonString: string): { importedCount: number; skippedCount: number; errors: string[] } {
+    const errors: string[] = [];
+    let importedCount = 0;
+    let skippedCount = 0;
+
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!Array.isArray(parsed)) {
+        return { importedCount: 0, skippedCount: 0, errors: ['Invalid file format. Expected a JSON array of submissions.'] };
+      }
+
+      const existing = this.getAllSubmissions();
+      const existingTokens = new Set(existing.map(s => s.offlineToken));
+      const existingIds = new Set(existing.map(s => s.id));
+
+      const toAdd: OfflineSubmission[] = [];
+
+      for (const item of parsed) {
+        if (!item.data || !item.data.fullName) {
+          skippedCount++;
+          continue;
+        }
+
+        const token = item.offlineToken || this.generateOfflineToken();
+        const id = item.id || `off_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+        if (existingTokens.has(token) || existingIds.has(id)) {
+          skippedCount++;
+          continue;
+        }
+
+        const newSub: OfflineSubmission = {
+          id,
+          offlineToken: token,
+          createdAt: item.createdAt || new Date().toISOString(),
+          data: item.data,
+          syncStatus: item.syncStatus === 'synced' ? 'synced' : 'pending',
+          syncedPatientId: item.syncedPatientId,
+          syncedCardNumber: item.syncedCardNumber,
+          deviceFingerprint: item.deviceFingerprint || 'imported-batch',
+          capturedBy: item.capturedBy || 'Imported File'
+        };
+
+        toAdd.push(newSub);
+        existingTokens.add(token);
+        existingIds.add(id);
+        importedCount++;
+      }
+
+      if (toAdd.length > 0) {
+        const combined = [...toAdd, ...existing];
+        localStorage.setItem(STORAGE_KEY_SUBMISSIONS, JSON.stringify(combined));
+        window.dispatchEvent(new CustomEvent('labmedix_offline_queue_changed'));
+      }
+
+      return { importedCount, skippedCount, errors };
+    } catch (e: any) {
+      return { importedCount: 0, skippedCount: 0, errors: [e?.message || 'Failed to parse JSON file'] };
+    }
+  }
+
+  // --- Clear Queue ---
+  public static clearQueue(onlySynced = false): void {
+    if (onlySynced) {
+      const submissions = this.getAllSubmissions().filter(s => s.syncStatus !== 'synced');
+      localStorage.setItem(STORAGE_KEY_SUBMISSIONS, JSON.stringify(submissions));
+    } else {
+      localStorage.removeItem(STORAGE_KEY_SUBMISSIONS);
+    }
+    window.dispatchEvent(new CustomEvent('labmedix_offline_queue_changed'));
   }
 }

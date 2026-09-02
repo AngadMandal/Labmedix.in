@@ -308,13 +308,10 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        {/* Footer Redirects to Home & Patient Portal */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs pt-3 border-t border-slate-800">
-          <Link to="/" className="text-teal-400 hover:text-teal-300 font-bold hover:underline">
-            ← Return to Website Home
-          </Link>
-          <Link to="/portal" className="text-emerald-400 hover:text-emerald-300 font-bold hover:underline">
-            CARD LOGIN / SIGN UP →
+        {/* Footer Redirect to Patient & Cardholder Portal */}
+        <div className="flex items-center justify-center text-xs pt-3 border-t border-slate-800">
+          <Link to="/" className="text-teal-400 hover:text-teal-300 font-bold hover:underline inline-flex items-center gap-1.5">
+            <span>← Go to Cardholder Portal Login / Apply</span>
           </Link>
         </div>
       </div>

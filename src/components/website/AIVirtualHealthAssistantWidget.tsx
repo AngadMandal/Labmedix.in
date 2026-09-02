@@ -87,7 +87,7 @@ export const AIVirtualHealthAssistantWidget: React.FC<AIVirtualHealthAssistantWi
       const lower = userText.toLowerCase();
 
       if (lower.includes('card') || lower.includes('tier') || lower.includes('membership') || lower.includes('cost')) {
-        replyText = '💳 **LabMedix Smart Health Cards** provide flat 15% to 50% cashless discounts on all 350+ NABL Lab Tests and free doctor visits:\n\n• **Silver (₹499/yr):** 15% OFF, covers 2 members.\n• **Gold (₹999/yr - Recommended):** 25% OFF, covers 4 members + Free Home Sample Collection.\n• **Platinum (₹1,999/yr):** 35% OFF, covers 6 members + Free Full Body Checkup.\n• **VIP Diamond (₹4,999/yr):** 50% OFF, lifetime 10 members coverage.';
+        replyText = '💳 **LabMedix Smart Health Cards** provide flat 15% to 50% cashless discounts on all 350+ Lab Tests and free doctor visits:\n\n• **Silver (₹499/yr):** 15% OFF, covers 2 members.\n• **Gold (₹999/yr - Most Popular):** 25% OFF, covers 4 members + Free Home Sample Collection.\n• **Platinum (₹1,999/yr):** 35% OFF, covers 6 members + Free Full Body Checkup.\n• **VIP Diamond (₹4,999/yr):** 50% OFF, lifetime 10 members coverage.';
         actionBtns = [
           { label: '✨ Apply for Gold Card (₹999)', action: () => onOpenCardApplication('Gold') },
           { label: '👑 Apply for VIP Diamond', action: () => onOpenCardApplication('VIP') }
@@ -108,7 +108,7 @@ export const AIVirtualHealthAssistantWidget: React.FC<AIVirtualHealthAssistantWi
           { label: '📞 Call Ambulance Dispatch Now', action: () => onCallAmbulance() }
         ];
       } else {
-        replyText = `🤖 I have analyzed your query "${userText}".\n\nLabMedix AI automates your health journey with **350+ NABL Lab Tests**, **Dual-Chip CR80 Health Cards (15%-50% off)**, and **Instant Specialist Doctor Telemedicine**. Would you like to check diagnostic rates or apply for a health shield?`;
+        replyText = `🤖 I have analyzed your query "${userText}".\n\nLabMedix AI automates your health journey with **350+ Lab Tests**, **Dual-Chip CR80 Health Cards (15%-50% off)**, and **Instant Specialist Doctor Telemedicine**. Would you like to check diagnostic rates or apply for a health shield?`;
         actionBtns = [
           { label: '🔍 Explore 350+ Tests & Rates', action: () => onOpenLabBooking() },
           { label: '💳 Apply for Health Card', action: () => onOpenCardApplication('Gold') }

@@ -361,9 +361,6 @@ export const HomePage: React.FC = () => {
               >
                 <HeartPulse className="w-4 h-4 text-green-200 animate-pulse shrink-0" />
                 <span>CARD LOGIN / SIGN UP</span>
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase font-mono" style={{background:'rgba(0,0,0,0.4)',color:'#4ade80',border:'1px solid rgba(74,222,128,0.4)'}}>
-                  RECOMMENDED
-                </span>
               </button>
             </Link>
 
@@ -394,7 +391,7 @@ export const HomePage: React.FC = () => {
         {/* Responsive Mobile Drawer Navigation */}
         {isMobileMenuOpen && (
           <div className="lg:hidden bg-slate-950/95 border-b border-slate-800 p-4 space-y-3 shadow-2xl backdrop-blur-2xl animate-in slide-in-from-top-2 duration-200">
-            {/* Unified Top Recommended Portal in Mobile Drawer */}
+            {/* Unified Top Portal in Mobile Drawer */}
             <Link
               to="/portal"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -405,9 +402,6 @@ export const HomePage: React.FC = () => {
                 <HeartPulse className="w-5 h-5 text-green-300 animate-pulse" />
                 <span>CARD LOGIN / SIGN UP</span>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase font-mono" style={{background:'rgba(0,0,0,0.5)',color:'#4ade80',border:'1px solid rgba(74,222,128,0.4)'}}>
-                RECOMMENDED
-              </span>
             </Link>
 
             <div className="grid grid-cols-2 gap-2 text-xs font-bold">
@@ -506,7 +500,7 @@ export const HomePage: React.FC = () => {
               {/* Accreditation Badge */}
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold shadow-lg" style={{background:'linear-gradient(90deg,rgba(30,58,138,0.25),rgba(21,128,61,0.20))',border:'1px solid rgba(74,222,128,0.35)',color:'#4ade80',boxShadow:'0 0 20px rgba(21,128,61,0.15)'}}>
                 <Building2 className="w-4 h-4 text-emerald-400 animate-pulse" />
-                <span>NABL ACCREDITED DIAGNOSTIC CENTRE & MULTI-SPECIALITY OUTDOOR</span>
+                <span>ACCREDITED DIAGNOSTIC CENTRE & MULTI-SPECIALITY OUTDOOR</span>
               </div>
 
               {/* Main Headline with Theme Glow */}
@@ -516,7 +510,7 @@ export const HomePage: React.FC = () => {
 
               {/* Subtitle */}
               <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-normal">
-                West Bengal’s trusted medical destination — combining 50+ senior outdoor specialist consultants, fully automated NABL pathology, 32-slice high-speed CT scan, 3D/4D USG color doppler, 24/7 ICU ambulance, and Universal Health Cards with up to 50% flat cashless discounts.
+                West Bengal’s trusted medical destination — combining 50+ senior outdoor specialist consultants, fully automated pathology, 32-slice high-speed CT scan, 3D/4D USG color doppler, 24/7 ICU ambulance, and Universal Health Cards with up to 50% flat cashless discounts.
               </p>
 
               {/* CTAs & Quick Triggers */}
@@ -547,7 +541,7 @@ export const HomePage: React.FC = () => {
               <div className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs text-slate-400 font-mono">
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>NABL ISO 9001:2015 Certified</span>
+                  <span>ISO 9001:2015 Certified</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -639,7 +633,7 @@ export const HomePage: React.FC = () => {
             </div>
             <div className="text-center space-y-1 border-r border-slate-800 last:border-r-0">
               <strong className="text-2xl sm:text-3xl font-black text-blue-400 font-mono block">350+</strong>
-              <span className="text-[11px] text-slate-300 font-bold block">NABL Lab Tests & Radiology</span>
+              <span className="text-[11px] text-slate-300 font-bold block">Lab Tests & Radiology</span>
               <span className="text-[9px] text-slate-500 font-mono block">CT, USG, Digital X-Ray, Blood</span>
             </div>
             <div className="text-center space-y-1 border-r border-slate-800 last:border-r-0">
@@ -731,7 +725,7 @@ export const HomePage: React.FC = () => {
           <div className="text-center space-y-2 max-w-3xl mx-auto">
             <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase bg-teal-500/10 text-teal-300 border border-teal-500/30 flex items-center gap-1.5 w-fit mx-auto">
               <Microscope className="w-3.5 h-3.5 text-teal-400" />
-              <span>ADVANCED RADIOLOGY & NABL PATHOLOGY</span>
+              <span>ADVANCED RADIOLOGY & PATHOLOGY</span>
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
               High-Precision Diagnostic & Imaging Centre
@@ -756,10 +750,10 @@ export const HomePage: React.FC = () => {
                 perks: ['Senior Radiologist conducted', '3D Anomaly Pregnancy scan', 'Instant color report']
               },
               {
-                title: 'Automated NABL Pathology Lab',
+                title: 'Automated Pathology Lab',
                 badge: 'PATHOLOGY',
                 desc: 'Sysmex & Roche fully automated analyzers for CBC, Liver, Kidney, Thyroid, Hormones & Tumor Markers.',
-                perks: ['NABL Certified Lab', 'Barcode sample tracking', '4-Hour WhatsApp report']
+                perks: ['ISO Certified Lab', 'Barcode sample tracking', '4-Hour WhatsApp report']
               },
               {
                 title: 'Digital X-Ray & Mammography',
@@ -824,7 +818,7 @@ export const HomePage: React.FC = () => {
               AI Diagnostic Symptom Checker & Test Suggester
             </h2>
             <p className="text-xs sm:text-sm text-slate-300">
-              Select your symptoms below to get an instant clinical risk evaluation, recommended laboratory tests, and preparation guidelines.
+              Select your symptoms below to get an instant clinical risk evaluation, key laboratory test investigations, and preparation guidelines.
             </p>
           </div>
 
@@ -870,11 +864,11 @@ export const HomePage: React.FC = () => {
                 onClick={() => setIsLabBookingModalOpen(true)}
               >
                 <Sparkles className="w-4 h-4 text-green-200" />
-                Book Recommended AI Package (45% OFF)
+                Book AI Diagnostic Package (45% OFF)
               </button>
             </div>
 
-            {/* Recommended Tests Grid */}
+            {/* Diagnostic Tests Grid */}
             <div className="space-y-3">
               <strong className="text-sm font-black text-white flex items-center gap-2">
                 <TestTube className="w-4 h-4 text-teal-400" />
@@ -1017,10 +1011,10 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Live AI Recommendation Card Result */}
+            {/* Live AI Optimal Card Plan Result */}
             <div className="lg:col-span-5 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-teal-950/80 via-slate-900 to-amber-950/60 border-2 border-teal-400/60 shadow-2xl text-center space-y-5">
               <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black uppercase bg-teal-500 text-slate-950 shadow-md">
-                🏆 AI RECOMMENDED HEALTH CARD
+                🏆 AI OPTIMAL HEALTH CARD
               </span>
 
               <div className="space-y-1">
@@ -1155,10 +1149,10 @@ export const HomePage: React.FC = () => {
           <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
             <div className="space-y-2 max-w-2xl">
               <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                🧬 NABL PATHOLOGY PACKAGES
+                🧬 PATHOLOGY PACKAGES
               </span>
               <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                Recommended Full-Body Diagnostic Bundles
+                Curated Full-Body Diagnostic Bundles
               </h2>
               <p className="text-xs sm:text-sm text-slate-400">
                 Comprehensive disease risk screening with up to 60% savings for LabMedix Cardholders.
@@ -1393,7 +1387,7 @@ export const HomePage: React.FC = () => {
                 <span className="text-base font-black text-white">LABMEDIX MULTI-SPECIALITY OUTDOOR & DIAGNOSIS CENTRE</span>
               </div>
               <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                NABL Accredited Diagnostic Centre & Senior Outdoor OPD Clinic. Delivering 350+ automated blood, urine & radiology diagnostic services with Universal Health Protection Cards.
+                Accredited Diagnostic Centre & Senior Outdoor OPD Clinic. Delivering 350+ automated blood, urine & radiology diagnostic services with Universal Health Protection Cards.
               </p>
               <div className="text-[11px] font-mono text-slate-500 space-y-1 pt-1">
                 <div>📍 Central Medical Hub: Salt Lake Sector V, Kolkata - 700091</div>
@@ -1465,7 +1459,7 @@ export const HomePage: React.FC = () => {
           <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono">
             <span>© {new Date().getFullYear()} LABMEDIX Auto Health Card System. All Rights Reserved.</span>
             <div className="flex items-center gap-4">
-              <span>NABL ISO 9001:2015</span>
+              <span>ISO 9001:2015 ACCREDITED</span>
               <span>•</span>
               <span>256-Bit SSL Encrypted</span>
             </div>

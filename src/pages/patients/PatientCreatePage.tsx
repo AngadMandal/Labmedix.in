@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PatientService, CreateFamilyMemberInput, CreatePatientResult } from '../../services/patientService';
 import { StorageService } from '../../services/storage';
+import { MembershipTierService } from '../../services/membershipTierService';
 import { DoctorMasterService, DoctorMasterItem } from '../../services/doctorMasterService';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
@@ -16,7 +17,7 @@ import { calculateAge, formatCurrency, formatDate } from '../../utils/formatters
 import { triggerCelebrationFireworks } from '../../utils/confetti';
 import { generatePatientId, generateCardNumber, generateVerificationCode, generateCardCvv } from '../../utils/idGenerator';
 import { DEFAULT_CARD_DESIGN } from '../../constants/defaults';
-import { HealthCard, Patient, CardThemePreset } from '../../types';
+import { HealthCard, Patient, CardThemePreset, Membership } from '../../types';
 import {
   UserPlus,
   ArrowLeft,
@@ -45,7 +46,8 @@ import {
   Sliders,
   Share2,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Star
 } from 'lucide-react';
 
 interface FamilyMemberFormState extends CreateFamilyMemberInput {
@@ -56,11 +58,18 @@ export const PatientCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   
-  const memberships = StorageService.getMemberships().filter(m => m.status === 'active');
+  const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getActiveMemberships());
   const existingPatients = StorageService.getPatients();
   const existingCards = StorageService.getCards();
   const company = StorageService.getCompanyProfile();
   const doctors = DoctorMasterService.getAllDoctors().filter((d: DoctorMasterItem) => d.status === 'active');
+
+  useEffect(() => {
+    const unsub = MembershipTierService.subscribeToTiers((allTiers) => {
+      setMemberships(allTiers.filter(m => m.status === 'active'));
+    });
+    return () => unsub();
+  }, []);
 
   const previewNextPatientId = useMemo(() => generatePatientId(existingPatients.map(p => p.id)), [existingPatients]);
   const previewNextCardNumber = useMemo(() => generateCardNumber(existingCards.map(c => c.cardNumber)), [existingCards]);
@@ -179,7 +188,7 @@ export const PatientCreatePage: React.FC = () => {
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberFormState[]>([]);
 
   // Section 7: Card Plan, Design & Wallet
-  const [membershipId, setMembershipId] = useState(memberships[0]?.id || 'mem_gold');
+  const [membershipId, setMembershipId] = useState(() => StorageService.getRecommendedMembership()?.id || StorageService.getActiveMemberships()[0]?.id || 'mem_gold_03');
   const [cardPreset, setCardPreset] = useState<CardThemePreset>('royal_gold');
   const [cardMaterial, setCardMaterial] = useState<'gloss' | 'matte' | 'metallic' | 'hologram'>('metallic');
   const [initialDeposit, setInitialDeposit] = useState('500');
@@ -187,6 +196,14 @@ export const PatientCreatePage: React.FC = () => {
 
   // Success Modal State
   const [createdResult, setCreatedResult] = useState<CreatePatientResult | null>(null);
+
+  // Auto-sync fallback if membershipId was deactivated
+  useEffect(() => {
+    if (memberships.length > 0 && !memberships.some(m => m.id === membershipId)) {
+      const best = memberships.find(m => m.isRecommended) || memberships[0];
+      if (best) setMembershipId(best.id);
+    }
+  }, [memberships, membershipId]);
 
   // Auto-set card preset based on selected membership
   const selectedMembership = useMemo(() => {
@@ -1115,15 +1132,23 @@ export const PatientCreatePage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select
-                label="Select Membership Plan *"
-                value={membershipId}
-                onChange={(e) => handleMembershipChange(e.target.value)}
-                options={memberships.map((m) => ({
-                  value: m.id,
-                  label: `${m.name} (Reg Fee: ₹${m.registrationFee} • OPD ${m.opdDiscount}% | Lab ${m.labDiscount}%)`
-                }))}
-              />
+              <div>
+                <Select
+                  label="Select Membership Plan *"
+                  value={membershipId}
+                  onChange={(e) => handleMembershipChange(e.target.value)}
+                  options={memberships.map((m) => ({
+                    value: m.id,
+                    label: `${m.isRecommended ? '⭐ ' : ''}${m.name} (Reg Fee: ₹${m.registrationFee} • OPD ${m.opdDiscount}% | Lab ${m.labDiscount}%)${m.isRecommended ? ' — [RECOMMENDED]' : ''}`
+                  }))}
+                />
+                {selectedMembership?.isRecommended && (
+                  <div className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 p-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <Star className="w-3 h-3 fill-amber-500 text-amber-500 shrink-0" />
+                    <span>System Recommended Tier: Centralized Standard Healthcare Package</span>
+                  </div>
+                )}
+              </div>
 
               <Input
                 label="Initial Health Wallet Balance (₹)"

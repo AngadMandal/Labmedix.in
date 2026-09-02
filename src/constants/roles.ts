@@ -112,6 +112,7 @@ export const MODULE_KEYS = [
   'cards',
   'card_studio',
   'print_sheet',
+  'card_dispatch',
   'memberships',
   'families',
   'wallet',
@@ -122,7 +123,8 @@ export const MODULE_KEYS = [
   'activity',
   'backup',
   'settings',
-  'website_cms'
+  'website_cms',
+  'system_monitoring'
 ] as const;
 
 export type SystemModuleKey = typeof MODULE_KEYS[number];
@@ -208,6 +210,14 @@ export const SYSTEM_MODULES: SystemModuleInfo[] = [
     category: 'cards',
     description: 'Batch 8-card grid layout for A4 PVC lamination printing.',
     associatedPermissions: ['card_print']
+  },
+  {
+    key: 'card_dispatch',
+    name: 'Card Printing & Dispatch Hub',
+    href: '/cards/printing-dispatch',
+    category: 'cards',
+    description: 'Complete PVC card production queue, contactless chip QC, batch printing, courier manifest & live doorstep delivery tracking.',
+    associatedPermissions: ['card_print', 'card_read', 'card_create']
   },
   {
     key: 'memberships',
@@ -296,27 +306,35 @@ export const SYSTEM_MODULES: SystemModuleInfo[] = [
     category: 'finance',
     description: 'Super Admin High-Security Cryptographic PIN Voucher Generator, Batch Issuer & Cash Desk POS Redemption.',
     associatedPermissions: ['all', 'voucher_manage']
+  },
+  {
+    key: 'system_monitoring',
+    name: 'System Monitoring & Telemetry',
+    href: '/system-monitoring',
+    category: 'system',
+    description: 'Super Admin Real-Time Performance Telemetry, API Latency Metrics, Memory Footprint & Audit Distribution Charts.',
+    associatedPermissions: ['all', 'audit_view']
   }
 ];
 
 export const ROLE_DEFAULT_MODULES: Record<Role, SystemModuleKey[]> = {
   super_admin: [
-    'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet',
+    'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch',
     'memberships', 'families', 'wallet', 'reports', 'users', 'website_cms', 'integrations',
-    'activity', 'settings', 'cash_desk_vouchers'
+    'activity', 'backup', 'settings', 'cash_desk_vouchers', 'system_monitoring'
   ],
   admin: [
-    'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet',
+    'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch',
     'memberships', 'families', 'wallet', 'reports', 'integrations',
     'activity', 'backup', 'settings'
   ],
   doctor: ['emr', 'dashboard', 'patients', 'ngo_welfare', 'cards', 'wallet'],
-  reception: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'wallet', 'families'],
-  manager: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'memberships', 'families', 'wallet', 'reports', 'activity'],
+  reception: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch', 'wallet', 'families'],
+  manager: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch', 'memberships', 'families', 'wallet', 'reports', 'activity'],
   lab_staff: ['dashboard', 'patients', 'cards', 'wallet', 'test_master', 'ngo_welfare'],
-  marketing: ['dashboard', 'patients', 'ngo_welfare', 'cards'],
-  card_operator: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'ngo_welfare'],
-  read_only: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'wallet', 'activity']
+  marketing: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_dispatch'],
+  card_operator: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'card_dispatch', 'ngo_welfare'],
+  read_only: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_dispatch', 'wallet', 'activity']
 };
 
 export function hasPermission(userRole: Role, permission: Permission): boolean {

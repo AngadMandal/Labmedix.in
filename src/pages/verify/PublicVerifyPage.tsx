@@ -40,7 +40,8 @@ import {
   Camera,
   Home,
   UserCheck,
-  ExternalLink
+  ExternalLink,
+  CreditCard
 } from 'lucide-react';
 
 export const PublicVerifyPage: React.FC = () => {
@@ -233,8 +234,8 @@ export const PublicVerifyPage: React.FC = () => {
                   : 'bg-white border-slate-200 text-teal-700 hover:bg-slate-100 shadow-sm'
               }`}
             >
-              <Home className="w-3.5 h-3.5" />
-              <span>Home</span>
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Card Portal</span>
             </Link>
 
             <button
@@ -414,7 +415,7 @@ export const PublicVerifyPage: React.FC = () => {
 
                   {result.cardStatus === 'active' && (
                     <div className="hidden sm:flex flex-col items-end text-[9px] font-mono text-emerald-400 opacity-90">
-                      <span>NABL & ISO 9001:2015</span>
+                      <span>NABH & ISO 9001:2015</span>
                       <span>DIGITAL SEAL VERIFIED</span>
                     </div>
                   )}

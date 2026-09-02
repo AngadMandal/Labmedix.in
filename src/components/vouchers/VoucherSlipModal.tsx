@@ -287,7 +287,7 @@ export const VoucherSlipModal: React.FC<VoucherSlipModalProps> = ({
                 <div>
                   <div class="cert-title">${company.name || 'LABMEDIX MULTI-SPECIALITY CENTRE'}</div>
                   <div class="cert-subtitle">${company.address || 'Kolkata Central Healthcare & Diagnostics Suite'}</div>
-                  <div class="cert-subtitle" style="font-weight: bold; margin-top: 2px;">NABH & NABL ACCREDITED TERTIARY CARE FACILITY</div>
+                  <div class="cert-subtitle" style="font-weight: bold; margin-top: 2px;">NABH & ISO 9001:2015 ACCREDITED TERTIARY CARE FACILITY</div>
                 </div>
                 <div style="text-align: right;">
                   <div style="display: inline-block; background: #0f766e; color: #fff; font-weight: bold; font-size: 10px; padding: 4px 10px; border-radius: 20px;">
@@ -574,7 +574,7 @@ export const VoucherSlipModal: React.FC<VoucherSlipModalProps> = ({
                 <div className="space-y-1">
                   <LabMedixLogo logoUrl={company.logoUrl} size="md" variant="horizontal" />
                   <p className="text-xs text-slate-600 max-w-sm pt-1">{company.address || 'Kolkata Central Healthcare & Diagnostics Suite'}</p>
-                  <p className="text-xs text-slate-600 font-mono">NABH & NABL ACCREDITED TERTIARY HOSPITAL</p>
+                  <p className="text-xs text-slate-600 font-mono">NABH & ISO 9001:2015 ACCREDITED TERTIARY HOSPITAL</p>
                 </div>
                 <div className="text-right space-y-1">
                   <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-teal-900 text-white font-mono">

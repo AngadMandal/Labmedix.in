@@ -229,10 +229,30 @@ export interface HealthCard {
   updatedAt: string;
 }
 
+export interface BenefitPackageItem {
+  id: string;
+  title: string;
+  category: 'consultation' | 'diagnostics' | 'pharmacy' | 'preventive' | 'hospital' | 'concierge';
+  description: string;
+  quantityOrLimit?: string;
+  valueInInr?: number;
+}
+
+export interface FamilyPlanPolicy {
+  allowedRelationships: string[];
+  primaryAgeMinimum: number;
+  childAgeMaximum: number;
+  allowSharedWallet: boolean;
+  allowDependentCards: boolean;
+  additionalMemberFee?: number;
+}
+
 export interface Membership {
   id: string;
   name: string;
   slug: string;
+  tierRank?: number;
+  description?: string;
   validityMonths: number;
   registrationFee: number;
   annualRenewalFee: number;
@@ -240,13 +260,22 @@ export interface Membership {
   labDiscount: number;
   pharmacyDiscount: number;
   homeCollectionDiscount: number;
+  emergencyDiscount?: number;
+  ipdDiscount?: number;
+  teleconsultDiscount?: number;
+  cashbackPercentage?: number;
   specialBenefits: string[];
+  benefitPackages?: BenefitPackageItem[];
   color: string;
   badgeIcon: string;
   isFamilyPlan: boolean;
   maxFamilyMembers?: number;
+  familyPolicy?: FamilyPlanPolicy;
+  isRecommended?: boolean;
+  isPopular?: boolean;
   status: 'active' | 'inactive';
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface FamilyMemberLink {
@@ -332,6 +361,7 @@ export type AuditModule =
   | 'auth'
   | 'patient'
   | 'card'
+  | 'card_dispatch'
   | 'membership'
   | 'wallet'
   | 'family'
@@ -1017,5 +1047,127 @@ export interface NgoCoBrandCardPayload {
   ngoPartnerId: string;
   tierName: string;
   sponsorSubsidy: number;
+  notes?: string;
+}
+
+// ── Card Printing, Production & Dispatch Hub Types ──
+export type CardPrintStatus =
+  | 'pending_print'
+  | 'in_print_queue'
+  | 'printed'
+  | 'laminated'
+  | 'qc_passed'
+  | 'qc_failed';
+
+export type CardDispatchStatus =
+  | 'unallocated'
+  | 'queued'
+  | 'packaged'
+  | 'in_transit'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'returned';
+
+export type CardDispatchPriority = 'urgent' | 'high' | 'standard' | 'camp_bulk';
+
+export type CardCourierPartner =
+  | 'speed_post'
+  | 'bluedart'
+  | 'delhivery'
+  | 'dtdc'
+  | 'executive_hand'
+  | 'counter_pickup'
+  | 'ngo_camp';
+
+export interface CardDispatchTimelineEvent {
+  id: string;
+  status: CardDispatchStatus | CardPrintStatus;
+  title: string;
+  description: string;
+  location?: string;
+  timestamp: string;
+  actor: string;
+}
+
+export interface CardDispatchRecord {
+  id: string; // e.g. DSP-2026-0001
+  cardId: string;
+  cardNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMobile: string;
+  patientEmail?: string;
+  bloodGroup?: string;
+  address: Address;
+  membershipName: string;
+  membershipColor: string;
+  photoUrl?: string;
+  printStatus: CardPrintStatus;
+  dispatchStatus: CardDispatchStatus;
+  priority: CardDispatchPriority;
+  courierPartner: CardCourierPartner;
+  consignmentNo: string; // AWB or Postal Barcode e.g. EK894021948IN
+  trackingUrl?: string;
+  batchId?: string;
+  
+  // Production milestones
+  printedAt?: string;
+  printedBy?: string;
+  printFormat?: 'cr80_pvc' | 'a4_laminated' | 'smart_chip_rfid';
+  
+  // QC check
+  qcCheckedAt?: string;
+  qcCheckedBy?: string;
+  nfcUidVerified?: string;
+  barcodeVerified?: boolean;
+  qcNotes?: string;
+  
+  // Packaging & Welcome Kit
+  packagedAt?: string;
+  packagedBy?: string;
+  envelopeBarcode?: string;
+  kitContents: string[]; // e.g. CR80 Dual-Chip PVC Card, Emergency QR Lanyard, Handbook
+  
+  // Handover & Shipping
+  dispatchedAt?: string;
+  dispatchedBy?: string;
+  deliveryExecutiveName?: string;
+  deliveryExecutivePhone?: string;
+  estimatedDelivery?: string;
+  
+  // Delivery proof
+  deliveredAt?: string;
+  deliveredTo?: string;
+  deliveredRelationship?: string;
+  receiverSignatureOrOtp?: string;
+  
+  // Return / Issue
+  returnedAt?: string;
+  returnReason?: string;
+  
+  // Communications
+  smsNotificationSent: boolean;
+  whatsappNotificationSent: boolean;
+  lastNotifiedAt?: string;
+  
+  timeline: CardDispatchTimelineEvent[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CardDispatchBatch {
+  id: string; // e.g. BATCH-2026-001
+  batchName: string;
+  manifestNumber: string; // e.g. MNF-2026-KOL-09
+  courierPartner: CardCourierPartner;
+  courierPickupPerson?: string;
+  courierPickupPhone?: string;
+  recordIds: string[];
+  totalCards: number;
+  status: 'open' | 'locked' | 'handed_over' | 'closed';
+  handoverTime?: string;
+  handoverOfficer?: string;
+  createdAt: string;
   notes?: string;
 }

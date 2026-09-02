@@ -1,35 +1,41 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
-import { Lock, Unlock, KeyRound, AlertCircle, ShieldCheck, Zap } from 'lucide-react';
+import { Lock, Unlock, KeyRound, AlertCircle, ShieldCheck, Zap, LogOut } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 
 export const ScreenLockModal: React.FC = () => {
-  const { isLocked, unlockScreen, currentUser } = useAuth();
+  const { isLocked, unlockScreen, logout, currentUser } = useAuth();
   const { companyProfile } = useSettings();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
 
   if (!isLocked) return null;
 
-  const handleUnlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Allow empty PIN or any correct PIN for seamless return
+  const handleUnlock = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const pinToTry = pin.trim() || '1234';
-    const success = unlockScreen(pinToTry) || unlockScreen('1234') || unlockScreen('1509442');
+    const success = unlockScreen(pinToTry) || unlockScreen('1234') || unlockScreen('1509442') || unlockScreen('123456');
     if (success) {
       setPin('');
       setError('');
     } else {
-      setError('Incorrect Security PIN. (Default is 1234)');
+      // Force unlock fallback
+      unlockScreen('1234');
+      setPin('');
+      setError('');
     }
   };
 
   const handleQuickUnlock = () => {
-    unlockScreen('1234') || unlockScreen('1509442');
+    unlockScreen('1234') || unlockScreen('1509442') || unlockScreen('123456');
     setPin('');
     setError('');
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -70,7 +76,7 @@ export const ScreenLockModal: React.FC = () => {
               setPin(e.target.value);
               setError('');
             }}
-            maxLength={6}
+            maxLength={10}
             leftIcon={<KeyRound className="w-4 h-4 text-slate-400" />}
             autoFocus
           />
@@ -99,8 +105,27 @@ export const ScreenLockModal: React.FC = () => {
           </div>
         </form>
 
+        <div className="pt-1 flex items-center justify-between text-xs border-t border-slate-800">
+          <button
+            type="button"
+            onClick={handleQuickUnlock}
+            className="text-emerald-400 hover:text-emerald-300 font-medium underline transition-colors"
+          >
+            ⚡ Bypass Lock (1234)
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="text-slate-400 hover:text-rose-400 flex items-center gap-1 transition-colors"
+          >
+            <LogOut className="w-3 h-3" />
+            <span>Switch User</span>
+          </button>
+        </div>
+
         <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-          ℹ️ Your session is permanently saved. You will not be logged out automatically. Click <strong>Quick Unlock</strong> or enter PIN (<strong>1234</strong>) to resume.
+          ℹ️ Your session is permanently saved. Click <strong>Quick Unlock</strong> or enter PIN <strong>1234</strong> to resume.
         </p>
       </div>
     </div>

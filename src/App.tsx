@@ -15,6 +15,7 @@ import { PatientEditPage } from './pages/patients/PatientEditPage';
 import { CardListPage } from './pages/cards/CardListPage';
 import { CardStudioPage } from './pages/cards/CardStudioPage';
 import { CardPrintSheetPage } from './pages/cards/CardPrintSheetPage';
+import { CardPrintingDispatchPage } from './pages/cards/CardPrintingDispatchPage';
 import { MembershipListPage } from './pages/memberships/MembershipListPage';
 import { FamilyListPage } from './pages/families/FamilyListPage';
 import { WalletDashboardPage } from './pages/wallet/WalletDashboardPage';
@@ -32,9 +33,9 @@ import { IntegrationsPage } from './pages/integrations/IntegrationsPage';
 import { GmailIntegrationPage } from './pages/integrations/GmailIntegrationPage';
 import { WebsiteCmsPage } from './pages/cms/WebsiteCmsPage';
 import { CashDeskBillVouchersPage } from './pages/vouchers/CashDeskBillVouchersPage';
+import { SystemMonitoringPage } from './pages/monitoring/SystemMonitoringPage';
 import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
 import { PatientPortalPage } from './pages/portal/PatientPortalPage';
-import { HomePage } from './pages/public/HomePage';
 import { NgoWelfare } from './pages/NgoWelfare';
 import { OfflineFormPage } from './pages/offline/OfflineFormPage';
 import { NotFoundPage } from './pages/not-found/NotFoundPage';
@@ -213,14 +214,12 @@ export const App: React.FC = () => {
                 <Route path="/verify/:code" element={<PublicVerifyPage />} />
                 <Route path="/verify" element={<PublicVerifyPage />} />
 
-                {/* Public 3D Website Home Page (Default Root) */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/home" element={<HomePage />} />
-                <Route path="/website" element={<HomePage />} />
-
-                {/* Single Unified Patient & Cardholder Smart Portal */}
+                {/* Single Unified Patient & Cardholder Smart Portal (Primary Entry & ID Login) */}
+                <Route path="/" element={<PatientPortalPage />} />
                 <Route path="/portal" element={<PatientPortalPage />} />
-                <Route path="/patient-portal" element={<Navigate to="/portal" replace />} />
+                <Route path="/home" element={<Navigate to="/" replace />} />
+                <Route path="/website" element={<Navigate to="/" replace />} />
+                <Route path="/patient-portal" element={<Navigate to="/" replace />} />
 
                 {/* Staff Login */}
                 <Route path="/login" element={<LoginPage />} />
@@ -248,6 +247,10 @@ export const App: React.FC = () => {
                   <Route path="/cards" element={<ModuleGuard moduleKey="cards"><CardListPage /></ModuleGuard>} />
                   <Route path="/card-studio" element={<ModuleGuard moduleKey="card_studio"><CardStudioPage /></ModuleGuard>} />
                   <Route path="/cards/print-sheet" element={<ModuleGuard moduleKey="print_sheet"><CardPrintSheetPage /></ModuleGuard>} />
+                  <Route path="/cards/printing-dispatch" element={<ModuleGuard moduleKey="card_dispatch"><CardPrintingDispatchPage /></ModuleGuard>} />
+                  <Route path="/card-dispatch" element={<Navigate to="/cards/printing-dispatch" replace />} />
+                  <Route path="/dispatch" element={<Navigate to="/cards/printing-dispatch" replace />} />
+                  <Route path="/card-printing" element={<Navigate to="/cards/printing-dispatch" replace />} />
 
                   {/* Memberships */}
                   <Route path="/memberships" element={<ModuleGuard moduleKey="memberships"><MembershipListPage /></ModuleGuard>} />
@@ -285,6 +288,8 @@ export const App: React.FC = () => {
 
                   {/* System & Audit */}
                   <Route path="/activity" element={<ModuleGuard moduleKey="activity"><ActivityLogPage /></ModuleGuard>} />
+                  <Route path="/system-monitoring" element={<SuperAdminGuard><ModuleGuard moduleKey="system_monitoring"><SystemMonitoringPage /></ModuleGuard></SuperAdminGuard>} />
+                  <Route path="/monitoring" element={<Navigate to="/system-monitoring" replace />} />
                   <Route path="/backup" element={<SuperAdminGuard><ModuleGuard moduleKey="backup"><BackupRestorePage /></ModuleGuard></SuperAdminGuard>} />
                   <Route path="/integrations" element={<ModuleGuard moduleKey="integrations"><IntegrationsPage /></ModuleGuard>} />
                   <Route path="/gmail-integration" element={<ModuleGuard moduleKey="integrations"><GmailIntegrationPage /></ModuleGuard>} />

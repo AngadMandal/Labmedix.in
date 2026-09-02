@@ -330,7 +330,33 @@ export const WebsiteCmsPage: React.FC = () => {
       {/* TAB 3: HEALTH CARD TIERS */}
       {activeTab === 'cards' && (
         <div className="rounded-3xl p-6 space-y-6" style={panel('rgba(180,83,9,0.35)')}>
-          <SH title="3D Smart Health Card Tiers & Pricing Matrix (INR ₹)" icon={Award} ic="#f59e0b" sub={`${(config?.cardTiers || []).length} Active Tiers`} />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-4" style={{ borderColor: 'rgba(245,158,11,0.22)' }}>
+            <div>
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Award className="w-5 h-5 text-amber-500" />
+                3D Smart Health Card Tiers &amp; Pricing Matrix (INR ₹)
+              </h3>
+              <span className="text-[11px] text-slate-400">Configure pricing, discounts, perks &amp; recommendations for public display</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {(config?.cardTiers || []).some(t => t.popular) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = (config?.cardTiers || []).map(t => ({ ...t, popular: false }));
+                    setConfig(prev => ({ ...prev, cardTiers: updated }));
+                    showToast('info', 'Recommendations Removed', 'Removed all Recommended / Popular badges from health card tiers.');
+                  }}
+                  disabled={!isSuperAdmin}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 hover:bg-rose-500/25 transition-all"
+                >
+                  ✕ Remove All Recommended Badges
+                </button>
+              )}
+              <span className="text-[10px] font-mono text-slate-500">{`${(config?.cardTiers || []).length} Active Tiers`}</span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {(config?.cardTiers || []).map((tier, idx) => {
               const c = TIER_COLORS[tier.tier] || '#4ade80';
@@ -343,10 +369,51 @@ export const WebsiteCmsPage: React.FC = () => {
                         <CreditCard className="w-4 h-4" style={{ color: c }} />
                       </div>
                       <strong className="text-sm font-black text-white">{tier.name}</strong>
-                      {tier.popular && <span className="ml-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase" style={{ background: '#f59e0b', color: '#000' }}>⭐ POPULAR</span>}
+                      {tier.popular && (
+                        <span className="ml-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1" style={{ background: '#f59e0b', color: '#000' }}>
+                          ⭐ RECOMMENDED
+                          {isSuperAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => updateCardTier(idx, 'popular', false)}
+                              title="Remove Recommended"
+                              className="ml-1 hover:text-rose-950 font-black text-[11px]"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs font-mono font-black px-2.5 py-1 rounded-full" style={{ background: `${c}18`, color: c, border: `1px solid ${c}35` }}>{tier.tier}</span>
                   </div>
+
+                  {/* Recommendation Control Strip */}
+                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={!!tier.popular}
+                        onChange={e => updateCardTier(idx, 'popular', e.target.checked)}
+                        disabled={!isSuperAdmin}
+                        className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span>Mark as Recommended / Popular Tier</span>
+                    </label>
+                    {tier.popular ? (
+                      <button
+                        type="button"
+                        onClick={() => updateCardTier(idx, 'popular', false)}
+                        disabled={!isSuperAdmin}
+                        className="text-[10px] font-black text-rose-400 hover:text-rose-300 transition-colors"
+                      >
+                        Remove Recommended
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 font-mono">Not Recommended</span>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     {([['annualFee','Annual Fee (₹)'],['discountPercentage','Discount % on Tests'],['cashbackPercentage','Cashback % (Wallet)'],['familyMembersCovered','Family Members']] as [string,string][]).map(([key, label]) => (
                       <div key={key} className="space-y-1">

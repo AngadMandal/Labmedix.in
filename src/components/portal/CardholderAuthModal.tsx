@@ -351,7 +351,7 @@ export const CardholderAuthModal: React.FC<CardholderAuthModalProps> = ({
             <div className="space-y-1">
               <h3 className="text-base font-black text-white">Apply for Your Smart Health Card</h3>
               <p className="text-xs text-slate-300 max-w-md mx-auto">
-                Join 500,000+ cardholders enjoying 15% to 50% cashless discounts on all 350+ NABL Lab Tests and free doctor visits.
+                Join 500,000+ cardholders enjoying 15% to 50% cashless discounts on all 350+ Lab Tests and free doctor visits.
               </p>
             </div>
 

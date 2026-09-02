@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   Clock,
   Laptop,
-  FileText
+  FileText,
+  CreditCard
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -110,16 +111,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
       {/* Right Action Icons & Role Switcher */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Link to 3D Public Website */}
+        {/* Link to Cardholder Portal */}
         <Link
-          to="/home"
+          to="/portal"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-bold hover:bg-purple-100 transition-colors shadow-sm"
-          title="Open Public 3D Website Home Page"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors shadow-sm"
+          title="Open Cardholder Portal Login"
         >
-          <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-          <span className="hidden md:inline">3D Website</span>
+          <CreditCard className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+          <span className="hidden md:inline">Card Portal</span>
         </Link>
 
         {/* Offline Form & Field Camp Button */}

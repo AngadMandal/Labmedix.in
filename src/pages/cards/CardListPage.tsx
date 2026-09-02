@@ -58,6 +58,7 @@ import {
   UserCheck,
   Send,
   Trash2,
+  Truck,
   ShieldCheck,
   ShieldAlert,
   Lock,
@@ -606,6 +607,16 @@ export const CardListPage: React.FC = () => {
               onClick={refreshList}
             >
               🔄 Refresh
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 font-bold"
+              leftIcon={<Truck className="w-4 h-4" />}
+              onClick={() => navigate('/cards/printing-dispatch')}
+            >
+              Print & Dispatch Hub
             </Button>
 
             <Button

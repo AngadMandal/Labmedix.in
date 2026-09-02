@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ThemeConfig, ThemeMode } from '../types';
 
 export interface ThemeContextType {
@@ -129,6 +129,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [theme.mode, timeBasedTheme, systemTheme]);
 
   const isDark = resolvedTheme === 'dark';
+  const isFirstRender = useRef(true);
+  const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Apply theme classes and attributes to DOM
   const applyThemeToDOM = useCallback((dark: boolean) => {
@@ -151,7 +153,62 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
-    metaThemeColor.setAttribute('content', dark ? '#0f172a' : '#ffffff');
+    metaThemeColor.setAttribute('content', dark ? '#070d1e' : '#ffffff');
+  }, []);
+
+  // Apply theme with smooth cross-fade animation
+  const applyThemeWithTransition = useCallback((dark: boolean) => {
+    if (typeof document === 'undefined') return;
+
+    // On initial mount, apply immediately without transition animation
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      applyThemeToDOM(dark);
+      return;
+    }
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      applyThemeToDOM(dark);
+      return;
+    }
+
+    // Use native View Transitions API if supported (Chrome/Edge/Safari 18+)
+    if ('startViewTransition' in document && typeof (document as any).startViewTransition === 'function') {
+      try {
+        (document as any).startViewTransition(() => {
+          applyThemeToDOM(dark);
+        });
+        return;
+      } catch {
+        // Fallback below if View Transition throws
+      }
+    }
+
+    // Fallback: Apply smooth CSS cross-fade transition class to DOM
+    const root = document.documentElement;
+    root.classList.add('theme-transitioning');
+    applyThemeToDOM(dark);
+
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+    }
+    transitionTimeoutRef.current = setTimeout(() => {
+      root.classList.remove('theme-transitioning');
+    }, 400);
+  }, [applyThemeToDOM]);
+
+  // Clean up any pending transition timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Listen to live system color scheme changes
@@ -182,9 +239,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Apply resolved theme to DOM and persist to localStorage
+  // Apply resolved theme to DOM with smooth cross-fade animation and persist to localStorage
   useEffect(() => {
-    applyThemeToDOM(isDark);
+    applyThemeWithTransition(isDark);
 
     try {
       localStorage.setItem(THEME_MODE_KEY, theme.mode);
@@ -192,7 +249,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (error) {
       console.warn('[ThemeContext] Could not persist theme preference:', error);
     }
-  }, [theme, isDark, applyThemeToDOM]);
+  }, [theme, isDark, applyThemeWithTransition]);
 
   // Synchronize across browser tabs
   useEffect(() => {

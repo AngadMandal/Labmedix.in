@@ -25,6 +25,7 @@ import { PatientReceiptModal } from '../../components/portal/PatientReceiptModal
 import { PatientRealMoneyTopUpModal } from '../../components/portal/PatientRealMoneyTopUpModal';
 import { PatientCardApplicationModal } from '../../components/portal/PatientCardApplicationModal';
 import { ApplicationStatusTrackModal } from '../../components/portal/ApplicationStatusTrackModal';
+import { Portal3DLoginScreen } from '../../components/portal/Portal3DLoginScreen';
 import { DirectLabAndPackageBookingModal } from '../../components/portal/DirectLabAndPackageBookingModal';
 import { DirectMedicineOrderModal } from '../../components/portal/DirectMedicineOrderModal';
 import { CatalogService } from '../../services/catalogService';
@@ -973,200 +974,19 @@ export const PatientPortalPage: React.FC = () => {
     });
   };
 
-  // IF NOT AUTHENTICATED: MULTI-CHANNEL OTP LOGIN SCREEN
+  // IF NOT AUTHENTICATED: 3D HIGH-TECH SMART PORTAL ID LOGIN SCREEN
   if (!authenticatedPatient) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{background:'linear-gradient(135deg,#04091a 0%,#060d1f 40%,#0a1224 60%,#04091a 100%)'}}>
-        {/* Background orbs */}
-        <div className="fixed top-1/4 left-1/4 w-96 h-96 rounded-full blur-[120px] pointer-events-none" style={{background:'radial-gradient(ellipse,rgba(30,58,138,0.22),transparent 70%)'}} />
-        <div className="fixed bottom-1/4 right-1/4 w-80 h-80 rounded-full blur-[100px] pointer-events-none" style={{background:'radial-gradient(ellipse,rgba(21,128,61,0.15),transparent 70%)'}} />
-        <div className="w-full max-w-md rounded-3xl p-8 text-white shadow-2xl space-y-6 relative z-10" style={{background:'rgba(10,18,36,0.92)',border:'1px solid rgba(30,58,138,0.45)',backdropFilter:'blur(20px)',boxShadow:'0 0 60px rgba(30,58,138,0.18), 0 25px 50px rgba(0,0,0,0.5)'}}>
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 rounded-2xl bg-white p-2 mx-auto flex items-center justify-center shadow-lg" style={{border:'2px solid rgba(21,128,61,0.5)',boxShadow:'0 0 20px rgba(21,128,61,0.25)'}}>
-              <LabMedixLogo logoUrl={company.logoUrl} variant="monogram" size="md" theme="teal" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight" style={{background:'linear-gradient(90deg,#22c55e,#60a5fa)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{company.name} CARD LOGIN / SIGN UP</h2>
-            <p className="text-xs font-bold uppercase tracking-wider" style={{color:'#60a5fa'}}>
-              {company.tagline} • Multi-Channel OTP & Cashless Health Card Access
-            </p>
-          </div>
-
-          {/* High-Visibility Health Card Application Callout */}
-          <div className="p-4 rounded-3xl shadow-2xl space-y-2 border-2 transform hover:scale-[1.02] transition-all" style={{background:'linear-gradient(135deg,#15803d,#16a34a,#15803d)',borderColor:'rgba(74,222,128,0.5)',boxShadow:'0 0 30px rgba(21,128,61,0.35)'}}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-green-100 animate-bounce" />
-                <strong className="text-xs font-black uppercase tracking-wider text-white">NEW TO LABMEDIX? GET HEALTH CARD</strong>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black font-mono" style={{background:'rgba(0,0,0,0.5)',color:'#4ade80'}}>
-                UP TO 30% OFF
-              </span>
-            </div>
-            <p className="text-[11.5px] font-semibold text-green-50 leading-tight">
-              Apply online for your official LABMEDIX Digital Health Card & cashless wallet in 3 easy steps!
-            </p>
-            <div className="flex items-center gap-2 pt-1">
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                className="flex-1 font-black text-xs shadow-lg"
-                style={{background:'rgba(0,0,0,0.45)',color:'#fff',border:'1px solid rgba(74,222,128,0.4)'}}
-                leftIcon={<CreditCard className="w-4 h-4" style={{color:'#4ade80'}} />}
-                onClick={() => setShowApplyCardModal(true)}
-              >
-                ⚡ Get Health Card / Apply Online
-              </Button>
-              <button
-                type="button"
-                onClick={() => setShowTrackStatusModal(true)}
-                className="px-3 py-2 rounded-xl font-bold text-xs transition-colors"
-                style={{background:'rgba(0,0,0,0.35)',color:'#fff',border:'1px solid rgba(74,222,128,0.3)'}}
-              >
-                Track Status
-              </button>
-            </div>
-          </div>
-
-          {/* STRICT CARDHOLDER ACCESS CENTER LOGIN */}
-          <div className="space-y-4">
-            <div className="p-3.5 rounded-2xl flex items-center gap-3" style={{background:'rgba(30,58,138,0.15)',border:'1px solid rgba(30,58,138,0.40)'}}>
-              <ShieldCheck className="w-5 h-5 shrink-0" style={{color:'#4ade80'}} />
-              <div className="text-[11px] leading-relaxed" style={{color:'#93c5fd'}}>
-                Official Access: Enter your <strong style={{color:"#fff"}}>Mobile No / Health Card No / Email</strong> and your <strong style={{color:"#fff"}}>Portal Password</strong>.
-              </div>
-            </div>
-
-            <form onSubmit={handleCardholderLogin} className="space-y-4">
-              {/* Field 1: Mobile / Card No / Email */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold flex items-center justify-between" style={{color:'#cbd5e1'}}>
-                  <span>1. Mobile No / Card No / Email:</span>
-                </label>
-                <Input
-                  placeholder="Enter Mobile No, Card No or Email"
-                  value={loginId}
-                  onChange={(e) => setLoginId(e.target.value)}
-                  leftIcon={<CreditCard className="w-4 h-4" style={{color:'#60a5fa'}} />}
-                  disabled={lockoutSeconds > 0}
-                  required
-                />
-              </div>
-
-              {/* Field 2: Portal Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                  <span>2. Portal Password:</span>
-                </label>
-                <Input
-                  type="password"
-                  placeholder="Enter your portal password"
-                  value={portalPassword}
-                  onChange={(e) => {
-                    setPortalPassword(e.target.value);
-                    setError('');
-                  }}
-                  leftIcon={<Lock className="w-4 h-4 text-amber-400" />}
-                  className="font-mono tracking-widest"
-                  disabled={lockoutSeconds > 0}
-                  required
-                />
-              </div>
-
-              {/* Field 3: Anti-Bot Mathematical Security Captcha */}
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                    <Fingerprint className="w-4 h-4 text-purple-400" />
-                    3. Anti-Bot Captcha Verification:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={refreshCaptcha}
-                    className="text-teal-400 hover:text-teal-300 text-[11px] flex items-center gap-1 font-mono"
-                    title="Generate new captcha equation"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="px-3.5 py-2 rounded-xl bg-slate-900 border border-teal-500/40 text-sm font-black font-mono tracking-widest text-teal-300 shadow-inner">
-                    {captchaNum1} + {captchaNum2} = ?
-                  </div>
-                  <Input
-                    type="number"
-                    placeholder="Enter sum"
-                    value={userCaptcha}
-                    onChange={(e) => {
-                      setUserCaptcha(e.target.value);
-                      setCaptchaError(false);
-                      setError('');
-                    }}
-                    className={`text-center font-black ${captchaError ? 'border-rose-500 text-rose-300' : ''}`}
-                    disabled={lockoutSeconds > 0}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Active Lockout Timer Countdown Display */}
-              {lockoutSeconds > 0 && (
-                <div className="p-3.5 rounded-2xl bg-rose-950/80 border-2 border-rose-500 text-rose-200 text-xs space-y-1.5 animate-pulse">
-                  <div className="flex items-center gap-2 font-black text-rose-300">
-                    <ShieldAlert className="w-4 h-4 text-rose-400" />
-                    <span>Cardholder Rate-Limit Lockout Active</span>
-                  </div>
-                  <p className="text-[11px] leading-tight">
-                    Card access temporarily locked due to 5 consecutive failed attempts.
-                  </p>
-                  <div className="font-mono text-sm font-black text-amber-300 pt-1">
-                    ⏳ Unlocks in: {Math.floor(lockoutSeconds / 60)}m {lockoutSeconds % 60}s
-                  </div>
-                </div>
-              )}
-
-              {/* General Error Message */}
-              {error && lockoutSeconds === 0 && (
-                <div className="p-3 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full font-black shadow-lg transition-all text-white"
-                style={{background:'linear-gradient(135deg,#15803d,#1e3a8a)',boxShadow:'0 0 25px rgba(21,128,61,0.35)',border:'1px solid rgba(74,222,128,0.25)'}}
-                isLoading={isLoggingIn}
-                disabled={lockoutSeconds > 0}
-                rightIcon={<ArrowRight className="w-4 h-4" />}
-              >
-                Authenticate & Enter CARD LOGIN / SIGN UP
-              </Button>
-            </form>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs text-slate-400">
-            <Link
-              to="/"
-              className="hover:text-teal-300 transition-colors inline-flex items-center gap-1.5 font-bold"
-            >
-              <Home className="w-3.5 h-3.5 text-teal-400" />
-              <span>← Back to Home Page</span>
-            </Link>
-            <Link
-              to="/login"
-              className="hover:text-white transition-colors inline-flex items-center gap-1.5 font-bold"
-            >
-              <span>🔒 Admin Panel →</span>
-            </Link>
-          </div>
-        </div>
+      <>
+        <Portal3DLoginScreen
+          company={company}
+          onAuthenticated={(patient) => {
+            setAuthenticatedPatient(patient);
+            triggerCelebrationFireworks();
+          }}
+          onOpenApplyModal={() => setShowApplyCardModal(true)}
+          onOpenTrackModal={() => setShowTrackStatusModal(true)}
+        />
 
         {/* Self-Service Digital Health Card Application Modal */}
         <PatientCardApplicationModal
@@ -1184,10 +1004,10 @@ export const PatientPortalPage: React.FC = () => {
           onLoginWithApprovedCard={(cardNo) => {
             setShowTrackStatusModal(false);
             setLoginId(cardNo);
-            showToast('info', 'Enter Card CVV', `Card Number ${cardNo} set. Please enter the 3-digit CVV to authenticate.`);
+            showToast('info', 'Card Selected', `Card Number ${cardNo} set. Please enter your PIN (1234) to authenticate.`);
           }}
         />
-      </div>
+      </>
     );
   }
 
@@ -1237,17 +1057,6 @@ export const PatientPortalPage: React.FC = () => {
                 <strong className="text-emerald-400 font-bold text-xs">{authenticatedPatient.id}</strong>
               </div>
             </div>
-
-            <Link to="/">
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 font-bold"
-                leftIcon={<Globe className="w-3.5 h-3.5 text-teal-400" />}
-              >
-                Website Home
-              </Button>
-            </Link>
 
             <Button
               size="sm"
