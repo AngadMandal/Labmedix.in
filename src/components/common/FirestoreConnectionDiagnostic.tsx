@@ -46,7 +46,7 @@ export const FirestoreConnectionDiagnostic: React.FC<FirestoreConnectionDiagnost
   const [lastPingLatency, setLastPingLatency] = useState<number | null>(null);
   const [pingHistory, setPingHistory] = useState<number[]>([]);
   const [isPinging, setIsPinging] = useState<boolean>(false);
-  const [autoPingEnabled, setAutoPingEnabled] = useState<boolean>(true);
+  const [autoPingEnabled, setAutoPingEnabled] = useState<boolean>(false);
   const [isFromCache, setIsFromCache] = useState<boolean>(false);
   const [hasPendingWrites, setHasPendingWrites] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

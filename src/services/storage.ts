@@ -33,6 +33,7 @@ import {
 import { GoogleDriveService } from './googleDriveService';
 import { getGoogleAccessToken } from './googleAuth';
 import { ApiSyncService } from './apiSyncService';
+import { FirestoreBackupService } from './firestoreBackupService';
 
 export const STORAGE_KEYS = {
   USERS: 'labmedix_users_v1',
@@ -385,8 +386,9 @@ export class StorageService {
         body: JSON.stringify({ data, googleToken: driveToken })
       }).catch(() => { });
 
-      // 4. Trigger direct client-side Google Drive upload
+      // 4. Trigger direct client-side Google Drive upload and flush Zero-Data-Loss WAL
       GoogleDriveService.triggerAutoBackup();
+      FirestoreBackupService.scheduleWalFlush(500);
     } catch (e) {
       console.warn('Failed to execute live backup sync:', e);
     }
@@ -407,6 +409,34 @@ export class StorageService {
   private static memoryCache: Map<string, any> = new Map();
   private static syncChannel: BroadcastChannel | null = null;
   private static isInitialized = false;
+  private static pendingNotifyKeys = new Set<string>();
+  private static notifyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * High-Performance Batched Event Dispatcher:
+   * Coalesces rapid sequential key updates (e.g. initial Firestore hydration, bulk operations)
+   * into a single micro-debounced UI event to prevent main-thread lag and re-render thrashing.
+   */
+  public static scheduleDataSyncedNotification(key: string, value?: any): void {
+    if (typeof window === 'undefined') return;
+    this.pendingNotifyKeys.add(key);
+
+    if (this.notifyDebounceTimer) return;
+
+    this.notifyDebounceTimer = setTimeout(() => {
+      const keysArray = Array.from(StorageService.pendingNotifyKeys);
+      StorageService.pendingNotifyKeys.clear();
+      StorageService.notifyDebounceTimer = null;
+
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', {
+        detail: {
+          keys: keysArray,
+          key: keysArray.length === 1 ? keysArray[0] : undefined,
+          timestamp: Date.now()
+        }
+      }));
+    }, 35); // 35ms batch window: imperceptible latency, eliminates re-render spikes
+  }
 
   /* ── PUBLIC: Request browser persistent storage (prevents OS cache eviction on mobile & desktop) ── */
   public static async requestPersistentStorage(): Promise<boolean> {
@@ -488,20 +518,28 @@ export class StorageService {
       ApiSyncService.syncKeyToFirestore(key, value).catch(() => { });
     }
 
-    // 8. Broadcast update event locally to all listening React components asynchronously (outside React render cycles)
-    if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
-      }, 0);
-    }
+    // 8. Broadcast update event locally via high-performance micro-debounced batcher
+    StorageService.scheduleDataSyncedNotification(key, value);
 
-    // 9. Trigger Live Backup to Google Drive if configured
-    GoogleDriveService.triggerAutoBackup();
+    // 9. Trigger Live Backup to Google Drive if configured (Exclude internal logs/snapshots to prevent loops)
+    const INTERNAL_ONLY_KEYS = [
+      STORAGE_KEYS.AUDIT_LOGS,
+      STORAGE_KEYS.SNAPSHOTS,
+      STORAGE_KEYS.THEME,
+      STORAGE_KEYS.SCREEN_LOCKED,
+      STORAGE_KEYS.RECOVERY_VAULT,
+      STORAGE_KEYS.INTEGRATIONS,
+      STORAGE_KEYS.LAST_BACKUP_TIMESTAMP,
+      STORAGE_KEYS.LAST_BACKUP_PROMPT_TIMESTAMP
+    ];
+    if (!INTERNAL_ONLY_KEYS.includes(key as any)) {
+      GoogleDriveService.triggerAutoBackup();
+    }
   }
 
   /**
    * Public Helper: Update in-memory cache and localStorage immediately when real-time cloud data arrives,
-   * bypassing stale reads and notifying all React components instantly.
+   * bypassing stale reads and notifying all React components smoothly.
    */
   public static updateCacheAndNotify(key: string, value: any): void {
     if (!key || value === undefined) return;
@@ -515,11 +553,7 @@ export class StorageService {
       sessionStorage.setItem(key, JSON.stringify(value));
     } catch { }
 
-    if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key, value } }));
-      }, 0);
-    }
+    StorageService.scheduleDataSyncedNotification(key, value);
   }
 
   /* ── PUBLIC: Read with multi-layer fallback ── */

@@ -128,13 +128,18 @@ export const SyncStatusPanel: React.FC = () => {
   };
 
   useEffect(() => {
-    refreshStats();
-    const interval = setInterval(refreshStats, 3000);
-    const handleOnline = () => { setIsOnline(true); refreshStats(); };
-    const handleOffline = () => { setIsOnline(false); refreshStats(); };
+    if (isOpen) {
+      refreshStats();
+    }
+    const handleSync = () => {
+      if (isOpen) refreshStats();
+    };
+    const handleOnline = () => { setIsOnline(true); if (isOpen) refreshStats(); };
+    const handleOffline = () => { setIsOnline(false); if (isOpen) refreshStats(); };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('labmedix_data_synced', handleSync);
 
     // Keyboard shortcut: Ctrl + Shift + D or Cmd + Shift + D to toggle overlay
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -146,12 +151,12 @@ export const SyncStatusPanel: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('labmedix_data_synced', handleSync);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isOpen]);
 
   const handleRunPing = async () => {
     setIsPinging(true);

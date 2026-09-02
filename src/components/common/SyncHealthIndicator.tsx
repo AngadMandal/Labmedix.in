@@ -20,15 +20,18 @@ export const SyncHealthIndicator: React.FC = () => {
 
   useEffect(() => {
     checkHealth();
-    const interval = setInterval(checkHealth, 4000);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const interval = setInterval(checkHealth, 20000);
+    const handleSync = () => checkHealth();
+    const handleOnline = () => { setIsOnline(true); checkHealth(); };
+    const handleOffline = () => { setIsOnline(false); checkHealth(); };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('labmedix_data_synced', handleSync);
     return () => {
       clearInterval(interval);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('labmedix_data_synced', handleSync);
     };
   }, []);
 

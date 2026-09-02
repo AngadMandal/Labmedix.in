@@ -539,6 +539,54 @@ export interface SnapshotRecord {
   checksum?: string;
 }
 
+export interface FirestoreCloudSnapshot {
+  id: string;
+  title: string;
+  timestamp: string;
+  tag: 'manual' | 'auto_live' | 'pre-restore' | 'eod' | 'system' | 'cloud_sync';
+  sizeBytes: number;
+  checksum: string;
+  recordCounts: {
+    patients: number;
+    healthCards: number;
+    memberships: number;
+    families: number;
+    wallets: number;
+    walletTransactions: number;
+    auditLogs: number;
+    users: number;
+    appointments?: number;
+    emrEncounters?: number;
+    doctors?: number;
+    vouchers?: number;
+  };
+  data: BackupData | any;
+  createdBy: string;
+  isVerified: boolean;
+  version: string;
+}
+
+export interface FirestoreWalRecord {
+  id: string;
+  collection: string;
+  docId: string;
+  operation: 'set' | 'update' | 'delete' | 'batch_upsert';
+  payload: any;
+  timestamp: number;
+  retries: number;
+  status: 'pending' | 'syncing' | 'committed' | 'failed';
+  errorMessage?: string;
+}
+
+export interface FirestoreDriftReport {
+  collection: string;
+  displayName: string;
+  localCount: number;
+  cloudCount: number;
+  status: 'synced' | 'local_ahead' | 'cloud_ahead' | 'drift_detected';
+  driftCount: number;
+}
+
 export interface VerificationResult {
   verified: boolean;
   type?: 'health_card' | 'staff_pass';

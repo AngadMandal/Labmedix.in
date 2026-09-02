@@ -27,6 +27,7 @@ import {
   CompanyProfile
 } from '../types';
 import { BloodTestBooking, MedicineOrder } from './portalService';
+import { FirestoreBackupService } from './firestoreBackupService';
 
 export interface DiagnosticLogEntry {
   id: string;
@@ -194,9 +195,15 @@ export class ApiSyncService {
     }
   }
 
-  /** Generic save or update document in Firestore */
+  /** Generic save or update document in Firestore with Zero-Data-Loss WAL Protection */
   public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<boolean> {
-    if (this.quotaExceeded) return false;
+    // 1. Stage in persistent Write-Ahead Log in IndexedDB first for Zero-Data-Loss guarantee
+    const walId = await FirestoreBackupService.enqueueWal(collectionName, id, 'set', data).catch(() => '');
+
+    if (this.quotaExceeded) {
+      return false;
+    }
+
     try {
       const docRef = doc(db, collectionName, id);
       const sanitized = JSON.parse(JSON.stringify(data));
@@ -204,6 +211,12 @@ export class ApiSyncService {
         ...sanitized,
         updatedAt: new Date().toISOString()
       }, { merge: true });
+
+      // Successfully synced to Firestore - commit & clear WAL record
+      if (walId) {
+        FirestoreBackupService.commitWal(walId).catch(() => {});
+      }
+
       this.lastSyncTimestamp = new Date().toISOString();
       this.isConnected = true;
       this.addDiagnosticLog({
@@ -218,21 +231,31 @@ export class ApiSyncService {
       this.addDiagnosticLog({
         type: 'ERROR',
         pathOrCollection: `${collectionName}/${id}`,
-        details: `Failed to save ${id}: ${error?.message || error}`
+        details: `Failed to save ${id} (Preserved in Zero-Loss WAL queue): ${error?.message || error}`
       });
       if (!this.quotaExceeded) {
-        console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id}:`, error);
+        console.warn(`[ApiSync] Firestore sync notice for ${collectionName}/${id} (Secured in WAL):`, error);
       }
       return false;
     }
   }
 
-  /** Generic delete document from Firestore */
+  /** Generic delete document from Firestore with Zero-Data-Loss WAL Protection */
   public static async deleteDocument(collectionName: string, id: string): Promise<boolean> {
-    if (this.quotaExceeded) return false;
+    const walId = await FirestoreBackupService.enqueueWal(collectionName, id, 'delete', null).catch(() => '');
+
+    if (this.quotaExceeded) {
+      return false;
+    }
+
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
+
+      if (walId) {
+        FirestoreBackupService.commitWal(walId).catch(() => {});
+      }
+
       this.lastSyncTimestamp = new Date().toISOString();
       this.addDiagnosticLog({
         type: 'DELETE',
@@ -246,7 +269,7 @@ export class ApiSyncService {
       this.addDiagnosticLog({
         type: 'ERROR',
         pathOrCollection: `${collectionName}/${id}`,
-        details: `Failed to delete ${id}: ${error?.message || error}`
+        details: `Failed to delete ${id} (Preserved in Zero-Loss WAL queue): ${error?.message || error}`
       });
       return false;
     }
@@ -678,7 +701,7 @@ export class ApiSyncService {
               console.warn(`[ApiSync] Failed local persist for ${key}:`, err);
             }
 
-            if (onUpdate) onUpdate(key, items);
+            if (onUpdate && !(window as any)?.__labmedix_update_cache) onUpdate(key, items);
             this.addDiagnosticLog({
               type: 'SNAPSHOT',
               pathOrCollection: config.path,
@@ -718,7 +741,7 @@ export class ApiSyncService {
                 console.warn(`[ApiSync] Failed local persist for doc ${key}:`, err);
               }
 
-              if (onUpdate) onUpdate(key, data);
+              if (onUpdate && !(window as any)?.__labmedix_update_cache) onUpdate(key, data);
               this.addDiagnosticLog({
                 type: 'SNAPSHOT',
                 pathOrCollection: config.path,

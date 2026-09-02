@@ -94,20 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     window.addEventListener('storage', handleStorageChange);
 
-    // 🔒 SECURE STORAGE: Force-sync all data to IndexedDB backup on startup
-    StorageService.forceSyncToIndexedDB().catch(() => {});
-    // 🔄 LIVE CLOUD MULTI-DEVICE SYNC ENGINE
-    const unsubscribeCloud = ApiSyncService.initLiveCloudListeners();
-
-    // 🔄 AUTO-SYNC every 3 minutes (protects mobile users from browser eviction)
-    const syncInterval = setInterval(() => {
-      StorageService.forceSyncToIndexedDB().catch(() => {});
-    }, 3 * 60 * 1000);
-
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      unsubscribeCloud();
-      clearInterval(syncInterval);
     };
   }, [recordActivity]);
 

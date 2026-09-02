@@ -96,13 +96,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemPreference);
   const [nowDate, setNowDate] = useState<Date>(new Date());
 
-  // Interval timer to keep local time updated for auto-schedule evaluation
+  // Interval timer to keep local time updated for auto-schedule evaluation ONLY when mode is auto_schedule
   useEffect(() => {
+    if (theme.mode !== 'auto_schedule') return;
+
     const timer = setInterval(() => {
-      setNowDate(new Date());
-    }, 15000); // Check every 15 seconds for smooth time transitions
+      const nextDate = new Date();
+      setNowDate(prev => {
+        // Only update state if the minute changed
+        if (prev.getMinutes() !== nextDate.getMinutes() || prev.getHours() !== nextDate.getHours()) {
+          return nextDate;
+        }
+        return prev;
+      });
+    }, 60000); // Check once a minute
     return () => clearInterval(timer);
-  }, []);
+  }, [theme.mode]);
 
   const dayStartHour = theme.autoSchedule?.dayStartHour ?? DEFAULT_SCHEDULE.dayStartHour;
   const nightStartHour = theme.autoSchedule?.nightStartHour ?? DEFAULT_SCHEDULE.nightStartHour;

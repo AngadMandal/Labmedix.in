@@ -47,30 +47,31 @@ export class GoogleDriveService {
 
   public static triggerAutoBackup() {
     const token = this.cachedAccessToken || getGoogleAccessToken();
+    if (!token || !isRealGoogleToken(token)) {
+      // Do not run automated drive backup if no valid Google token is linked
+      return;
+    }
     
-    // Fast 2-second debounce for live real-time site modifications
+    // 30-second debounce to protect CPU/memory during active data entry
     if (this.autoBackupTimeout) clearTimeout(this.autoBackupTimeout);
     
     this.autoBackupTimeout = setTimeout(async () => {
       try {
         const activeToken = this.cachedAccessToken || getGoogleAccessToken();
         if (activeToken && isRealGoogleToken(activeToken)) {
-          console.info('[LABMEDIX LIVE SYNC] Live site data updated: Performing automated Google Drive backup...');
+          console.info('[LABMEDIX LIVE SYNC] Performing automated Google Drive backup...');
           await this.uploadBackupToDrive(activeToken);
           console.info('[LABMEDIX LIVE SYNC] Google Drive live cloud backup completed successfully.');
-        } else {
-          // Local snapshot backup
-          BackupService.createSnapshot('Automated Local State Snapshot');
         }
       } catch (err: any) {
         const msg = String(err?.message || err);
         if (msg.includes('401') || msg.includes('invalid') || msg.includes('Credentials') || msg.includes('authentication')) {
           this.cachedAccessToken = null;
         } else {
-          console.warn('[LABMEDIX LIVE SYNC] Cloud sync deferred (local snapshot secured):', msg);
+          console.warn('[LABMEDIX LIVE SYNC] Cloud sync notice:', msg);
         }
       }
-    }, 2000); // 2 second fast debounce
+    }, 30000); // 30 second debounce
   }
 
   /** Find or create the LABMEDIX backup folder in Google Drive */
