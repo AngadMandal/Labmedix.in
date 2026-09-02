@@ -98,25 +98,49 @@ export class UserService {
     };
 
     try {
-        await firestoreService.setDocument('users', newUser.id, newUser);
-        AuditService.log('USER_CREATED', 'users', `Created new staff user: ${newUser.fullName} (${newUser.role}) [ID: ${newUser.staffId}]`, newUser.id);
-        return { user: newUser };
+      // 1. Save to local storage & in-memory cache first
+      const users = StorageService.getUsers();
+      // Ensure no duplicate username or email exists
+      const existingUserIdx = users.findIndex(u => 
+        (u.username && u.username.toLowerCase() === cleanUsername) || 
+        (u.email && u.email.toLowerCase() === cleanEmail)
+      );
+
+      if (existingUserIdx !== -1) {
+        users[existingUserIdx] = { ...users[existingUserIdx], ...newUser };
+      } else {
+        users.push(newUser);
+      }
+      StorageService.saveUsers(users);
+
+      // 2. Sync to Central Cloud Firestore so user can login from mobile, desktop, laptop
+      await firestoreService.setDocument('users', newUser.id, newUser);
+      AuditService.log('USER_CREATED', 'users', `Created new staff user: ${newUser.fullName} (${newUser.role}) [ID: ${newUser.staffId}]`, newUser.id);
+      return { user: newUser };
     } catch (error) {
-        console.error('Failed to create user in Firestore', error);
-        return { user: null as any, error: 'Failed to create user in central database.' };
+      console.error('Failed to create user in Firestore', error);
+      // Fallback: local storage is already saved
+      return { user: newUser };
     }
   }
 
   public static async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     try {
+      const users = StorageService.getUsers();
+      const userIndex = users.findIndex(u => u.id === id);
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], ...updates };
+        StorageService.saveUsers(users);
+      }
+
       await firestoreService.updateDocument('users', id, updates);
       AuditService.log('USER_UPDATED', 'users', `Updated staff account`, id);
-      // We don't have the updated object here. In a real app we'd fetch it.
-      // For now, assume success.
-      return { id, ...updates } as User;
+      return users[userIndex] || ({ id, ...updates } as User);
     } catch (error) {
       console.error('Failed to update user in Firestore', error);
-      return null;
+      const users = StorageService.getUsers();
+      const user = users.find(u => u.id === id);
+      return user || ({ id, ...updates } as User);
     }
   }
 
@@ -128,6 +152,11 @@ export class UserService {
     user.password = newPassword.trim();
     if (newPin) user.pinCode = newPin.trim();
     StorageService.saveUsers(users);
+
+    firestoreService.updateDocument('users', id, {
+      password: user.password,
+      ...(newPin ? { pinCode: user.pinCode } : {})
+    }).catch(err => console.warn('Firestore password reset sync error:', err));
 
     AuditService.log('USER_PASSWORD_RESET', 'users', `Super Admin reset credentials for ${user.fullName}`, id);
     return true;
@@ -175,6 +204,8 @@ export class UserService {
     user.pinCode = newPin;
     StorageService.saveUsers(users);
 
+    firestoreService.updateDocument('users', id, { pinCode: newPin }).catch(err => console.warn('Firestore PIN sync error:', err));
+
     AuditService.log('USER_PIN_RESET', 'users', `Reset security PIN for ${user.fullName}`, id);
     return true;
   }
@@ -187,6 +218,8 @@ export class UserService {
     user.status = user.status === 'active' ? 'inactive' : 'active';
     StorageService.saveUsers(users);
 
+    firestoreService.updateDocument('users', id, { status: user.status }).catch(err => console.warn('Firestore toggleStatus sync error:', err));
+
     AuditService.log('USER_STATUS_CHANGED', 'users', `Toggled account status of ${user.fullName} to ${user.status}`, id);
     return user;
   }
@@ -198,6 +231,8 @@ export class UserService {
 
     const deleted = users.splice(index, 1)[0];
     StorageService.saveUsers(users);
+
+    firestoreService.deleteDocument('users', id).catch(err => console.warn('Firestore deleteUser sync error:', err));
 
     AuditService.log('USER_DELETED', 'users', `Deleted staff account ${deleted.fullName} (${deleted.staffId || deleted.id})`, id);
     return true;

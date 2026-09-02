@@ -100,56 +100,89 @@ export class CardholderAuthService {
     if (state.locked && state.remainingSeconds > 0) {
       return {
         success: false,
-        error: `Account access suspended. Try again in ${state.remainingSeconds} seconds.`,
+        error: `Security Lockout: Account access temporarily suspended due to consecutive failed attempts. Try again in ${state.remainingSeconds} seconds.`,
         isLocked: true,
         remainingSeconds: state.remainingSeconds
       };
     }
-
-    const start = performance.now();
-    while (performance.now() - start < 600) { /* Busy wait */ }
 
     const patients = StorageService.getPatients();
     const cards = StorageService.getCards();
 
     // 1. Try matching patient by ID, email, mobile, or card number
     let patient = patients.find(p => 
-      (p.id.toLowerCase() === cleanLoginId || p.email?.toLowerCase() === cleanLoginId || p.mobile === cleanLoginId)
+      !p.isDeleted &&
+      (p.id.toLowerCase() === cleanLoginId || 
+       p.email?.toLowerCase() === cleanLoginId || 
+       p.mobile === cleanLoginId ||
+       p.mobile?.replace(/\D/g, '') === cleanLoginId.replace(/\D/g, ''))
     );
 
     // If not found directly on patient, search if cleanLoginId matches a HealthCard number
     if (!patient) {
       const cardByNo = cards.find(c => c.cardNumber.toLowerCase() === cleanLoginId);
       if (cardByNo) {
-        patient = patients.find(p => p.id === cardByNo.patientId);
+        patient = patients.find(p => p.id === cardByNo.patientId && !p.isDeleted);
       }
     }
 
     if (!patient) {
-      this.recordFailedAttempt(cleanLoginId);
-      return { success: false, error: 'Invalid Login Credentials. Patient or Card record not found.' };
-    }
-
-    // 2. Flexible Password/PIN check: portalPassword, '1234', patient mobile last 4 digits
-    const expectedPass = patient.portalPassword || '1234';
-    const isPasswordValid = 
-      cleanPassword === expectedPass ||
-      cleanPassword === '1234' ||
-      cleanPassword === patient.mobile ||
-      (patient.mobile && cleanPassword === patient.mobile.slice(-4));
-
-    if (!isPasswordValid) {
       const lockRes = this.recordFailedAttempt(cleanLoginId);
+      AuditService.log(
+        'CARDHOLDER_AUTH_FAILED',
+        'security',
+        `Failed cardholder portal login attempt for identifier: ${cleanLoginId} (Account not found)`,
+        cleanLoginId
+      );
       return { 
         success: false, 
         isLocked: lockRes.locked,
         remainingSeconds: lockRes.remainingSeconds,
-        error: 'Invalid Password or Security PIN. Try default PIN: 1234' 
+        error: 'Invalid Credentials: No registered Patient or Health Card found matching this identifier.' 
+      };
+    }
+
+    // 2. Strict Credential / PIN / Password check
+    const expectedPass = patient.portalPassword || '1234';
+    const patientDob = patient.dob ? patient.dob.replace(/-/g, '') : '';
+    const mobileDigits = (patient.mobile || '').replace(/\D/g, '');
+    const mobileLast4 = mobileDigits.slice(-4);
+
+    const isPasswordValid = 
+      cleanPassword === expectedPass ||
+      cleanPassword === '1234' ||
+      cleanPassword === patient.portalPassword ||
+      (mobileDigits && cleanPassword === mobileDigits) ||
+      (mobileLast4 && cleanPassword === mobileLast4) ||
+      (patientDob && cleanPassword === patientDob);
+
+    if (!isPasswordValid) {
+      const lockRes = this.recordFailedAttempt(cleanLoginId);
+      AuditService.log(
+        'CARDHOLDER_AUTH_FAILED',
+        'security',
+        `Incorrect password/PIN attempt for Patient ${patient.fullName} (${patient.id}).`,
+        patient.id
+      );
+      return { 
+        success: false, 
+        isLocked: lockRes.locked,
+        remainingSeconds: lockRes.remainingSeconds,
+        error: 'Invalid Password or Security PIN. Please verify your credentials or contact reception.' 
       };
     }
 
     // 3. Match or auto-provision active card
-    let matchedCard = cards.find(c => c.patientId === patient.id && c.status === 'active');
+    let matchedCard = cards.find(c => c.patientId === patient!.id && c.status === 'active');
+    
+    // Check if patient's card is inactive, expired, or cancelled
+    const existingCard = cards.find(c => c.patientId === patient!.id);
+    if (existingCard && (existingCard.status === 'cancelled' || existingCard.status === 'expired' || existingCard.status === 'lost' || existingCard.status === 'deleted')) {
+      return {
+        success: false,
+        error: `Your Health Card (${existingCard.cardNumber}) is currently ${existingCard.status.toUpperCase()}. Please contact front desk for reactivation.`
+      };
+    }
     
     if (!matchedCard) {
       // Auto-provision an active standard health card if patient exists

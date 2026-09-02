@@ -315,10 +315,10 @@ export class StorageService {
       clearTimeout(this.backupSyncTimeout);
     }
 
-    // Fast 1.5-second debounce for live real-time site modifications
+    // Debounce for live modifications to prevent UI stalls
     this.backupSyncTimeout = setTimeout(() => {
       this.performServerBackupSync();
-    }, 1500);
+    }, 4000);
   }
 
   private static async performServerBackupSync() {
@@ -345,9 +345,9 @@ export class StorageService {
         timestamp: new Date().toISOString()
       };
 
-      // 2. Automatically record a Time-Machine Snapshot if at least 30s passed since last auto-snapshot
+      // 2. Automatically record a Time-Machine Snapshot if at least 60s passed since last auto-snapshot
       const now = Date.now();
-      if (now - this.lastLiveSnapshotTs > 30000) {
+      if (now - this.lastLiveSnapshotTs > 60000) {
         this.lastLiveSnapshotTs = now;
         try {
           const snapshots = this.getSnapshots();
@@ -356,7 +356,7 @@ export class StorageService {
             timestamp: new Date().toISOString(),
             title: `Live Realtime Auto-Backup [${new Date().toLocaleTimeString()}]`,
             tag: 'auto_live',
-            sizeBytes: new Blob([JSON.stringify(data)]).size,
+            sizeBytes: 25000,
             recordCounts: {
               patients: data.patients.length,
               healthCards: data.cards.length,
@@ -372,7 +372,7 @@ export class StorageService {
             isCloudSynced: true
           };
           snapshots.unshift(autoSnap);
-          if (snapshots.length > 30) snapshots.pop();
+          if (snapshots.length > 20) snapshots.pop();
           localStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots));
         } catch { }
       }

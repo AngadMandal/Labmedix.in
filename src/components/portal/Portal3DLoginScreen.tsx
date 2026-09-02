@@ -75,31 +75,6 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
   // Active Auth Mode
   const [authMode, setAuthMode] = useState<'card' | 'mobile' | 'patientId'>('card');
 
-  // Load available patients and cards for quick 1-click Demo Presets
-  const demoAccounts = useMemo(() => {
-    const patients = StorageService.getPatients();
-    const cards = StorageService.getCards();
-    const memberships = StorageService.getMemberships();
-
-    // Map high-profile cards for instant test demo buttons
-    return patients.slice(0, 3).map((p, idx) => {
-      const card = cards.find(c => c.patientId === p.id && c.status === 'active') || cards[idx];
-      const tier = memberships.find(m => m.id === card?.membershipId) || memberships[idx % memberships.length];
-      return {
-        patient: p,
-        card: card || {
-          cardNumber: `LHC-2026-00000${idx + 1}`,
-          cvv: '821',
-          membershipId: tier?.id || 'tier_gold',
-          status: 'active'
-        },
-        tier: tier || { name: 'Gold Health Shield', color: '#f59e0b', discountPct: 25 },
-        tag: idx === 0 ? '👑 VIP Diamond' : idx === 1 ? '⭐ Gold Shield' : '🛡️ Standard Care',
-        badgeBg: idx === 0 ? 'from-purple-900/60 to-pink-900/60 border-purple-500/40 text-purple-300' : idx === 1 ? 'from-amber-900/60 to-yellow-900/60 border-amber-500/40 text-amber-300' : 'from-teal-900/60 to-emerald-900/60 border-teal-500/40 text-teal-300'
-      };
-    });
-  }, []);
-
   // Refresh Anti-Bot Captcha
   const refreshCaptcha = () => {
     const n1 = Math.floor(Math.random() * 9) + 2;
@@ -129,38 +104,27 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
     return () => clearInterval(timer);
   }, [lockoutSeconds]);
 
-  // Handle 3D Mouse Parallax on Interactive Card
+  // Handle 3D Mouse Parallax on Interactive Card (Optimized with requestAnimationFrame)
+  const animFrameRef = useRef<number | null>(null);
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardContainerRef.current) return;
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    
     const rect = cardContainerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
-    // Calculate subtle rotation angles
-    const rotateX = -(y / rect.height) * 22;
-    const rotateY = (x / rect.width) * 22;
-    setCardTilt({ x: rotateX, y: rotateY });
+
+    animFrameRef.current = requestAnimationFrame(() => {
+      const rotateX = -(y / rect.height) * 18;
+      const rotateY = (x / rect.width) * 18;
+      setCardTilt({ x: rotateX, y: rotateY });
+    });
   };
 
   const handleMouseLeave = () => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setIsHoveringCard(false);
     setCardTilt({ x: 0, y: 0 });
-  };
-
-  // Quick 1-Click Demo Preset Fill
-  const handleSelectDemoAccount = (demo: typeof demoAccounts[0]) => {
-    setLoginId(demo.card.cardNumber || demo.patient.mobile || demo.patient.id);
-    setPassword('1234');
-    setUserCaptcha(String(captchaNum1 + captchaNum2));
-    setError('');
-    setCaptchaError(false);
-    showToast('info', 'Demo Profile Loaded', `${demo.tag}: ${demo.patient.fullName} credentials populated.`);
-  };
-
-  // Auto solve captcha helper
-  const handleAutoSolveCaptcha = () => {
-    setUserCaptcha(String(captchaNum1 + captchaNum2));
-    setCaptchaError(false);
-    showToast('success', 'Captcha Auto-Verified', 'Human anti-bot challenge solved.');
   };
 
   // Handle Login Authentication
@@ -508,31 +472,6 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
               </div>
             </div>
 
-            {/* ONE-CLICK INSTANT DEMO ACCOUNTS BAR */}
-            <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[11px] font-bold text-teal-300 flex items-center gap-1.5 uppercase font-mono">
-                  <Wand2 className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-                  Quick 1-Click Demo Profiles:
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">Click to test instant login</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {demoAccounts.map((demo, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectDemoAccount(demo)}
-                    className={`px-2.5 py-2 rounded-xl text-left border bg-gradient-to-br ${demo.badgeBg} hover:brightness-125 transition-all shadow-sm active:scale-95 group`}
-                  >
-                    <div className="text-[10px] font-black truncate">{demo.tag}</div>
-                    <div className="text-[9px] text-slate-300 font-mono truncate">{demo.patient.fullName.split(' ')[0]}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* SEGMENTED INPUT MODE SWITCHER */}
             <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold">
               <button
@@ -658,16 +597,8 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={handleAutoSolveCaptcha}
-                      className="text-[10px] font-mono font-bold text-teal-400 hover:text-teal-300 underline"
-                      title="Auto solve captcha for testing"
-                    >
-                      Auto-Fill
-                    </button>
-                    <button
-                      type="button"
                       onClick={refreshCaptcha}
-                      className="text-slate-400 hover:text-white text-[11px] flex items-center gap-1 font-mono transition-colors"
+                      className="text-slate-400 hover:text-teal-300 text-[11px] flex items-center gap-1 font-mono transition-colors"
                       title="Generate new captcha equation"
                     >
                       <RefreshCw className="w-3 h-3" />

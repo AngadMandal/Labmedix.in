@@ -192,31 +192,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Role Fill Shortcuts */}
-        <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
-          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block text-center">
-            ⚡ Quick Admin Panel Access:
-          </span>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => { setUsername('superadmin'); setPassword('1509442'); }}
-              className="px-2.5 py-1.5 rounded-xl bg-teal-950/60 hover:bg-teal-900/80 border border-teal-500/30 text-[11px] font-bold text-teal-300 text-left transition-all flex items-center justify-between"
-            >
-              <span>👑 Super Admin</span>
-              <span className="text-[9px] font-mono opacity-70">1509442</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setUsername('admin'); setPassword('1234'); }}
-              className="px-2.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/30 text-[11px] font-bold text-purple-300 text-left transition-all flex items-center justify-between"
-            >
-              <span>🛡️ System Admin</span>
-              <span className="text-[9px] font-mono opacity-70">1234</span>
-            </button>
-          </div>
-        </div>
-
         {/* PRIMARY CREDENTIALS FORM */}
         <form onSubmit={handlePrimaryLogin} className="space-y-4">
           {/* Username / Staff ID */}
