@@ -6,6 +6,7 @@ import { ScreenLockModal } from './ScreenLockModal';
 import { IdleSessionWarningModal } from '../common/IdleSessionWarningModal';
 import { ToastContainer } from '../common/ToastContainer';
 import { BackupReminderNotification } from '../common/BackupReminderNotification';
+import { DeviceRevokedModal } from '../common/DeviceRevokedModal';
 import { FloatingActionButton } from '../common/FloatingActionButton';
 
 export const AppLayout: React.FC = () => {
@@ -33,6 +34,7 @@ export const AppLayout: React.FC = () => {
         <ScreenLockModal />
         <IdleSessionWarningModal />
         <BackupReminderNotification />
+        <DeviceRevokedModal />
         <ToastContainer />
         <FloatingActionButton />
       </div>

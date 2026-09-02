@@ -4,6 +4,7 @@ import { AuthService } from '../services/authService';
 import { StorageService } from '../services/storage';
 import { ApiSyncService } from '../services/apiSyncService';
 import { AuditService } from '../services/auditService';
+import { MultiDeviceSyncService } from '../services/multiDeviceSyncService';
 import { checkUserPermission, checkUserModuleAccess, SystemModuleKey } from '../constants/roles';
 
 // Dynamic Session Timeout from Company Profile (default 15 minutes)
@@ -82,6 +83,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {}
     }
 
+    // ⚡ Start Central Multi-Device Manager & Heartbeat
+    const stopDeviceManager = MultiDeviceSyncService.startDeviceManager(() => {
+      // Remote session revocation triggered by administrator
+      console.warn('[MultiDevice] Remote revocation triggered.');
+      AuthService.logout();
+      try {
+        localStorage.removeItem('labmedix_auth_locked_user');
+        localStorage.removeItem('labmedix_google_auth_locked');
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
+      } catch {}
+      setCurrentUser(null);
+      setIsIdleWarningOpen(false);
+      window.dispatchEvent(new CustomEvent('labmedix_device_revoked', {
+        detail: { message: 'This device session has been revoked by an administrator.' }
+      }));
+    });
+
     // 🔄 Cross-tab session sync listener
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'labmedix_current_user_v1' || e.key === 'labmedix_auth_locked_user') {
@@ -95,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
+      stopDeviceManager();
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [recordActivity]);
@@ -199,6 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('labmedix_auth_locked_user', JSON.stringify(userOrUsername));
       } catch {}
       recordActivity();
+      MultiDeviceSyncService.registerOrUpdateDeviceSession(userOrUsername).catch(() => {});
       return { success: true };
     }
     const res = AuthService.loginWithUsername(userOrUsername);
@@ -210,6 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('labmedix_auth_locked_user', JSON.stringify(res.user));
       } catch {}
       recordActivity();
+      MultiDeviceSyncService.registerOrUpdateDeviceSession(res.user).catch(() => {});
       return { success: true };
     }
     return { success: false, error: res.error };
@@ -227,6 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
     setCurrentUser(null);
     setIsIdleWarningOpen(false);
+    MultiDeviceSyncService.registerOrUpdateDeviceSession(null).catch(() => {});
   };
 
   // ─────────────────────────────────────────────────────────────

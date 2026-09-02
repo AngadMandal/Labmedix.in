@@ -1219,3 +1219,59 @@ export interface CardDispatchBatch {
   createdAt: string;
   notes?: string;
 }
+
+/* =======================================================================
+   CENTRALIZED MULTI-DEVICE MANAGEMENT & SESSION TRACKING INTERFACES
+   ======================================================================= */
+
+export type DevicePlatformType = 'Desktop' | 'Laptop' | 'Tablet' | 'Mobile';
+export type DeviceSessionStatus = 'active' | 'idle' | 'revoked' | 'offline';
+
+export interface DeviceSessionRecord {
+  id: string; // Same as deviceId
+  deviceId: string;
+  userId?: string;
+  username?: string;
+  userFullName?: string;
+  userRole?: string;
+  deviceName: string;
+  platform: DevicePlatformType;
+  browser: string;
+  os: string;
+  screenResolution?: string;
+  ipAddress?: string;
+  status: DeviceSessionStatus;
+  isCurrentDevice?: boolean;
+  lastActiveAt: string;
+  registeredAt: string;
+  currentRoute?: string;
+  walPendingCount?: number;
+  syncLatencyMs?: number;
+  totalSyncEventsReceived?: number;
+  lastSyncTimestamp?: string;
+  appVersion?: string;
+}
+
+export interface MultiDeviceSyncEvent {
+  id: string;
+  collection: string;
+  docId: string;
+  action: 'upsert' | 'delete' | 'reconcile';
+  originDeviceId: string;
+  originDeviceName?: string;
+  originUser?: string;
+  timestamp: string;
+  payloadSnippet?: string;
+}
+
+export interface CentralMultiDeviceMetrics {
+  totalRegisteredDevices: number;
+  activeDevicesCount: number;
+  idleDevicesCount: number;
+  revokedDevicesCount: number;
+  averageLatencyMs: number;
+  lastCentralSyncTime: string;
+  walQueueSize: number;
+  isCentralFirestoreLive: boolean;
+}
+

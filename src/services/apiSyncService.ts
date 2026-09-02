@@ -28,6 +28,7 @@ import {
 } from '../types';
 import { BloodTestBooking, MedicineOrder } from './portalService';
 import { FirestoreBackupService } from './firestoreBackupService';
+import { MultiDeviceSyncService } from './multiDeviceSyncService';
 
 export interface DiagnosticLogEntry {
   id: string;
@@ -207,8 +208,10 @@ export class ApiSyncService {
     try {
       const docRef = doc(db, collectionName, id);
       const sanitized = JSON.parse(JSON.stringify(data));
+      const deviceId = MultiDeviceSyncService.getDeviceId();
       await setDoc(docRef, {
         ...sanitized,
+        originDeviceId: deviceId,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
@@ -216,6 +219,8 @@ export class ApiSyncService {
       if (walId) {
         FirestoreBackupService.commitWal(walId).catch(() => {});
       }
+
+      MultiDeviceSyncService.recordSyncEvent(collectionName, id, 'upsert').catch(() => {});
 
       this.lastSyncTimestamp = new Date().toISOString();
       this.isConnected = true;
@@ -255,6 +260,8 @@ export class ApiSyncService {
       if (walId) {
         FirestoreBackupService.commitWal(walId).catch(() => {});
       }
+
+      MultiDeviceSyncService.recordSyncEvent(collectionName, id, 'delete').catch(() => {});
 
       this.lastSyncTimestamp = new Date().toISOString();
       this.addDiagnosticLog({

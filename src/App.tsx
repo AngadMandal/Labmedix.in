@@ -34,6 +34,7 @@ import { GmailIntegrationPage } from './pages/integrations/GmailIntegrationPage'
 import { WebsiteCmsPage } from './pages/cms/WebsiteCmsPage';
 import { CashDeskBillVouchersPage } from './pages/vouchers/CashDeskBillVouchersPage';
 import { SystemMonitoringPage } from './pages/monitoring/SystemMonitoringPage';
+import { MultiDeviceManagementPage } from './pages/devices/MultiDeviceManagementPage';
 import { PublicVerifyPage } from './pages/verify/PublicVerifyPage';
 import { PatientPortalPage } from './pages/portal/PatientPortalPage';
 import { NgoWelfare } from './pages/NgoWelfare';
@@ -290,6 +291,8 @@ export const App: React.FC = () => {
                   <Route path="/activity" element={<ModuleGuard moduleKey="activity"><ActivityLogPage /></ModuleGuard>} />
                   <Route path="/system-monitoring" element={<SuperAdminGuard><ModuleGuard moduleKey="system_monitoring"><SystemMonitoringPage /></ModuleGuard></SuperAdminGuard>} />
                   <Route path="/monitoring" element={<Navigate to="/system-monitoring" replace />} />
+                  <Route path="/multi-device" element={<ModuleGuard moduleKey="system_monitoring"><MultiDeviceManagementPage /></ModuleGuard>} />
+                  <Route path="/devices" element={<Navigate to="/multi-device" replace />} />
                   <Route path="/backup" element={<SuperAdminGuard><ModuleGuard moduleKey="backup"><BackupRestorePage /></ModuleGuard></SuperAdminGuard>} />
                   <Route path="/integrations" element={<ModuleGuard moduleKey="integrations"><IntegrationsPage /></ModuleGuard>} />
                   <Route path="/gmail-integration" element={<ModuleGuard moduleKey="integrations"><GmailIntegrationPage /></ModuleGuard>} />

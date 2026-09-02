@@ -80,6 +80,23 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "action"]
+    },
+    "DeviceSession": {
+      "title": "DeviceSession",
+      "description": "Authorized connected client devices and multi-device sessions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "deviceId": { "type": "string", "maxLength": 128 },
+        "deviceName": { "type": "string", "maxLength": 150 },
+        "platform": { "type": "string", "maxLength": 50 },
+        "browser": { "type": "string", "maxLength": 50 },
+        "os": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["active", "idle", "revoked", "offline"] },
+        "lastActiveAt": { "type": "string", "format": "date-time" },
+        "registeredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "deviceId", "deviceName", "status"]
     }
   },
   "firestore": {
@@ -106,6 +123,10 @@
     "/auditLogs/{logId}": {
       "schema": { "$ref": "AuditLog" },
       "description": "System Audit Logs"
+    },
+    "/_system_active_devices/{deviceId}": {
+      "schema": { "$ref": "DeviceSession" },
+      "description": "Active Multi-Device Sessions Registry"
     }
   }
 }

@@ -28,7 +28,8 @@ import {
   HeartHandshake,
   FileText,
   Cpu,
-  Truck
+  Truck,
+  Radio
 } from 'lucide-react';
 
 import { SystemModuleKey } from '../../constants/roles';
@@ -81,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { name: 'Gmail Workspace Hub', href: '/gmail-integration', icon: Mail, moduleKey: 'integrations', permission: 'settings_manage' },
     { name: 'Audit & Activity', href: '/activity', icon: History, moduleKey: 'activity', permission: 'audit_view' },
     { name: 'System Monitoring', href: '/system-monitoring', icon: Cpu, moduleKey: 'system_monitoring', permission: 'all' },
+    { name: 'Multi-Device Hub', href: '/multi-device', icon: Radio, moduleKey: 'system_monitoring', permission: 'all' },
     { name: 'Backup & Restore', href: '/backup', icon: Database, moduleKey: 'backup', permission: 'backup_manage' },
     { name: 'Company Settings', href: '/settings', icon: Settings, moduleKey: 'settings', permission: 'settings_manage' }
   ];
