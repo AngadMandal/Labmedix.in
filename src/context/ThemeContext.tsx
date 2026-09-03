@@ -189,12 +189,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Use native View Transitions API if supported (Chrome/Edge/Safari 18+)
     if ('startViewTransition' in document && typeof (document as any).startViewTransition === 'function') {
       try {
-        (document as any).startViewTransition(() => {
+        const transition = (document as any).startViewTransition(() => {
           applyThemeToDOM(dark);
         });
+        if (transition && typeof transition.catch === 'function') {
+          transition.catch(() => {
+            applyThemeToDOM(dark);
+          });
+        }
         return;
-      } catch {
-        // Fallback below if View Transition throws
+      } catch (err) {
+        applyThemeToDOM(dark);
       }
     }
 

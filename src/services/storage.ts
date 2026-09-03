@@ -567,10 +567,15 @@ export class StorageService {
     try {
       const v = localStorage.getItem(key);
       if (v) {
-        const parsed = JSON.parse(v) as T;
-        if (parsed !== null && parsed !== undefined) {
-          StorageService.memoryCache.set(key, parsed);
-          return parsed;
+        try {
+          const parsed = JSON.parse(v) as T;
+          if (parsed !== null && parsed !== undefined) {
+            StorageService.memoryCache.set(key, parsed);
+            return parsed;
+          }
+        } catch (err) {
+          console.warn(`[LABMEDIX] Corrupted JSON in localStorage for key "${key}". Clearing entry.`, err);
+          try { localStorage.removeItem(key); } catch {}
         }
       }
     } catch { /* fall through */ }
@@ -579,12 +584,17 @@ export class StorageService {
     try {
       const v = sessionStorage.getItem(key);
       if (v) {
-        console.info(`[LABMEDIX] Restored ${key} from sessionStorage mirror.`);
-        const parsed = JSON.parse(v) as T;
-        if (parsed !== null && parsed !== undefined) {
-          StorageService.memoryCache.set(key, parsed);
-          try { localStorage.setItem(key, v); } catch { }
-          return parsed;
+        try {
+          const parsed = JSON.parse(v) as T;
+          if (parsed !== null && parsed !== undefined) {
+            console.info(`[LABMEDIX] Restored ${key} from sessionStorage mirror.`);
+            StorageService.memoryCache.set(key, parsed);
+            try { localStorage.setItem(key, v); } catch { }
+            return parsed;
+          }
+        } catch (err) {
+          console.warn(`[LABMEDIX] Corrupted JSON in sessionStorage for key "${key}". Clearing entry.`, err);
+          try { sessionStorage.removeItem(key); } catch {}
         }
       }
     } catch { /* fall through */ }
@@ -592,11 +602,18 @@ export class StorageService {
     // Layer 4: Async IndexedDB Recovery (initiates background heal)
     StorageService.idbGet(key).then(v => {
       if (v) {
-        console.info(`[LABMEDIX] Healed ${key} from IndexedDB backup.`);
         try {
-          localStorage.setItem(key, v);
-          StorageService.memoryCache.set(key, JSON.parse(v));
-        } catch { }
+          const parsed = JSON.parse(v);
+          if (parsed !== null && parsed !== undefined) {
+            console.info(`[LABMEDIX] Healed ${key} from IndexedDB backup.`);
+            try {
+              localStorage.setItem(key, v);
+              StorageService.memoryCache.set(key, parsed);
+            } catch { }
+          }
+        } catch (err) {
+          console.warn(`[LABMEDIX] Corrupted JSON in IndexedDB for key "${key}".`, err);
+        }
       }
     }).catch(() => { });
 
