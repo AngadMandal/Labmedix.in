@@ -193,22 +193,22 @@ export const CR80CardBack: React.FC<CR80CardBackProps> = ({
           <div className="flex flex-col items-center">
             <Stethoscope className="w-3.5 h-3.5 text-blue-400 mb-0.5" />
             <span className="text-[8.5px] font-bold tracking-tight">OPD Doctor</span>
-            <span className="text-[7.5px] text-emerald-300 font-black">{membership.opdDiscount}% Discount</span>
+            <span className="text-[7.5px] text-emerald-300 font-black">{membership?.opdDiscount || 20}% Discount</span>
           </div>
           <div className="flex flex-col items-center">
             <FlaskConical className="w-3.5 h-3.5 text-emerald-400 mb-0.5" />
             <span className="text-[8.5px] font-bold tracking-tight">Diagnostics</span>
-            <span className="text-[7.5px] text-emerald-300 font-black">{membership.labDiscount}% Discount</span>
+            <span className="text-[7.5px] text-emerald-300 font-black">{membership?.labDiscount || 20}% Discount</span>
           </div>
           <div className="flex flex-col items-center">
             <Pill className="w-3.5 h-3.5 text-amber-400 mb-0.5" />
             <span className="text-[8.5px] font-bold tracking-tight">Pharmacy</span>
-            <span className="text-[7.5px] text-emerald-300 font-black">{membership.pharmacyDiscount}% Discount</span>
+            <span className="text-[7.5px] text-emerald-300 font-black">{membership?.pharmacyDiscount || 10}% Discount</span>
           </div>
           <div className="flex flex-col items-center">
             <Home className="w-3.5 h-3.5 text-cyan-400 mb-0.5" />
             <span className="text-[8.5px] font-bold tracking-tight">Home Blood</span>
-            <span className="text-[7.5px] text-emerald-300 font-black">{membership.homeCollectionDiscount === 100 ? 'Free' : `${membership.homeCollectionDiscount}% Off`}</span>
+            <span className="text-[7.5px] text-emerald-300 font-black">{membership?.homeCollectionDiscount === 100 ? 'Free' : `${membership?.homeCollectionDiscount || 15}% Off`}</span>
           </div>
         </div>
       </div>

@@ -278,8 +278,8 @@ export const TestMasterPage: React.FC = () => {
   }, [tests, packages]);
 
   // Helper for Vacutainer Cap & Category Colors
-  const getCategoryMeta = (category: string, testName: string) => {
-    const lower = testName.toLowerCase();
+  const getCategoryMeta = (category?: string, testName?: string) => {
+    const lower = (testName || category || '').toLowerCase();
     if (lower.includes('cbc') || lower.includes('blood count') || lower.includes('hba1c') || lower.includes('esr')) {
       return { capColor: '#8B5CF6', capName: 'EDTA Lavender Top', badge: 'bg-purple-950/80 text-purple-300 border-purple-500/40' };
     }
@@ -297,10 +297,11 @@ export const TestMasterPage: React.FC = () => {
 
   // Copy Test to Clipboard
   const handleCopyTest = (test: LabTestItem) => {
-    const text = `${test.name} (${test.code}) - Standard Rate: ₹${test.mrp} - Category: ${test.category} - Specimen: ${test.specimen}`;
+    if (!test) return;
+    const text = `${test.name || 'Test'} (${test.code || 'N/A'}) - Standard Rate: ₹${test.mrp || 0} - Category: ${test.category || 'General'} - Specimen: ${test.specimen || 'Blood'}`;
     navigator.clipboard.writeText(text);
     setCopiedId(test.id);
-    showToast('success', 'Test Details Copied', `${test.name} (₹${test.mrp}) copied to clipboard.`);
+    showToast('success', 'Test Details Copied', `${test.name || 'Test'} (₹${test.mrp || 0}) copied to clipboard.`);
     setTimeout(() => setCopiedId(null), 2000);
   };
 

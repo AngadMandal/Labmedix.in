@@ -225,10 +225,10 @@ export const PatientPortalPage: React.FC = () => {
       createdAt: '2025-01-01T00:00:00.000Z'
     };
     try {
-      const memberships = StorageService.getMemberships();
-      if (!memberships || !Array.isArray(memberships) || memberships.length === 0) return defaultTier;
+      const memberships = (StorageService.getMemberships() || []).filter(Boolean);
+      if (!memberships || memberships.length === 0) return defaultTier;
       if (!patientCard) return memberships[0] || defaultTier;
-      return memberships.find(m => m.id === patientCard.membershipId) || memberships[0] || defaultTier;
+      return memberships.find(m => m && m.id === patientCard.membershipId) || memberships[0] || defaultTier;
     } catch {
       return defaultTier;
     }
@@ -461,7 +461,7 @@ export const PatientPortalPage: React.FC = () => {
         patientId: lab.patientId,
         patientName: lab.patientName,
         cardNo: patientCard?.cardNumber,
-        cardTier: membership.name,
+        cardTier: membership?.name || 'Standard Tier',
         serviceType: 'Pathology',
         serviceDescription: `Pathology Lab Investigation: ${lab.testName} (${lab.collectionType === 'home_collection' ? 'Home Sample Collection' : 'Lab Visit'})`,
         items: lab.items ? lab.items.map(i => ({ name: i.testName, price: i.netPrice })) : undefined,
@@ -485,7 +485,7 @@ export const PatientPortalPage: React.FC = () => {
         patientId: order.patientId,
         patientName: order.patientName,
         cardNo: patientCard?.cardNumber,
-        cardTier: membership.name,
+        cardTier: membership?.name || 'Standard Tier',
         serviceType: 'Pharmacy',
         serviceDescription: `e-Pharmacy Medicine Order (${order.items.length} Medicines Delivered via ${order.deliveryMode === 'express_home_delivery' ? 'Express Home Delivery' : 'Counter Pickup'})`,
         items: order.items.map(i => ({ name: i.medicineName, qty: i.quantity, price: i.totalPrice })),
@@ -509,7 +509,7 @@ export const PatientPortalPage: React.FC = () => {
         patientId: t.patientId,
         patientName: authenticatedPatient.fullName,
         cardNo: patientCard?.cardNumber,
-        cardTier: membership.name,
+        cardTier: membership?.name || 'Standard Tier',
         serviceType: 'Wallet Recharge',
         serviceDescription: `Prepaid Health Wallet Recharge via UPI / Digital Gateway (${t.notes || 'Recharge Credit'})`,
         grossAmount: t.amount,
@@ -719,11 +719,11 @@ export const PatientPortalPage: React.FC = () => {
     );
 
     let targetDoctorId = 'usr_doctor_roy';
-    if (selectedDoctor.name.includes('Anita') || selectedDoctor.name.includes('Sen')) {
+    if (selectedDoctor?.name?.includes('Anita') || selectedDoctor?.name?.includes('Sen')) {
       targetDoctorId = 'usr_doctor_sen';
-    } else if (selectedDoctor.name.includes('Pritam') || selectedDoctor.name.includes('Das')) {
+    } else if (selectedDoctor?.name?.includes('Pritam') || selectedDoctor?.name?.includes('Das')) {
       targetDoctorId = 'usr_doctor_das';
-    } else if (selectedDoctor.name.includes('Kaushik') || selectedDoctor.name.includes('Chatterjee')) {
+    } else if (selectedDoctor?.name?.includes('Kaushik') || selectedDoctor?.name?.includes('Chatterjee')) {
       targetDoctorId = 'usr_doctor_chatterjee';
     }
 
@@ -732,12 +732,12 @@ export const PatientPortalPage: React.FC = () => {
       patientId: authenticatedPatient.id,
       patientName: authenticatedPatient.fullName,
       patientPhone: authenticatedPatient.mobile || '9830012345',
-      cardTier: membership.name,
-      cardTierColor: membership.color,
+      cardTier: membership?.name || 'Standard Tier',
+      cardTierColor: membership?.color || '#10B981',
       doctorId: targetDoctorId,
-      doctorName: selectedDoctor.name,
-      doctorSpeciality: selectedDoctor.speciality,
-      department: selectedDoctor.department,
+      doctorName: selectedDoctor?.name || 'Consultant Doctor',
+      doctorSpeciality: selectedDoctor?.speciality || 'General Medicine',
+      department: selectedDoctor?.department || 'OPD',
       consultationMode: aptMode,
       patientWishDate: aptDate,
       patientWishSlot: aptSlot,
@@ -749,7 +749,7 @@ export const PatientPortalPage: React.FC = () => {
 
     setShowBookAppointmentModal(false);
     triggerCelebrationFireworks();
-    showToast('success', 'Appointment Booked!', `Scheduled with ${selectedDoctor.name} for ${formatDate(aptDate)} (${aptSlot}).`);
+    showToast('success', 'Appointment Booked!', `Scheduled with ${selectedDoctor?.name || 'Doctor'} for ${formatDate(aptDate)} (${aptSlot}).`);
 
     // Open receipt
     setActiveReceiptToPrint({
@@ -758,9 +758,9 @@ export const PatientPortalPage: React.FC = () => {
       patientId: savedApt.patientId,
       patientName: savedApt.patientName,
       cardNo: patientCard?.cardNumber,
-      cardTier: membership.name,
+      cardTier: membership?.name || 'Standard Tier',
       serviceType: 'Consultation',
-      serviceDescription: `${aptMode === 'telemedicine_video' ? 'Telemedicine Video Consultation' : 'Physical OPD Consultation'} with ${selectedDoctor.name} (${selectedDoctor.department})`,
+      serviceDescription: `${aptMode === 'telemedicine_video' ? 'Telemedicine Video Consultation' : 'Physical OPD Consultation'} with ${selectedDoctor?.name || 'Doctor'} (${selectedDoctor?.department || 'OPD'})`,
       grossAmount: grossFee,
       discountAmount: discountAmt,
       discountPercentage: opdDiscount,
@@ -862,16 +862,16 @@ export const PatientPortalPage: React.FC = () => {
       patientId: savedBooking.patientId,
       patientName: savedBooking.patientName,
       cardNo: patientCard?.cardNumber,
-      cardTier: membership.name,
+      cardTier: membership?.name || 'Standard Tier',
       serviceType: 'Pathology',
       serviceDescription: `Pathology Investigations (${activeSelectedTests.length} Tests via ${labCollectionMode === 'home_collection' ? 'Home Sample Collection' : 'Lab Visit'})`,
       items: activeSelectedTests.map(t => ({
         name: t.testName,
-        price: t.grossPrice * (1 - (membership.labDiscount || 25) / 100)
+        price: t.grossPrice * (1 - (membership?.labDiscount || 25) / 100)
       })),
       grossAmount: selectedGrossTotal,
       discountAmount: selectedDiscountAmount,
-      discountPercentage: membership.labDiscount || 25,
+      discountPercentage: membership?.labDiscount || 25,
       netAmount: selectedNetTotal,
       paymentMethod: 'Health Wallet (Prepaid Cashless)',
       walletClosingBalance: (wallet?.balance || 0) - selectedNetTotal,
@@ -900,7 +900,7 @@ export const PatientPortalPage: React.FC = () => {
   // Handle Order Medicines
   const handleConfirmMedicineOrder = () => {
     if (!authenticatedPatient || medicineCart.length === 0) return;
-    const phmDiscount = membership.pharmacyDiscount || 15;
+    const phmDiscount = membership?.pharmacyDiscount || 15;
     const grossTotal = medicineCart.reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
     const discountAmt = (grossTotal * phmDiscount) / 100;
     const netTotal = grossTotal - discountAmt;
@@ -958,7 +958,7 @@ export const PatientPortalPage: React.FC = () => {
       patientId: savedOrder.patientId,
       patientName: savedOrder.patientName,
       cardNo: patientCard?.cardNumber,
-      cardTier: membership.name,
+      cardTier: membership?.name || 'Standard Tier',
       serviceType: 'Pharmacy',
       serviceDescription: `e-Pharmacy Order (${savedOrder.items.length} Medicines Delivered via ${deliveryMode})`,
       items: savedOrder.items.map(i => ({ name: i.medicineName, qty: i.quantity, price: i.totalPrice })),
@@ -1030,12 +1030,12 @@ export const PatientPortalPage: React.FC = () => {
                 <span
                   className="px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider font-mono border"
                   style={{
-                    backgroundColor: membership.color + '20',
-                    color: membership.color,
-                    borderColor: membership.color + '60'
+                    backgroundColor: (membership?.color || '#10B981') + '20',
+                    color: membership?.color || '#10B981',
+                    borderColor: (membership?.color || '#10B981') + '60'
                   }}
                 >
-                  {membership.name}
+                  {membership?.name || 'Standard Care'}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300 font-mono border border-slate-700">
                   {authenticatedPatient.age} Y / {authenticatedPatient.gender} • Blood: {authenticatedPatient.medicalInfo?.bloodGroup || 'B+'}
@@ -1505,25 +1505,25 @@ export const PatientPortalPage: React.FC = () => {
 
               <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs space-y-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  🌟 Active Cardholder Privileges ({membership.name}):
+                  🌟 Active Cardholder Privileges ({membership?.name || 'Standard Care'}):
                 </span>
                 <div className="space-y-1 text-slate-300">
                   <p className="flex justify-between">
                     <span>OPD Consultation Discount:</span>
-                    <strong className="text-teal-400">{membership.opdDiscount}% OFF</strong>
+                    <strong className="text-teal-400">{membership?.opdDiscount || 20}% OFF</strong>
                   </p>
                   <p className="flex justify-between">
                     <span>Pathology Lab & Blood Tests:</span>
-                    <strong className="text-teal-400">{membership.labDiscount}% OFF</strong>
+                    <strong className="text-teal-400">{membership?.labDiscount || 20}% OFF</strong>
                   </p>
                   <p className="flex justify-between">
                     <span>Pharmacy & Medicine Discount:</span>
-                    <strong className="text-teal-400">{membership.pharmacyDiscount}% OFF</strong>
+                    <strong className="text-teal-400">{membership?.pharmacyDiscount || 10}% OFF</strong>
                   </p>
                   <p className="flex justify-between">
                     <span>Home Sample Collection:</span>
                     <strong className="text-emerald-400">
-                      {membership.homeCollectionDiscount === 100 ? 'FREE (100% OFF)' : `${membership.homeCollectionDiscount}% OFF`}
+                      {membership?.homeCollectionDiscount === 100 ? 'FREE (100% OFF)' : `${membership?.homeCollectionDiscount || 15}% OFF`}
                     </strong>
                   </p>
                 </div>
@@ -1705,7 +1705,7 @@ export const PatientPortalPage: React.FC = () => {
                                 patientId: authenticatedPatient.id,
                                 patientName: authenticatedPatient.fullName,
                                 cardNo: patientCard?.cardNumber,
-                                cardTier: membership.name,
+                                cardTier: membership?.name || 'Standard Tier',
                                 serviceType: t.type === 'credit' ? 'Wallet Recharge' : 'General',
                                 serviceDescription: t.notes || 'Wallet Transaction Statement',
                                 grossAmount: t.amount,
@@ -2054,12 +2054,12 @@ export const PatientPortalPage: React.FC = () => {
                           patientId: apt.patientId,
                           patientName: apt.patientName,
                           cardNo: patientCard?.cardNumber,
-                          cardTier: membership.name,
+                          cardTier: membership?.name || 'Standard Tier',
                           serviceType: 'Consultation',
                           serviceDescription: `${apt.consultationMode === 'telemedicine_video' ? 'Telemedicine Video Consultation' : 'Physical OPD Consultation'} with ${apt.doctorName} (${apt.department})`,
-                          grossAmount: apt.consultationFee / (1 - (membership.opdDiscount || 25) / 100),
-                          discountAmount: (apt.consultationFee / (1 - (membership.opdDiscount || 25) / 100)) * ((membership.opdDiscount || 25) / 100),
-                          discountPercentage: membership.opdDiscount || 25,
+                          grossAmount: apt.consultationFee / (1 - (membership?.opdDiscount || 25) / 100),
+                          discountAmount: (apt.consultationFee / (1 - (membership?.opdDiscount || 25) / 100)) * ((membership?.opdDiscount || 25) / 100),
+                          discountPercentage: membership?.opdDiscount || 25,
                           netAmount: apt.consultationFee,
                           paymentMethod: 'Health Wallet (Prepaid Cashless)',
                           walletClosingBalance: wallet?.balance,
@@ -2373,7 +2373,7 @@ export const PatientPortalPage: React.FC = () => {
                               patientId: lab.patientId,
                               patientName: lab.patientName,
                               cardNo: patientCard?.cardNumber,
-                              cardTier: membership.name,
+                              cardTier: membership?.name || 'Standard Tier',
                               serviceType: 'Pathology',
                               serviceDescription: `Pathology Test: ${lab.testName} (${lab.collectionType === 'home_collection' ? 'Home Sample Collection' : 'Lab Visit'})`,
                               grossAmount: lab.grossPrice,
@@ -2413,7 +2413,7 @@ export const PatientPortalPage: React.FC = () => {
                 </h3>
               </div>
               <p className="text-xs text-slate-300">
-                Order genuine prescribed & OTC medicines with <strong className="text-emerald-400">{membership.pharmacyDiscount}% cardholder discount</strong> and 2-hour express doorstep delivery.
+                Order genuine prescribed & OTC medicines with <strong className="text-emerald-400">{membership?.pharmacyDiscount || 15}% cardholder discount</strong> and 2-hour express doorstep delivery.
               </p>
             </div>
 
@@ -2467,7 +2467,7 @@ export const PatientPortalPage: React.FC = () => {
 
                   <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
                     <strong className="text-xs font-black text-emerald-400 font-mono">
-                      {formatCurrency(med.mrp - (med.mrp * (membership.pharmacyDiscount || 15)) / 100)}
+                      {formatCurrency(med.mrp - (med.mrp * (membership?.pharmacyDiscount || 15)) / 100)}
                     </strong>
                     <Button
                       size="sm"
@@ -2574,7 +2574,7 @@ export const PatientPortalPage: React.FC = () => {
                             patientId: order.patientId,
                             patientName: order.patientName,
                             cardNo: patientCard?.cardNumber,
-                            cardTier: membership.name,
+                            cardTier: membership?.name || 'Standard Tier',
                             serviceType: 'Pharmacy',
                             serviceDescription: `e-Pharmacy Order (${order.items.length} Medicines Delivered via ${order.deliveryMode})`,
                             items: order.items.map(i => ({ name: i.medicineName, qty: i.quantity, price: i.totalPrice })),
@@ -2956,7 +2956,7 @@ export const PatientPortalPage: React.FC = () => {
           <div className="space-y-4 text-xs">
             <div className="p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 flex justify-between items-center text-teal-900 dark:text-teal-200">
               <div>
-                <strong>Cardholder OPD Benefit Applied:</strong> {membership.opdDiscount}% Discount
+                <strong>Cardholder OPD Benefit Applied:</strong> {membership?.opdDiscount || 20}% Discount
               </div>
               <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                 Wallet Balance: {formatCurrency(wallet?.balance || 0)}
@@ -2968,7 +2968,7 @@ export const PatientPortalPage: React.FC = () => {
                 <label className="font-bold text-slate-700 dark:text-slate-300">Select Physician:</label>
                 <select
                   aria-label="Select Doctor"
-                  value={selectedDoctor.name}
+                  value={selectedDoctor?.name || 'Dr. Subhashish Roy'}
                   onChange={(e) => {
                     if (e.target.value.includes('Roy')) {
                       setSelectedDoctor({ name: 'Dr. Subhashish Roy', speciality: 'Consultant Cardiologist & Medical Director', department: 'Cardiology OPD', fee: 800 });
@@ -3033,11 +3033,11 @@ export const PatientPortalPage: React.FC = () => {
 
             {/* Price Breakdown */}
             <div className="p-3 rounded-2xl bg-slate-900 text-white space-y-1 font-mono text-xs">
-              <div className="flex justify-between text-slate-400"><span>Doctor Fee:</span><span>{formatCurrency(selectedDoctor.fee)}</span></div>
-              <div className="flex justify-between text-teal-400"><span>Cardholder Discount ({membership.opdDiscount}% OFF):</span><span>-{formatCurrency((selectedDoctor.fee * (membership.opdDiscount || 25)) / 100)}</span></div>
+              <div className="flex justify-between text-slate-400"><span>Doctor Fee:</span><span>{formatCurrency(selectedDoctor?.fee || 800)}</span></div>
+              <div className="flex justify-between text-teal-400"><span>Cardholder Discount ({membership?.opdDiscount || 20}% OFF):</span><span>-{formatCurrency(((selectedDoctor?.fee || 800) * (membership?.opdDiscount || 20)) / 100)}</span></div>
               <div className="flex justify-between text-sm font-black text-emerald-400 border-t border-slate-800 pt-1">
                 <span>NET CASHLESS PAYABLE:</span>
-                <span>{formatCurrency(selectedDoctor.fee - (selectedDoctor.fee * (membership.opdDiscount || 25)) / 100)}</span>
+                <span>{formatCurrency((selectedDoctor?.fee || 800) - ((selectedDoctor?.fee || 800) * (membership?.opdDiscount || 20)) / 100)}</span>
               </div>
             </div>
 
@@ -3146,7 +3146,7 @@ export const PatientPortalPage: React.FC = () => {
                 🛡️ 1 Card Whole Family Facility Active
               </strong>
               <p className="text-[11px] leading-relaxed">
-                Add your spouse, children, parents, or siblings. They will automatically be enrolled under your <strong>{patientCard?.cardNumber} [{membership.name}]</strong> and share your cashless float.
+                Add your spouse, children, parents, or siblings. They will automatically be enrolled under your <strong>{patientCard?.cardNumber} [{membership?.name || 'Standard Care'}]</strong> and share your cashless float.
               </p>
             </div>
 

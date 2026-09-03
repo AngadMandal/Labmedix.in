@@ -9,7 +9,7 @@ import { EMRService } from '../../services/emrService';
 import { PortalService, BloodTestBooking, MedicineOrder } from '../../services/portalService';
 import { ApiSyncService } from '../../services/apiSyncService';
 import { PatientRecordPdfService } from '../../services/patientRecordPdfService';
-import { ClinicalEncounter, PatientAppointment } from '../../types';
+import { ClinicalEncounter, PatientAppointment, Membership } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
@@ -95,10 +95,31 @@ export const PatientDetailPage: React.FC = () => {
     };
   }, []);
 
+  const defaultMembership: Membership = {
+    id: 'tier_standard',
+    name: 'Standard Care Membership',
+    slug: 'standard-care',
+    validityMonths: 12,
+    registrationFee: 0,
+    annualRenewalFee: 0,
+    opdDiscount: 20,
+    labDiscount: 20,
+    pharmacyDiscount: 10,
+    homeCollectionDiscount: 15,
+    specialBenefits: ['Digital Health Card', 'Free Annual Checkup'],
+    color: '#3b82f6',
+    badgeIcon: 'Shield',
+    isFamilyPlan: true,
+    maxFamilyMembers: 4,
+    status: 'active',
+    createdAt: '2025-01-01T00:00:00.000Z'
+  };
+
   const patient = PatientService.getById(id || '');
   const company = StorageService.getCompanyProfile();
   const card = patient ? CardService.getById(patient.healthCardId || '') : undefined;
-  const membership = StorageService.getMemberships().find(m => m.id === card?.membershipId) || StorageService.getMemberships()[0];
+  const memberships = StorageService.getMemberships() || [];
+  const membership = (card ? memberships.find(m => m && m.id === card?.membershipId) : null) || memberships[0] || defaultMembership;
   const wallet = patient ? WalletService.getByPatientId(patient.id) : undefined;
   const transactions = patient ? WalletService.getTransactions(patient.id) : [];
   const family = patient ? FamilyService.getByPatientId(patient.id) : undefined;
@@ -842,7 +863,7 @@ export const PatientDetailPage: React.FC = () => {
 
                 <div className="space-y-1 pt-2">
                   <span className="text-[11px] font-bold text-slate-500 uppercase">Included Perks:</span>
-                  {membership.specialBenefits.map((b, i) => (
+                  {(membership?.specialBenefits || []).map((b, i) => (
                     <p key={i} className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       {b}

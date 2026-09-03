@@ -4,6 +4,7 @@ import { PatientService } from '../../services/patientService';
 import { CardService } from '../../services/cardService';
 import { StorageService } from '../../services/storage';
 import { useSettings } from '../../context/SettingsContext';
+import { Membership } from '../../types';
 import { CardStudio } from '../../components/card/CardStudio';
 import { Card3DPhysicalShowcase } from '../../components/card/Card3DPhysicalShowcase';
 import { CardStatusBadge } from '../../components/common/Badge';
@@ -40,9 +41,29 @@ export const CardStudioPage: React.FC = () => {
     setSearchParams({ patientId: pId });
   };
 
+  const defaultMembership: Membership = {
+    id: 'tier_standard',
+    name: 'Standard Care Membership',
+    slug: 'standard-care',
+    validityMonths: 12,
+    registrationFee: 0,
+    annualRenewalFee: 0,
+    opdDiscount: 20,
+    labDiscount: 20,
+    pharmacyDiscount: 10,
+    homeCollectionDiscount: 15,
+    specialBenefits: ['Digital Health Card', 'Free Annual Checkup'],
+    color: '#3b82f6',
+    badgeIcon: 'Shield',
+    isFamilyPlan: true,
+    maxFamilyMembers: 4,
+    status: 'active',
+    createdAt: '2025-01-01T00:00:00.000Z'
+  };
+
   const patient = patients.find(p => p.id === selectedPatientId) || patients[0];
   const card = patient ? CardService.getById(patient.healthCardId || '') || CardService.getAll().find(c => c.patientId === patient.id) : null;
-  const membership = card ? memberships.find(m => m.id === card.membershipId) || memberships[0] : memberships[0];
+  const membership = (card ? memberships.find(m => m && m.id === card.membershipId) : null) || memberships[0] || defaultMembership;
 
   if (!patient || !card) {
     return (

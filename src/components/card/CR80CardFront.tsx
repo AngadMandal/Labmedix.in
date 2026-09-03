@@ -162,7 +162,7 @@ export const CR80CardFront: React.FC<CR80CardFrontProps> = ({
           <div className="flex items-center gap-1.5">
             <Wifi className="w-4 h-4 rotate-90 opacity-90 drop-shadow" />
             <span className={`text-[10px] uppercase font-black tracking-wider px-2.5 py-0.5 rounded-full border ${theme.badge}`}>
-              {membership.name}
+              {membership?.name || 'Standard Care'}
             </span>
           </div>
           <span className="text-[9px] italic opacity-90 font-serif text-amber-200 drop-shadow-xs">
