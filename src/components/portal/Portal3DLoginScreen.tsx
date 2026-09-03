@@ -141,7 +141,7 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
     }
 
     if (!password.trim()) {
-      setError('Please enter your Portal Password or PIN (default: 1234).');
+      setError('Please enter your Portal Password or PIN.');
       return;
     }
 
@@ -171,7 +171,7 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
         if (res.error?.toLowerCase().includes('captcha')) {
           setCaptchaError(true);
         }
-        setError(res.error || 'Authentication failed. Please verify your credentials or use PIN 1234.');
+        setError(res.error || 'Authentication failed. Please verify your credentials.');
         refreshCaptcha();
         return;
       }
@@ -554,14 +554,9 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
 
               {/* Field 2: Portal Password or PIN */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    2. Portal Password / Security PIN:
-                  </span>
-                  <span className="text-[10px] text-amber-300/90 font-mono font-bold">
-                    (Default PIN: 1234)
-                  </span>
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  2. Portal Password / Security PIN:
                 </label>
                 <div className="relative">
                   <input
@@ -711,7 +706,6 @@ export const Portal3DLoginScreen: React.FC<Portal3DLoginScreenProps> = ({
           <span>LabMedix 3D Health Card System • ISO 15189 Certified Data Protection</span>
         </div>
         <div className="flex items-center gap-4 text-[11px]">
-          <span className="text-slate-400">Default Test PIN: <strong className="text-amber-300 font-mono">1234</strong></span>
           <Link to="/login" className="text-teal-400 hover:text-teal-300 font-bold">
             Staff Portal →
           </Link>

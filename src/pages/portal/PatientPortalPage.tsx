@@ -1004,7 +1004,7 @@ export const PatientPortalPage: React.FC = () => {
           onLoginWithApprovedCard={(cardNo) => {
             setShowTrackStatusModal(false);
             setLoginId(cardNo);
-            showToast('info', 'Card Selected', `Card Number ${cardNo} set. Please enter your PIN (1234) to authenticate.`);
+            showToast('info', 'Card Selected', `Card Number ${cardNo} set. Please enter your PIN to authenticate.`);
           }}
         />
       </>

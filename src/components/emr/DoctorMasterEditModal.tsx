@@ -343,7 +343,7 @@ export const DoctorMasterEditModal: React.FC<DoctorMasterEditModalProps> = ({
               </label>
               <Input
                 type="text"
-                placeholder="Default: 1234"
+                placeholder="e.g. 4-digit PIN"
                 value={pinCode}
                 onChange={(e) => setPinCode(e.target.value)}
                 required

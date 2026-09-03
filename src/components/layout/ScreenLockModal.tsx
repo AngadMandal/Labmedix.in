@@ -70,7 +70,7 @@ export const ScreenLockModal: React.FC = () => {
         <form onSubmit={handleUnlock} className="space-y-3">
           <Input
             type="password"
-            placeholder="Enter PIN (Default: 1234)"
+            placeholder="Enter Security PIN"
             value={pin}
             onChange={(e) => {
               setPin(e.target.value);
@@ -111,7 +111,7 @@ export const ScreenLockModal: React.FC = () => {
             onClick={handleQuickUnlock}
             className="text-emerald-400 hover:text-emerald-300 font-medium underline transition-colors"
           >
-            ⚡ Bypass Lock (1234)
+            ⚡ Quick Bypass
           </button>
 
           <button
@@ -125,7 +125,7 @@ export const ScreenLockModal: React.FC = () => {
         </div>
 
         <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
-          ℹ️ Your session is permanently saved. Click <strong>Quick Unlock</strong> or enter PIN <strong>1234</strong> to resume.
+          ℹ️ Your session is permanently saved. Click <strong>Quick Unlock</strong> or enter your PIN to resume.
         </p>
       </div>
     </div>
