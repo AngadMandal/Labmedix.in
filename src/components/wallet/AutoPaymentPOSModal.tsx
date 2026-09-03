@@ -11,6 +11,7 @@ import { LabMedixLogo } from '../common/LabMedixLogo';
 import { useToast } from '../../context/ToastContext';
 import { triggerCelebrationFireworks } from '../../utils/confetti';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import { generateBarcodeDataUrl } from '../../utils/barcode';
 import {
   Stethoscope,
   FlaskConical,
@@ -454,6 +455,9 @@ export const AutoPaymentPOSModal: React.FC<AutoPaymentPOSModalProps> = ({
       return;
     }
 
+    const patientBarcodeUrl = generateBarcodeDataUrl(completedInvoice.beneficiary.id);
+    const cardBarcodeUrl = generateBarcodeDataUrl(completedInvoice.card?.cardNumber || completedInvoice.beneficiary.id);
+
     if (format === 'thermal') {
       printWin.document.write(`
         <html>
@@ -477,6 +481,12 @@ export const AutoPaymentPOSModal: React.FC<AutoPaymentPOSModalProps> = ({
             <div>Cardholder: ${completedInvoice.cardholder.fullName} (${completedInvoice.cardholder.id})</div>
             <div>Beneficiary: <b>${completedInvoice.beneficiary.fullName}</b></div>
             <div>Health Card: ${completedInvoice.card?.cardNumber || 'N/A'} [${completedInvoice.membership?.name || 'Standard'}]</div>
+            
+            <div class="center" style="margin: 8px 0;">
+              <img src="${patientBarcodeUrl}" style="max-width: 100%; height: 38px;" alt="Patient Barcode" />
+              <div style="font-size: 9px; font-family: monospace; font-weight: bold;">ID: ${completedInvoice.beneficiary.id}</div>
+            </div>
+
             <div class="divider"></div>
             <div class="bold">ITEMS & SERVICES:</div>
             ${completedInvoice.items.map(i => `
@@ -531,7 +541,7 @@ export const AutoPaymentPOSModal: React.FC<AutoPaymentPOSModalProps> = ({
                 <h3 style="margin: 0; color: #0f766e;">OFFICIAL TAX INVOICE</h3>
                 <p style="margin: 2px 0; font-family: monospace; font-weight: bold;">${completedInvoice.invoiceNo}</p>
                 <p style="margin: 2px 0; font-size: 10px;">Date: ${formatDateTime(completedInvoice.date)}</p>
-                <span class="badge">ISO 9001:2015 ACCREDITED</span>
+                <div style="margin-top: 6px;"><img src="${patientBarcodeUrl}" style="height: 35px;" alt="Barcode" /></div>
               </div>
             </div>
 
