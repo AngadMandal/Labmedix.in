@@ -76,12 +76,12 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
       await GmailService.sendEmail(undefined, user.email || 'admin@labmedix.org', emailSubject, emailBody);
       setForgotLoading(false);
       setForgotStep(2);
-      showToast('success', 'Recovery PIN Dispatched!', `A secure 6-digit recovery PIN has been sent to ${user.email || 'admin@labmedix.org'}.`);
+      showToast('success', 'Recovery PIN Dispatched!', `A secure 6-digit verification code has been automatically sent to ${user.email || 'admin@labmedix.org'}. Please check your email inbox.`);
     } catch (err) {
       console.warn('Email dispatch warning:', err);
       setForgotLoading(false);
       setForgotStep(2);
-      showToast('success', 'Recovery PIN Dispatched', `A secure 6-digit recovery PIN has been generated for ${user.username}. (Security PIN: ${pin})`);
+      showToast('success', 'Recovery PIN Dispatched', `A secure 6-digit verification code has been automatically dispatched to ${user.email || 'admin@labmedix.org'}. Please check your email inbox.`);
     }
   };
 
@@ -195,10 +195,10 @@ export const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
         <form onSubmit={handleVerifyAndResetPassword} className="space-y-4 text-xs font-sans">
           <div className="p-3.5 rounded-2xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 space-y-1.5">
             <strong className="text-emerald-300 block text-xs font-bold">
-              Recovery PIN Dispatched to {forgotEmail}
+              Verification Code Dispatched to {forgotEmail}
             </strong>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              Please enter the 6-digit recovery PIN sent to your email inbox and set your new staff password. (Security PIN: <strong>{forgotGeneratedPin}</strong>).
+              Please check your email inbox for the 6-digit verification code sent securely and enter it below along with your new staff password.
             </p>
           </div>
 

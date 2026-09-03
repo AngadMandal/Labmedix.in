@@ -18,7 +18,8 @@ import { CardApplicationReviewModal } from '../../components/card/CardApplicatio
 import { PatientRealMoneyTopUpModal } from '../../components/portal/PatientRealMoneyTopUpModal';
 import { DirectLabAndPackageBookingModal } from '../../components/portal/DirectLabAndPackageBookingModal';
 import { DirectMedicineOrderModal } from '../../components/portal/DirectMedicineOrderModal';
-import { Patient, PatientAppointment, CardApplicationRequest, HealthCard, Membership, Wallet } from '../../types';
+import { CardDispatchService } from '../../services/cardDispatchService';
+import { Patient, PatientAppointment, CardApplicationRequest, HealthCard, Membership, Wallet, CardDispatchRecord } from '../../types';
 import { DEFAULT_MEMBERSHIPS } from '../../constants/memberships';
 import { formatDate, formatDateTime, formatCurrency } from '../../utils/formatters';
 
@@ -122,6 +123,8 @@ export const PatientListPage: React.FC = () => {
   const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getMemberships());
   const company = StorageService.getCompanyProfile();
   const [wallets, setWallets] = useState<Wallet[]>(() => StorageService.getWallets());
+  const [cardDispatches, setCardDispatches] = useState<CardDispatchRecord[]>(() => CardDispatchService.getAll());
+  const [onlyPendingPrint, setOnlyPendingPrint] = useState(false);
 
   // Live Cardholder Portal Requests & Applications
   const [labBookings, setLabBookings] = useState<BloodTestBooking[]>(() => PortalService.getLabBookings());
@@ -134,11 +137,39 @@ export const PatientListPage: React.FC = () => {
     setCards(StorageService.getCards());
     setMemberships(StorageService.getMemberships());
     setWallets(StorageService.getWallets());
+    setCardDispatches(CardDispatchService.getAll());
     setLabBookings(PortalService.getLabBookings());
     setPharmacyOrders(PortalService.getPharmacyOrders());
     setAppointments(EMRService.getAllAppointments());
     setCardApplications(PortalService.getCardApplications());
     showToast('info', 'Data Synchronized', 'Live requests, card applications, and patient records refreshed.');
+  };
+
+  const handleTogglePrintStatus = (patient: Patient, card?: HealthCard) => {
+    if (!card) {
+      showToast('warning', 'No Health Card', 'This patient does not have an active health card minted yet.');
+      return;
+    }
+    let dispatch = cardDispatches.find(d => d.patientId === patient.id || d.cardId === card.id);
+    if (!dispatch) {
+      dispatch = CardDispatchService.createDispatch({
+        cardId: card.id,
+        patientId: patient.id,
+        printStatus: 'pending_print'
+      });
+    }
+
+    if (dispatch.printStatus === 'pending_print') {
+      CardDispatchService.markAsPrinted(dispatch.id, 'Reception Desk Terminal');
+      showToast('success', 'Card Marked Printed', `Health card ${card.cardNumber} marked as printed successfully!`);
+    } else {
+      dispatch.printStatus = 'pending_print';
+      const all = CardDispatchService.getAll().map(r => r.id === dispatch?.id ? dispatch : r);
+      StorageService.saveCardDispatches(all);
+      showToast('info', 'Print Status Reset', `Health card ${card.cardNumber} marked as pending print.`);
+    }
+    setCardDispatches(CardDispatchService.getAll());
+    refreshList();
   };
 
   useEffect(() => {
@@ -154,6 +185,9 @@ export const PatientListPage: React.FC = () => {
     });
     const unsubWallets = ApiSyncService.subscribeToCollection<Wallet>('wallets', (items) => {
       if (Array.isArray(items)) setWallets(items);
+    });
+    const unsubDispatches = ApiSyncService.subscribeToCollection<CardDispatchRecord>('cardDispatches', (items) => {
+      if (Array.isArray(items)) setCardDispatches(items);
     });
     const unsubLab = ApiSyncService.subscribeToCollection<BloodTestBooking>('labBookings', (items) => {
       if (Array.isArray(items)) setLabBookings(items);
@@ -173,6 +207,7 @@ export const PatientListPage: React.FC = () => {
       setCards(StorageService.getCards());
       setMemberships(StorageService.getMemberships());
       setWallets(StorageService.getWallets());
+      setCardDispatches(CardDispatchService.getAll());
       setLabBookings(PortalService.getLabBookings());
       setPharmacyOrders(PortalService.getPharmacyOrders());
       setAppointments(EMRService.getAllAppointments());
@@ -185,6 +220,7 @@ export const PatientListPage: React.FC = () => {
       unsubCards();
       unsubMemberships();
       unsubWallets();
+      unsubDispatches();
       unsubLab();
       unsubPharmacy();
       unsubAppointments();
@@ -594,6 +630,14 @@ export const PatientListPage: React.FC = () => {
         if (card?.membershipId !== directoryTierFilter) return false;
       }
 
+      if (onlyPendingPrint) {
+        const card = cards.find(c => c.id === p.healthCardId || c.patientId === p.id);
+        if (!card) return false;
+        const dispatch = cardDispatches.find(d => d.patientId === p.id || d.cardId === card.id);
+        const printStatus = dispatch?.printStatus || 'printed';
+        if (printStatus !== 'pending_print') return false;
+      }
+
       if (directorySearchQuery.trim()) {
         const q = directorySearchQuery.toLowerCase();
         const card = cards.find(c => c.id === p.healthCardId || c.patientId === p.id);
@@ -608,7 +652,7 @@ export const PatientListPage: React.FC = () => {
 
       return true;
     });
-  }, [patients, showDeleted, directoryBloodGroupFilter, directoryTierFilter, directorySearchQuery, cards]);
+  }, [patients, showDeleted, directoryBloodGroupFilter, directoryTierFilter, directorySearchQuery, cards, cardDispatches, onlyPendingPrint]);
 
   // Directory Columns for Table View
   const directoryColumns: Column<Patient>[] = [
@@ -658,16 +702,34 @@ export const PatientListPage: React.FC = () => {
       )
     },
     {
-      header: 'Health Card & Float',
+      header: 'Health Card & Print Status',
       accessor: (p) => {
         const card = cards.find(c => c.id === p.healthCardId || c.patientId === p.id);
         const mem = getMem(card?.membershipId, memberships);
         const wallet = wallets.find(w => w.patientId === p.id);
         if (!card) return <span className="text-xs text-slate-400">No Active Card</span>;
 
+        const dispatch = cardDispatches.find(d => d.patientId === p.id || d.cardId === card.id);
+        const printStatus = dispatch?.printStatus || 'printed';
+        const isPending = printStatus === 'pending_print';
+
         return (
-          <div className="text-xs">
-            <span className="font-mono font-bold text-teal-600 dark:text-teal-400 block">{card.cardNumber}</span>
+          <div className="text-xs space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono font-bold text-teal-600 dark:text-teal-400">{card.cardNumber}</span>
+              <button
+                type="button"
+                onClick={() => handleTogglePrintStatus(p, card)}
+                title={isPending ? 'Click to mark card as Printed' : 'Card Printed. Click to toggle status.'}
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase font-mono tracking-wider transition-all shadow-sm flex items-center gap-1 ${
+                  isPending
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-600 animate-pulse'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600'
+                }`}
+              >
+                {isPending ? '🖨️ Pending Print' : '✅ Card Printed'}
+              </button>
+            </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span
                 className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase font-mono inline-block"
@@ -1617,6 +1679,23 @@ export const PatientListPage: React.FC = () => {
               >
                 {showDeleted ? 'Showing Archived' : 'Show Archived'}
               </button>
+
+              <button
+                onClick={() => setOnlyPendingPrint(!onlyPendingPrint)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors flex items-center gap-1.5 ${
+                  onlyPendingPrint
+                    ? 'bg-amber-500 text-slate-950 font-black border-amber-400 shadow-md'
+                    : 'bg-slate-950 text-amber-300 border-amber-500/40 hover:border-amber-500/80'
+                }`}
+              >
+                <Printer className="w-3.5 h-3.5" />
+                {onlyPendingPrint ? 'Showing Pending Prints' : 'Pending Prints'}
+                {cardDispatches.filter(d => d.printStatus === 'pending_print').length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-200 text-amber-900 font-black">
+                    {cardDispatches.filter(d => d.printStatus === 'pending_print').length}
+                  </span>
+                )}
+              </button>
             </div>
 
             <div className="relative w-full md:w-72">
@@ -1694,9 +1773,30 @@ export const PatientListPage: React.FC = () => {
                         <span className="text-slate-400">Mobile:</span>
                         <strong className="text-slate-800 dark:text-slate-200">{p.mobile}</strong>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Card No:</span>
-                        <strong className="font-mono text-teal-600 dark:text-teal-400">{card?.cardNumber || 'N/A'}</strong>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Card No & Print:</span>
+                        <div className="flex items-center gap-1.5">
+                          <strong className="font-mono text-teal-600 dark:text-teal-400">{card?.cardNumber || 'N/A'}</strong>
+                          {card && (() => {
+                            const dispatch = cardDispatches.find(d => d.patientId === p.id || d.cardId === card.id);
+                            const printStatus = dispatch?.printStatus || 'printed';
+                            const isPending = printStatus === 'pending_print';
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePrintStatus(p, card)}
+                                title={isPending ? 'Click to mark card as Printed' : 'Card Printed. Click to toggle status.'}
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase font-mono tracking-wider transition-all ${
+                                  isPending
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-600 animate-pulse'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600'
+                                }`}
+                              >
+                                {isPending ? '🖨️ Pending' : '✅ Printed'}
+                              </button>
+                            );
+                          })()}
+                        </div>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Card Tier:</span>
