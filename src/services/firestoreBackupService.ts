@@ -726,6 +726,7 @@ export class FirestoreBackupService {
 
       let totalPulled = 0;
 
+      // Pull all Firestore collections
       for (const col of collectionsToPull) {
         try {
           const q = query(collection(db, col.name));
@@ -734,7 +735,6 @@ export class FirestoreBackupService {
           snap.forEach(docSnap => {
             items.push({ id: docSnap.id, ...docSnap.data() });
           });
-
           if (items.length > 0) {
             col.saveFn(items);
             totalPulled += items.length;
@@ -744,7 +744,43 @@ export class FirestoreBackupService {
         }
       }
 
-      // Broadcast update event
+      // Pull Firestore settings docs (company profile, website CMS, integrations, voucher settings)
+      const settingsDocs = [
+        { path: 'settings/companyProfile', key: STORAGE_KEYS.COMPANY_PROFILE },
+        { path: 'settings/websiteCms', key: STORAGE_KEYS.WEBSITE_CMS },
+        { path: 'settings/integrations', key: STORAGE_KEYS.INTEGRATIONS },
+        { path: 'settings/voucherSettings', key: STORAGE_KEYS.VOUCHER_SETTINGS },
+      ];
+      for (const s of settingsDocs) {
+        try {
+          const parts = s.path.split('/');
+          const docRef = doc(db, parts[0], parts[1]);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            StorageService.setItem(s.key, docSnap.data());
+            totalPulled++;
+          }
+        } catch (e) {
+          console.warn(`[FirestoreBackup] Pull settings doc error on ${s.path}:`, e);
+        }
+      }
+
+      // Pull dynamic patient vitals from patientVitals collection
+      try {
+        const vitalsSnap = await getDocs(query(collection(db, 'patientVitals')));
+        vitalsSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          const patientId = docSnap.id || data?.patientId;
+          if (patientId && data?.records) {
+            StorageService.setItem(`labmedix_patient_vitals_${patientId}`, data.records);
+            totalPulled++;
+          }
+        });
+      } catch (e) {
+        console.warn('[FirestoreBackup] Pull patientVitals error:', e);
+      }
+
+      // Broadcast update event to all tabs and components
       window.dispatchEvent(new CustomEvent('labmedix_data_synced', {
         detail: { action: 'FULL_CLOUD_PULL', timestamp: Date.now() }
       }));

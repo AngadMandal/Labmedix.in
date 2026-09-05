@@ -74,6 +74,8 @@ export class UserService {
     emergencyContactName?: string;
     cardThemeWish?: string;
     cardMaterialWish?: string;
+    allowedModules?: string[];
+    customPermissions?: string[];
   }): Promise<{ user: User; error?: string }> {
     const cleanUsername = (userData.username || '').trim().toLowerCase().replace(/\s+/g, '');
     const cleanEmail = (userData.email || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -120,7 +122,10 @@ export class UserService {
       barcodeDataUrl: barcodeDataUrl || undefined,
       qrCodeDataUrl: qrCodeDataUrl || undefined,
       emailSent: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // Preserve Super Admin granted module access and custom permission overrides
+      ...(userData.allowedModules && userData.allowedModules.length > 0 ? { allowedModules: userData.allowedModules } : {}),
+      ...(userData.customPermissions && userData.customPermissions.length > 0 ? { customPermissions: userData.customPermissions as any } : {}),
     };
 
     try {
@@ -172,7 +177,10 @@ export class UserService {
         StorageService.saveUsers(users);
       }
 
-      await firestoreService.updateDocument('users', id, updates);
+      // Sync full updated user object to Firestore (not just partial updates)
+      // so allowedModules and customPermissions are always in sync across devices
+      const updatedUser = users[userIndex] || { id, ...updates };
+      await firestoreService.setDocument('users', id, { ...updatedUser, updatedAt: new Date().toISOString() });
       AuditService.log('USER_UPDATED', 'users', `Updated staff account`, id);
       
       if (typeof window !== 'undefined') {

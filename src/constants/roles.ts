@@ -375,17 +375,24 @@ export function checkUserPermission(user: { role: Role; customPermissions?: Perm
   return hasPermission(user.role, permission);
 }
 
-export function checkUserModuleAccess(user: { role: Role; allowedModules?: string[] } | null | undefined, moduleKey: SystemModuleKey): boolean {
+export function checkUserModuleAccess(user: { role: Role; allowedModules?: string[]; customPermissions?: Permission[] } | null | undefined, moduleKey: SystemModuleKey): boolean {
   if (!user) return false;
-  if (moduleKey === 'dashboard') return true; // Dashboard accessible to all authenticated staff
-  // Doctor EMR is restricted to doctors, super_admins, admins, or explicitly permitted users
-  if (moduleKey === 'emr') {
-    return user.role === 'doctor' || user.role === 'super_admin' || user.role === 'admin' || (user.allowedModules ? user.allowedModules.includes('emr') : false);
-  }
+  // Dashboard is always accessible to any authenticated staff
+  if (moduleKey === 'dashboard') return true;
+  // Super Admin has unrestricted access to all modules
   if (user.role === 'super_admin') return true;
+
+  // If Super Admin has explicitly set allowedModules for this user, that list is authoritative
   if (user.allowedModules && user.allowedModules.length > 0) {
     return user.allowedModules.includes(moduleKey);
   }
+
+  // Doctor EMR — restricted to doctor/admin roles OR explicit allowedModules grant above
+  if (moduleKey === 'emr') {
+    return user.role === 'doctor' || user.role === 'admin';
+  }
+
+  // Fall back to role-default module list
   const defaults = ROLE_DEFAULT_MODULES[user.role] || ['dashboard'];
   return defaults.includes(moduleKey);
 }

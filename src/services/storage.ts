@@ -333,8 +333,8 @@ export class StorageService {
 
   private static async performServerBackupSync() {
     try {
-      // 1. Gather comprehensive live database state across all portals & site modules
-      const data = {
+      // 1. Gather comprehensive live database state across ALL portals & site modules
+      const data: Record<string, any> = {
         users: this.getUsers(),
         patients: this.getPatients(),
         cards: this.getCards(),
@@ -349,11 +349,36 @@ export class StorageService {
         portalPharmacyOrders: this.getItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []),
         portalCardApplications: this.getItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []),
         websiteCms: this.getItem(STORAGE_KEYS.WEBSITE_CMS, null),
+        integrations: this.getItem(STORAGE_KEYS.INTEGRATIONS, null),
         appointments: this.getItem(STORAGE_KEYS.APPOINTMENTS, []),
         emrEncounters: this.getItem(STORAGE_KEYS.EMR_ENCOUNTERS, []),
         doctors: this.getItem(STORAGE_KEYS.DOCTORS, []),
+        doctorPayouts: this.getItem(STORAGE_KEYS.DOCTOR_PAYOUTS, []),
+        labTests: this.getItem(STORAGE_KEYS.LAB_TESTS, []),
+        healthPackages: this.getItem(STORAGE_KEYS.HEALTH_PACKAGES, []),
+        recoveryVault: this.getItem(STORAGE_KEYS.RECOVERY_VAULT, []),
+        voucherSettings: this.getItem(STORAGE_KEYS.VOUCHER_SETTINGS, null),
+        sampleDispatches: this.getItem(STORAGE_KEYS.SAMPLE_DISPATCHES, []),
+        cardDispatches: this.getItem(STORAGE_KEYS.CARD_DISPATCHES, []),
+        cardDispatchBatches: this.getItem(STORAGE_KEYS.CARD_DISPATCH_BATCHES, []),
+        ngoPartners: this.getItem(STORAGE_KEYS.NGO_PARTNERS, []),
+        healthCamps: this.getItem(STORAGE_KEYS.HEALTH_CAMPS, []),
+        campAttendees: this.getItem(STORAGE_KEYS.CAMP_ATTENDEES, []),
+        charityGrants: this.getItem(STORAGE_KEYS.CHARITY_GRANTS, []),
+        ngoFundTransactions: this.getItem(STORAGE_KEYS.NGO_FUND_TRANSACTIONS, []),
         timestamp: new Date().toISOString()
       };
+
+      // 1b. Include all dynamic patient vitals keys from localStorage
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('labmedix_patient_vitals_')) {
+            const raw = localStorage.getItem(key);
+            if (raw) data[key] = JSON.parse(raw);
+          }
+        }
+      } catch { }
 
       // 2. Automatically record a Time-Machine Snapshot if at least 60s passed since last auto-snapshot
       const now = Date.now();
@@ -752,12 +777,23 @@ export class StorageService {
   /* ── PUBLIC: Export all data as downloadable JSON file ── */
   public static exportDataAsJSON(): void {
     const backup: Record<string, any> = {};
+    // Export all named storage keys
     for (const [name, key] of Object.entries(STORAGE_KEYS)) {
       try {
         const v = localStorage.getItem(key);
         if (v) backup[name] = JSON.parse(v);
       } catch { }
     }
+    // Export all dynamic patient vitals keys
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('labmedix_patient_vitals_')) {
+          const raw = localStorage.getItem(key);
+          if (raw) backup[key] = JSON.parse(raw);
+        }
+      }
+    } catch { }
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -771,9 +807,16 @@ export class StorageService {
   public static importDataFromJSON(jsonText: string): boolean {
     try {
       const backup = JSON.parse(jsonText) as Record<string, any>;
+      const namedKeys = new Set(Object.values(STORAGE_KEYS));
       for (const [name, key] of Object.entries(STORAGE_KEYS)) {
         if (backup[name] !== undefined) {
           StorageService.setItem(key, backup[name]);
+        }
+      }
+      // Restore dynamic patient vitals keys
+      for (const [key, value] of Object.entries(backup)) {
+        if (key.startsWith('labmedix_patient_vitals_') && !namedKeys.has(key)) {
+          try { StorageService.setItem(key, value); } catch { }
         }
       }
       console.info('[LABMEDIX] Data restored from backup JSON.');

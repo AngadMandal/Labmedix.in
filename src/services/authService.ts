@@ -169,42 +169,16 @@ export class AuthService {
     }
 
     if (!user) {
-      // Auto-provision user on the fly for seamless cross-device login convenience
-      const inferredRole: Role = 
-        cleanUname.includes('doc') ? 'doctor' :
-        cleanUname.includes('rec') ? 'reception' :
-        cleanUname.includes('cash') || cleanUname.includes('bill') ? 'cashier' :
-        cleanUname.includes('phleb') || cleanUname.includes('sample') || cleanUname.includes('blood') ? 'phlebotomist' :
-        cleanUname.includes('lab') ? 'lab_staff' :
-        cleanUname.includes('mgr') || cleanUname.includes('man') ? 'manager' :
-        cleanUname.includes('card') ? 'card_operator' :
-        cleanUname.includes('mkt') ? 'marketing' :
-        cleanUname.includes('aud') || cleanUname.includes('read') ? 'read_only' :
-        cleanUname.includes('admin') ? 'admin' : 'admin';
-
-      const newUser: User = {
-        id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        staffId: `LMDX-STF-${Math.floor(100 + Math.random() * 900)}`,
-        username: username.trim(),
-        fullName: username.charAt(0).toUpperCase() + username.slice(1) + ' (Cross-Device User)',
-        email: username.includes('@') ? username : `${username}@labmedix.org`,
-        role: inferredRole,
-        designation: inferredRole.replace('_', ' ').toUpperCase() + ' Specialist',
-        photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-        bloodGroup: 'B+',
-        phone: '+91 98300 12345',
-        department: 'General Medical Services',
-        accessZone: 'Zone A: Multi-Device Secure Terminal',
-        status: 'active',
-        pinCode: passwordOrPin || '1234',
-        joiningDate: new Date().toISOString().split('T')[0],
-        expiryDate: '2028-12-31',
-        createdAt: new Date().toISOString()
+      // User not found — reject login. Only Super Admin can create new staff accounts.
+      const failResult = this.recordFailedAttempt(cleanUname);
+      AuditService.log('SECURITY_LOGIN_FAILED', 'auth', `Login attempt for unknown user [${cleanUname}]. Access denied.`, undefined);
+      return {
+        success: false,
+        error: `No account found for '${username}'. Contact Super Admin to create your staff account.`,
+        attemptsLeft: failResult.attemptsLeft,
+        isLocked: failResult.isLocked,
+        remainingSeconds: failResult.remainingSeconds
       };
-
-      users.push(newUser);
-      StorageService.saveUsers(users);
-      user = newUser;
     }
 
     if (user.status === 'inactive') {
@@ -221,17 +195,11 @@ export class AuthService {
     const validPasswords: string[] = [];
     if (user.pinCode) validPasswords.push(String(user.pinCode));
     if (user.password) validPasswords.push(String(user.password));
-    // Default fallback for development/testing if user has no password set
-    validPasswords.push('1509442');
-    validPasswords.push('1234');
 
     const isPasswordValid = 
-      isMasterPass && isSuperAdminUser ||
-      (isSystemAdminUser && (cleanPass === 'admin' || cleanPass === '1234' || cleanPass === user.pinCode || cleanPass === user.password)) ||
-      validPasswords.includes(cleanPass) ||
-      validPasswords.includes(cleanPass.toLowerCase()) ||
-      (user.pinCode && cleanPass === user.pinCode) ||
-      (user.password && cleanPass === user.password);
+      (isMasterPass && isSuperAdminUser) ||
+      (user.pinCode && cleanPass === String(user.pinCode)) ||
+      (user.password && cleanPass === String(user.password));
 
     if (!isPasswordValid) {
       const failResult = this.recordFailedAttempt(cleanUname);
@@ -455,41 +423,9 @@ export class AuthService {
       return { success: true, user };
     }
 
-    // Auto-provision user on the fly for cross-device login
-    const inferredRole: Role = 
-      cleanUname.includes('doc') ? 'doctor' :
-      cleanUname.includes('rec') ? 'reception' :
-      cleanUname.includes('lab') ? 'lab_staff' :
-      cleanUname.includes('mgr') || cleanUname.includes('man') ? 'manager' :
-      cleanUname.includes('card') ? 'card_operator' :
-      cleanUname.includes('mkt') ? 'marketing' :
-      cleanUname.includes('aud') || cleanUname.includes('read') ? 'read_only' :
-      cleanUname.includes('admin') ? 'admin' : 'admin';
-
-    const newUser: User = {
-      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      staffId: `LMDX-STF-${Math.floor(100 + Math.random() * 900)}`,
-      username: username.trim(),
-      fullName: username.charAt(0).toUpperCase() + username.slice(1) + ' (Cross-Device User)',
-      email: username.includes('@') ? username : `${username}@labmedix.org`,
-      role: inferredRole,
-      designation: inferredRole.replace('_', ' ').toUpperCase() + ' Specialist',
-      photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-      bloodGroup: 'B+',
-      phone: '+91 98300 12345',
-      department: 'General Medical Services',
-      accessZone: 'Zone A: Multi-Device Secure Terminal',
-      status: 'active',
-      pinCode: '1234',
-      joiningDate: new Date().toISOString().split('T')[0],
-      expiryDate: '2028-12-31',
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    StorageService.saveUsers(users);
-    this.finalizeLogin(newUser);
-    return { success: true, user: newUser };
+    // User not found — reject. Only Super Admin creates staff accounts.
+    AuditService.log('SECURITY_LOGIN_FAILED', 'auth', `loginWithUsername: Unknown user [${cleanUname}]. Access denied.`, undefined);
+    return { success: false, error: `No account found for '${username}'. Contact Super Admin to create your staff account.` };
   }
 
   public static logout(): void {
@@ -502,25 +438,23 @@ export class AuthService {
 
   public static verifyPin(pin: string): boolean {
     const cleanPin = (pin || '').trim();
-    if (!cleanPin) return true; // Empty input allows quick unlock
-
-    // Universal default PINs & developer fail-safe keys
-    const universalPins = ['1234', '1509442', '123456', '0000', 'admin', 'admin123', 'tech123', 'doctor123', 'reception123', 'LabMedix@2026Root#', 'root', 'superadmin'];
-    if (universalPins.includes(cleanPin) || universalPins.includes(cleanPin.toLowerCase())) {
-      return true;
-    }
+    if (!cleanPin) return false; // Empty PIN never unlocks
 
     const user = StorageService.getCurrentUser();
-    if (!user) return true;
+    if (!user) return false;
 
-    const correctPin = user.pinCode || '1234';
+    // Super Admin can also use master password
+    const isSuperAdmin = user.role === 'super_admin' || user.username === 'superadmin';
+    const isMasterPass =
+      cleanPin === 'LabMedix@2026Root#' ||
+      cleanPin === 'LabMedix2026Root#';
+    if (isSuperAdmin && isMasterPass) return true;
+
+    const correctPin = user.pinCode || '';
     const userPassword = user.password || '';
     return (
-      cleanPin === correctPin ||
-      cleanPin === userPassword ||
-      cleanPin.toLowerCase() === correctPin.toLowerCase() ||
-      this.generateSimulatedHash(cleanPin) === correctPin ||
-      this.generateSimulatedHash(cleanPin) === userPassword
+      (correctPin.length > 0 && cleanPin === correctPin) ||
+      (userPassword.length > 0 && cleanPin === userPassword)
     );
   }
 }

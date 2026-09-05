@@ -691,10 +691,48 @@ app.post('/api/backup/sync', (req, res) => {
   }
   
   if (data && Object.keys(data).length > 0) {
-    backupQueue = data;
+    // Map client-side payload keys to central store storage keys
+    const keyMap: Record<string, string> = {
+      users: 'labmedix_users_v1',
+      patients: 'labmedix_patients_v1',
+      cards: 'labmedix_cards_v1',
+      memberships: 'labmedix_memberships_v1',
+      families: 'labmedix_families_v1',
+      wallets: 'labmedix_wallets_v1',
+      transactions: 'labmedix_transactions_v1',
+      auditLogs: 'labmedix_audit_logs_v1',
+      companyProfile: 'labmedix_company_profile_v1',
+      cashDeskVouchers: 'LABMEDIX_CASH_DESK_VOUCHERS_V1',
+      portalLabBookings: 'labmedix_portal_lab_bookings_v1',
+      portalPharmacyOrders: 'labmedix_portal_pharmacy_orders_v1',
+      portalCardApplications: 'labmedix_portal_card_applications_v1',
+      websiteCms: 'LABMEDIX_WEBSITE_CMS_CONFIG',
+      integrations: 'labmedix_integrations_v4',
+      appointments: 'labmedix_patient_appointments_v1',
+      emrEncounters: 'labmedix_clinical_encounters',
+      doctors: 'labmedix_doctor_master_records_v1',
+      doctorPayouts: 'labmedix_doctor_commission_payouts_v1',
+      labTests: 'LABMEDIX_TEST_MASTER_LIST',
+      healthPackages: 'LABMEDIX_HEALTH_PACKAGES_LIST',
+      recoveryVault: 'labmedix_recovery_vault_v1',
+      voucherSettings: 'labmedix_voucher_user_settings_v1',
+      sampleDispatches: 'labmedix_sample_dispatches_v1',
+      cardDispatches: 'labmedix_card_dispatches_v1',
+      cardDispatchBatches: 'labmedix_card_dispatch_batches_v1',
+      ngoPartners: 'labmedix_ngo_partners_v1',
+      healthCamps: 'labmedix_health_camps_v1',
+      campAttendees: 'labmedix_camp_attendees_v1',
+      charityGrants: 'labmedix_charity_grants_v1',
+      ngoFundTransactions: 'labmedix_ngo_fund_transactions_v1',
+    };
     const store = getCentralStore();
-    Object.assign(store, data);
+    for (const [clientKey, value] of Object.entries(data)) {
+      if (clientKey === 'timestamp') continue;
+      const storeKey = keyMap[clientKey] || clientKey; // fall back to raw key (e.g. dynamic vitals keys)
+      store[storeKey] = value;
+    }
     saveCentralStore(store);
+    backupQueue = store;
     lastSuccessfulBackup = new Date().toISOString();
 
     if (activeGoogleToken) {
@@ -714,11 +752,27 @@ app.get('/api/backup/status', (req, res) => {
   const recordCounts = {
     patients: getArrayLen('labmedix_patients_v1'),
     cards: getArrayLen('labmedix_cards_v1'),
+    users: getArrayLen('labmedix_users_v1'),
     portalApplications: getArrayLen('labmedix_portal_card_applications_v1'),
     wallets: getArrayLen('labmedix_wallets_v1'),
     transactions: getArrayLen('labmedix_transactions_v1'),
     auditLogs: getArrayLen('labmedix_audit_logs_v1'),
-    hasCompanyProfile: !!store['labmedix_company_profile_v1']
+    doctors: getArrayLen('labmedix_doctor_master_records_v1'),
+    doctorPayouts: getArrayLen('labmedix_doctor_commission_payouts_v1'),
+    labTests: getArrayLen('LABMEDIX_TEST_MASTER_LIST'),
+    healthPackages: getArrayLen('LABMEDIX_HEALTH_PACKAGES_LIST'),
+    vouchers: getArrayLen('LABMEDIX_CASH_DESK_VOUCHERS_V1'),
+    appointments: getArrayLen('labmedix_patient_appointments_v1'),
+    emrEncounters: getArrayLen('labmedix_clinical_encounters'),
+    ngoPartners: getArrayLen('labmedix_ngo_partners_v1'),
+    sampleDispatches: getArrayLen('labmedix_sample_dispatches_v1'),
+    cardDispatches: getArrayLen('labmedix_card_dispatches_v1'),
+    memberships: getArrayLen('labmedix_memberships_v1'),
+    families: getArrayLen('labmedix_families_v1'),
+    hasCompanyProfile: !!store['labmedix_company_profile_v1'],
+    hasIntegrations: !!store['labmedix_integrations_v4'],
+    hasWebsiteCms: !!store['LABMEDIX_WEBSITE_CMS_CONFIG'],
+    hasVoucherSettings: !!store['labmedix_voucher_user_settings_v1'],
   };
 
   res.json({
