@@ -1071,8 +1071,8 @@ export const PrintableBlankPhysicalForm: React.FC<PrintableBlankPhysicalFormProp
                   <div className="mb-2">
                     <div className={`px-2 py-0.5 font-black text-[9px] uppercase tracking-wider ${isHighContrastMonochrome ? 'bg-slate-200 border-l-4 border-black text-black' : 'bg-slate-200 border-l-4 border-blue-700 text-slate-950'} mb-1 flex justify-between`}>
                       <span>4. FAMILY MEMBERS HEALTH CARD ENROLLMENT (পরিবারের সদস্যবৃন্দের তালিকা)</span>
-                      <span className="text-[8px] font-bold text-slate-800">
-                        Plan: {memberships.map(m => `[ ] ${m.name}${m.isRecommended ? ' ★(Rec)' : ''} (${formatCurrency(m.registrationFee)})`).join('  ')}
+                      <span className="text-[8px] font-black text-black">
+                        Plan: {memberships.map(m => `[ ] ${m.name}${m.isRecommended ? ' ★[RECOMMENDED]' : ''} (${formatCurrency(m.registrationFee)})`).join('  ')}
                       </span>
                     </div>
 
@@ -1469,9 +1469,16 @@ export const PrintableBlankPhysicalForm: React.FC<PrintableBlankPhysicalFormProp
                       </thead>
                       <tbody>
                         {memberships.slice(0, 6).map((m) => (
-                          <tr key={m.id} className={`h-5 ${m.isRecommended ? 'bg-amber-50/70 font-semibold' : ''}`}>
-                            <td className="border border-slate-500 px-1.5 font-bold text-slate-900">
-                              {m.name} {m.isRecommended && <span className="text-[7px] text-amber-800 font-black">★ RECOMMENDED</span>}
+                          <tr key={m.id} className={`h-5 ${m.isRecommended ? 'bg-slate-200 font-black text-black' : ''}`}>
+                            <td className="border border-slate-500 px-1.5 font-black text-black">
+                              <div className="flex items-center gap-1.5">
+                                <span>{m.name}</span>
+                                {m.isRecommended && (
+                                  <span className="text-[7px] bg-black text-white px-1 py-0.5 rounded font-black tracking-wider uppercase border border-black">
+                                    ★ RECOMMENDED
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="border border-slate-500 px-1 text-center font-mono font-bold text-blue-900">
                               {formatCurrency(m.registrationFee)}
