@@ -410,7 +410,7 @@ export class AuthService {
     let targetUser = users.find(u => u.role === role);
     if (!targetUser) {
       targetUser = {
-        id: `usr_${role}`,
+        id: `usr_staff_${role}`,
         username: role,
         fullName: `${role.toUpperCase().replace('_', ' ')} Staff`,
         email: `${role}@labmedix.org`,

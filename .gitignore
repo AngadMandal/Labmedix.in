@@ -32,4 +32,5 @@ archive/
 
 # Nested duplicate folder & local backups
 Labmedix.in/
-*.backup.json
+*.backup.json
+*.tmp

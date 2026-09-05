@@ -131,8 +131,10 @@ export const UserListPage: React.FC = () => {
 
   useEffect(() => {
     if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
-      setUsers(cloudUsers);
-      StorageService.setItem(STORAGE_KEYS.USERS, cloudUsers);
+      // Strictly sanitize cloud users through DEMO_USER_IDS_TO_EXCLUDE so ghost demo records never flash or alter staff count
+      const sanitized = cloudUsers.filter(u => u && !StorageService.DEMO_USER_IDS_TO_EXCLUDE.includes(u.id));
+      setUsers(sanitized);
+      StorageService.updateCacheSilently(STORAGE_KEYS.USERS, sanitized);
     }
   }, [cloudUsers]);
 

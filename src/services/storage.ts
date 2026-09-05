@@ -565,6 +565,34 @@ export class StorageService {
     StorageService.scheduleDataSyncedNotification(key, value);
   }
 
+  /** Excluded legacy demo account IDs to prevent ghost staff proliferation */
+  public static readonly DEMO_USER_IDS_TO_EXCLUDE = [
+    'usr_admin',
+    'usr_doctor',
+    'usr_reception',
+    'usr_lab_staff',
+    'usr_manager',
+    'usr_card_operator',
+    'usr_marketing',
+    'usr_read_only'
+  ];
+
+  /**
+   * Update cache and browser storage silently without triggering recursive notification cascades
+   */
+  public static updateCacheSilently(key: string, value: any): void {
+    if (!key || value === undefined) return;
+    if ([STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) return;
+
+    StorageService.memoryCache.set(key, value);
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch { }
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+    } catch { }
+  }
+
   /* ── PUBLIC: Read with multi-layer fallback ── */
   public static getItem<T>(key: string, defaultValue: T): T {
     // Layer 1: Memory cache
@@ -959,14 +987,19 @@ export class StorageService {
     const mergedMap = new Map<string, User>();
     // Preload all standard roles first
     INITIAL_USERS.forEach(u => mergedMap.set(u.id, u));
-    // Merge existing users over initial
+    // Merge existing users over initial, strictly filtering out excluded demo accounts
     currentUsers.forEach(u => {
-      if (u && u.id) {
+      if (u && u.id && !StorageService.DEMO_USER_IDS_TO_EXCLUDE.includes(u.id)) {
         mergedMap.set(u.id, { ...mergedMap.get(u.id), ...u });
       }
     });
     const finalUsers = Array.from(mergedMap.values());
-    this.setItem(STORAGE_KEYS.USERS, finalUsers);
+    this.updateCacheSilently(STORAGE_KEYS.USERS, finalUsers);
+
+    // Clean up any lingering legacy demo user records from Cloud Firestore to prevent oscillation loops
+    this.DEMO_USER_IDS_TO_EXCLUDE.forEach(demoId => {
+      ApiSyncService.deleteDocument('users', demoId).catch(() => {});
+    });
 
     if (cloudUsersCount === 0) {
       // Seed Firestore with initial staff users
@@ -977,8 +1010,7 @@ export class StorageService {
   // Users
   public static getUsers(): User[] {
     const list = this.getItem<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
-    const demoIdsToExclude = ['usr_admin', 'usr_doctor', 'usr_reception', 'usr_lab_staff', 'usr_manager', 'usr_card_operator', 'usr_marketing', 'usr_read_only'];
-    const filtered = list.filter(u => !demoIdsToExclude.includes(u.id));
+    const filtered = list.filter(u => u && !this.DEMO_USER_IDS_TO_EXCLUDE.includes(u.id));
     
     // Auto-heal / Populate employeeNo and barcodeDataUrl for any staff record missing them
     let hasUpdates = false;
@@ -996,7 +1028,7 @@ export class StorageService {
     });
 
     if (hasUpdates || filtered.length !== list.length) {
-      this.setItem(STORAGE_KEYS.USERS, filtered);
+      this.updateCacheSilently(STORAGE_KEYS.USERS, filtered);
     }
     return filtered.length > 0 ? filtered : INITIAL_USERS;
   }
