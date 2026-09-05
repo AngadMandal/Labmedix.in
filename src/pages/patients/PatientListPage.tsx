@@ -113,7 +113,8 @@ export const PatientListPage: React.FC = () => {
   const [activePatientForLabBooking, setActivePatientForLabBooking] = useState<Patient | null>(null);
   const [activePatientForMedicineOrder, setActivePatientForMedicineOrder] = useState<Patient | null>(null);
 
-  const { can } = useAuth();
+  const { can, currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.role === 'super_admin';
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -241,6 +242,18 @@ export const PatientListPage: React.FC = () => {
     PatientService.restore(id);
     showToast('success', 'Patient Restored', `${name} has been reactivated.`);
     refreshList();
+  };
+
+  const handlePermanentDelete = (id: string, name: string) => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Access Restricted', 'Only Super Administrator can permanently purge patient records.');
+      return;
+    }
+    if (window.confirm(`CRITICAL: Are you sure you want to permanently delete patient ${name} (ID: ${id})? This will expunge all records from Firestore and cannot be undone.`)) {
+      PatientService.permanentDelete(id);
+      showToast('success', 'Patient Purged', `${name} has been permanently expunged across all devices.`);
+      refreshList();
+    }
   };
 
   // Operational Action Handlers
@@ -892,14 +905,27 @@ export const PatientListPage: React.FC = () => {
 
             {can('patient_delete') && (
               p.isDeleted ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  title="Restore Patient"
-                  onClick={() => handleRestore(p.id, p.fullName)}
-                >
-                  <RotateCcw className="w-4 h-4 text-emerald-600" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title="Restore Patient"
+                    onClick={() => handleRestore(p.id, p.fullName)}
+                  >
+                    <RotateCcw className="w-4 h-4 text-emerald-600" />
+                  </Button>
+                  {isSuperAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Permanently Expunge Patient (Firestore & WAL)"
+                      className="hover:bg-rose-500/10 text-rose-600 hover:text-rose-700"
+                      onClick={() => handlePermanentDelete(p.id, p.fullName)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               ) : (
                 <Button
                   size="sm"

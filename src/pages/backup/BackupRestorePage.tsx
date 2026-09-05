@@ -75,6 +75,7 @@ export const BackupRestorePage: React.FC = () => {
 
   // Demo Data Removal & Factory Reset State
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
+  const [purgeConfirmText, setPurgeConfirmText] = useState('');
   const [isPurging, setIsPurging] = useState(false);
   const [purgeProgress, setPurgeProgress] = useState<DemoPurgeProgress | null>(null);
   const [demoStats, setDemoStats] = useState(DemoDataService.getDemoStats());
@@ -740,9 +741,11 @@ export const BackupRestorePage: React.FC = () => {
       if (result.success) {
         showToast('success', 'Demo Data Purged Permanently! 🧹', result.message);
         loadLocalSnapshots();
+        setDemoStats(DemoDataService.getDemoStats());
         setTimeout(() => {
           setIsPurgeModalOpen(false);
           setPurgeProgress(null);
+          setPurgeConfirmText('');
         }, 1500);
       } else {
         showToast('error', 'Purge Failed', result.message);
@@ -1910,6 +1913,19 @@ export const BackupRestorePage: React.FC = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              Type <span className="font-mono text-rose-500 font-black">PURGE DEMO</span> to confirm:
+            </label>
+            <Input
+              type="text"
+              placeholder="Type PURGE DEMO"
+              value={purgeConfirmText}
+              onChange={(e) => setPurgeConfirmText(e.target.value)}
+              disabled={isPurging}
+            />
+          </div>
+
           {purgeProgress && (
             <div className="space-y-2 pt-2">
               <div className="flex justify-between font-bold text-[11px]">
@@ -1931,7 +1947,10 @@ export const BackupRestorePage: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={isPurging}
-              onClick={() => setIsPurgeModalOpen(false)}
+              onClick={() => {
+                setIsPurgeModalOpen(false);
+                setPurgeConfirmText('');
+              }}
             >
               Cancel
             </Button>
@@ -1940,8 +1959,9 @@ export const BackupRestorePage: React.FC = () => {
               variant="primary"
               size="sm"
               isLoading={isPurging}
+              disabled={isPurging || purgeConfirmText.trim().toUpperCase() !== 'PURGE DEMO'}
               onClick={handleExecuteDemoPurge}
-              className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold"
+              className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Confirm & Purge Demo Data
             </Button>

@@ -33,7 +33,8 @@ import {
   FileCheck2,
   ShieldAlert,
   Printer,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from 'lucide-react';
 
 export interface CardApplicationReviewModalProps {
@@ -182,6 +183,25 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
         showToast('error', 'Error', res.error || 'Failed to request information.');
       }
     }, 600);
+  };
+
+  const handleDelete = () => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Security Violation', 'Only Super Admin can delete card applications.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to permanently delete card application ${application.trackingId || application.applicationNo} for ${application.fullName} from Firestore and all devices?`)) {
+      return;
+    }
+
+    const res = PortalService.deleteCardApplication(application.id, currentUser?.fullName || 'Super Administrator');
+    if (res.success) {
+      showToast('info', 'Application Purged', `Application ${application.trackingId || application.applicationNo} permanently purged.`);
+      onRejected();
+      onClose();
+    } else {
+      showToast('error', 'Error', res.error || 'Failed to delete application.');
+    }
   };
 
   return (
@@ -531,6 +551,17 @@ export const CardApplicationReviewModal: React.FC<CardApplicationReviewModalProp
                 leftIcon={<XCircle className="w-4 h-4" />}
               >
                 Reject Request
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-red-600/50 text-red-500 hover:bg-red-950/50"
+                onClick={handleDelete}
+                isLoading={isProcessing}
+                leftIcon={<Trash2 className="w-4 h-4" />}
+                title="Permanently expunge application from Firestore and all devices"
+              >
+                Delete
               </Button>
               <Button
                 type="button"

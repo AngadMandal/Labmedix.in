@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { UserService } from '../../services/userService';
-import { StorageService } from '../../services/storage';
+import { StorageService, STORAGE_KEYS } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useFirestoreCollection } from '../../hooks/useFirestore';
@@ -132,6 +132,7 @@ export const UserListPage: React.FC = () => {
   useEffect(() => {
     if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
       setUsers(cloudUsers);
+      StorageService.setItem(STORAGE_KEYS.USERS, cloudUsers);
     }
   }, [cloudUsers]);
 
@@ -185,6 +186,7 @@ export const UserListPage: React.FC = () => {
   const [accessZone, setAccessZone] = useState('Zone C: Reception & Front Desk');
   const [nationalId, setNationalId] = useState('');
   const [licenseNo, setLicenseNo] = useState('');
+  const [employeeNo, setEmployeeNo] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('9830099999');
   const [emergencyContactName, setEmergencyContactName] = useState('Immediate Family');
   const [joiningDate, setJoiningDate] = useState(new Date().toISOString().slice(0, 10));
@@ -339,6 +341,7 @@ Note: Keep these credentials confidential.`;
       accessZone,
       nationalId,
       licenseNo,
+      employeeNo: employeeNo.trim() || undefined,
       emergencyContact,
       emergencyContactName,
       joiningDate,
@@ -397,6 +400,7 @@ Note: Keep these credentials confidential.`;
     setAccessZone('Zone ROOT: Executive Board & OT Suites');
     setNationalId(`UID-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`);
     setLicenseNo('WBMC-DIR-' + Math.floor(1000 + Math.random() * 9000));
+    setEmployeeNo('');
     setBloodGroup('A+');
     setPhotoUrl('https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&auto=format&fit=crop&q=80');
     setRole('admin');
@@ -426,6 +430,7 @@ Note: Keep these credentials confidential.`;
       accessZone,
       nationalId,
       licenseNo,
+      employeeNo: employeeNo.trim() || undefined,
       emergencyContact,
       emergencyContactName,
       joiningDate,
@@ -532,7 +537,7 @@ Note: Keep these credentials confidential.`;
     );
   };
 
-  const handleApplyPermissionPreset = (presetType: 'all_admin' | 'doctor' | 'reception' | 'cashier' | 'lab' | 'reset') => {
+  const handleApplyPermissionPreset = (presetType: 'all_admin' | 'doctor' | 'reception' | 'cashier' | 'lab' | 'phlebotomist' | 'reset') => {
     if (!permissionModalUser) return;
     if (presetType === 'all_admin') {
       setSelectedModules(SYSTEM_MODULES.map(m => m.key));
@@ -544,11 +549,14 @@ Note: Keep these credentials confidential.`;
       setSelectedModules(['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'wallet', 'families']);
       setSelectedPerms(['patient_create', 'patient_read', 'patient_update', 'card_create', 'card_read', 'card_print', 'card_export', 'wallet_read', 'wallet_credit', 'family_manage']);
     } else if (presetType === 'cashier') {
-      setSelectedModules(['dashboard', 'patients', 'wallet', 'reports']);
-      setSelectedPerms(['patient_read', 'wallet_read', 'wallet_credit', 'wallet_debit', 'reports_view']);
+      setSelectedModules(['dashboard', 'patients', 'wallet', 'cash_desk_vouchers', 'cards', 'reports']);
+      setSelectedPerms(['patient_read', 'card_read', 'wallet_read', 'wallet_credit', 'wallet_debit', 'voucher_redeem', 'reports_view']);
     } else if (presetType === 'lab') {
-      setSelectedModules(['dashboard', 'patients', 'cards', 'wallet']);
-      setSelectedPerms(['patient_read', 'card_read', 'wallet_read', 'wallet_debit']);
+      setSelectedModules(['dashboard', 'patients', 'cards', 'wallet', 'test_master']);
+      setSelectedPerms(['patient_read', 'card_read', 'wallet_read', 'wallet_debit', 'catalog_manage']);
+    } else if (presetType === 'phlebotomist') {
+      setSelectedModules(['dashboard', 'patients', 'cards', 'test_master']);
+      setSelectedPerms(['patient_read', 'card_read', 'catalog_manage']);
     } else if (presetType === 'reset') {
       const defMods = ROLE_DEFAULT_MODULES[permissionModalUser.role] || ['dashboard'];
       const defPerms = ROLE_CONFIGS[permissionModalUser.role]?.permissions || [];
@@ -579,9 +587,10 @@ Note: Keep these credentials confidential.`;
 
   // 7. Export CSV
   const handleExportCsv = () => {
-    const headers = ['Staff ID', 'Full Name', 'Username', 'Role', 'Designation', 'Department', 'Access Zone', 'Blood Group', 'National ID', 'Email', 'Phone', 'Work Ext', 'Status', 'Security PIN', 'Issued Date', 'Expiry Date'];
+    const headers = ['Staff ID', 'Employee No', 'Full Name', 'Username', 'Role', 'Designation', 'Department', 'Access Zone', 'Blood Group', 'National ID', 'Email', 'Phone', 'Work Ext', 'Status', 'Security PIN', 'Issued Date', 'Expiry Date'];
     const rows = filteredUsers.map(u => [
       u.staffId || u.id,
+      u.employeeNo || `LMDX-EMP-${(u.staffId || u.id).replace(/\D/g, '').padStart(3, '0')}`,
       `"${u.fullName}"`,
       u.username,
       u.role,
@@ -654,6 +663,7 @@ Note: Keep these credentials confidential.`;
     setAccessZone(u.accessZone || 'Zone A: Standard Clinical Access');
     setNationalId(u.nationalId || '');
     setLicenseNo(u.licenseNo || '');
+    setEmployeeNo(u.employeeNo || '');
     setEmergencyContact(u.emergencyContact || '9830099999');
     setEmergencyContactName(u.emergencyContactName || 'Family');
     setJoiningDate(u.joiningDate || u.createdAt.slice(0, 10));
@@ -1026,7 +1036,7 @@ Note: Keep these credentials confidential.`;
             leftIcon={<ShieldCheck className="w-4 h-4 text-purple-600" />}
             onClick={() => setIsMatrixModalOpen(true)}
           >
-            8 Roles Matrix
+            10 Roles Matrix
           </Button>
 
           <Button
@@ -1500,11 +1510,11 @@ Note: Keep these credentials confidential.`;
         </div>
       </Modal>
 
-      {/* 8 Role Permissions Matrix Modal */}
+      {/* 10 Role Permissions Matrix Modal */}
       <Modal
         isOpen={isMatrixModalOpen}
         onClose={() => setIsMatrixModalOpen(false)}
-        title="8 Healthcare Roles & Permissions Matrix"
+        title="10 Healthcare Operational Roles & Permissions Matrix"
         maxWidth="6xl"
       >
         <div className="space-y-5 text-xs max-h-[75vh] overflow-y-auto pr-1">
@@ -1515,7 +1525,7 @@ Note: Keep these credentials confidential.`;
                 {company.name || 'LABMEDIX'} Role-Based Access Control (RBAC) Architecture
               </strong>
               <p className="text-slate-700 dark:text-slate-300 text-xs">
-                Granular security matrix enforcing strict separation of duties across 8 clinical and administrative roles.
+                Granular security matrix enforcing strict separation of duties across 10 clinical and administrative roles.
               </p>
             </div>
           </div>
@@ -1693,6 +1703,7 @@ Note: Keep these credentials confidential.`;
             <Input label="Security Clearance & Access Zone" placeholder="e.g. Zone A: ICU, OT & Clinical" value={accessZone} onChange={(e) => setAccessZone(e.target.value)} />
             <Input label="Govt National ID (UID)" placeholder="UID-9821-4432-1109" value={nationalId} onChange={(e) => setNationalId(e.target.value)} />
             <Input label="Clinical Reg / License No" placeholder="WBMC-DIR-0091 (Optional)" value={licenseNo} onChange={(e) => setLicenseNo(e.target.value)} />
+            <Input label="Employee / Reg No (Auto-generated if blank)" placeholder="e.g. LMDX-EMP-009" value={employeeNo} onChange={(e) => setEmployeeNo(e.target.value)} />
             <Select
               label="Blood Group"
               value={bloodGroup}
@@ -1861,6 +1872,7 @@ Note: Keep these credentials confidential.`;
               <Input label="Security Clearance & Access Zone" value={accessZone} onChange={(e) => setAccessZone(e.target.value)} />
               <Input label="Govt National ID (UID)" value={nationalId} onChange={(e) => setNationalId(e.target.value)} />
               <Input label="Clinical Reg / License No" value={licenseNo} onChange={(e) => setLicenseNo(e.target.value)} />
+              <Input label="Employee / Reg No" placeholder="e.g. LMDX-EMP-009" value={employeeNo} onChange={(e) => setEmployeeNo(e.target.value)} />
               <Select
                 label="Blood Group"
                 value={bloodGroup}
@@ -2028,6 +2040,13 @@ Note: Keep these credentials confidential.`;
                   className="px-2.5 py-1.5 rounded-xl bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-950/60 dark:hover:bg-cyan-900 text-cyan-900 dark:text-cyan-200 text-[11px] font-bold transition-all border border-cyan-300 dark:border-cyan-800 shadow-xs"
                 >
                   🔬 Lab Diagnostic Tech
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyPermissionPreset('phlebotomist')}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-900 dark:text-rose-200 text-[11px] font-bold transition-all border border-rose-300 dark:border-rose-800 shadow-xs"
+                >
+                  🧪 Phlebotomy & Sampling
                 </button>
                 <button
                   type="button"

@@ -39,8 +39,11 @@ export interface DiagnosticLogEntry {
   payload?: any;
 }
 
+export type LiveSyncState = 'LIVE' | 'SYNCED' | 'SYNCING' | 'OFFLINE' | 'ERROR';
+
 export interface SyncHealthMetrics {
   status: 'connected' | 'connecting' | 'offline';
+  liveState: LiveSyncState;
   projectId: string;
   databaseId: string;
   activeListenersCount: number;
@@ -57,8 +60,25 @@ export class ApiSyncService {
   private static lastSyncTimestamp = new Date().toISOString();
   private static isConnected = true;
   private static quotaExceeded = false;
+  private static recentWritesIdempotencyMap = new Map<string, number>();
   private static diagnosticLogs: DiagnosticLogEntry[] = [];
   private static diagnosticListeners: ((log: DiagnosticLogEntry) => void)[] = [];
+
+  private static checkAndRecordIdempotency(key: string): boolean {
+    const now = Date.now();
+    const last = this.recentWritesIdempotencyMap.get(key);
+    if (last && now - last < 2000) {
+      return false; // Throttled rapid duplicate write
+    }
+    this.recentWritesIdempotencyMap.set(key, now);
+    if (this.recentWritesIdempotencyMap.size > 500) {
+      const threshold = now - 10000;
+      for (const [k, time] of this.recentWritesIdempotencyMap.entries()) {
+        if (time < threshold) this.recentWritesIdempotencyMap.delete(k);
+      }
+    }
+    return true;
+  }
 
   public static addDiagnosticLog(entry: Omit<DiagnosticLogEntry, 'id' | 'timestamp'>): void {
     const logItem: DiagnosticLogEntry = {
@@ -196,10 +216,37 @@ export class ApiSyncService {
     }
   }
 
-  /** Generic save or update document in Firestore with Zero-Data-Loss WAL Protection */
+  /** Generic save or update document in Firestore with Zero-Data-Loss WAL Protection & Idempotency */
   public static async saveDocument<T extends { id?: string }>(collectionName: string, id: string, data: T): Promise<boolean> {
+    if (!collectionName || !id) {
+      console.warn('[ApiSync] saveDocument rejected: collectionName and id are required.');
+      return false;
+    }
+
+    // Duplicate Submission Protection & Idempotency
+    const payloadHash = typeof data === 'object' && data !== null ? Object.keys(data).length : 0;
+    const idempotencyKey = `${collectionName}/${id}/${payloadHash}`;
+    if (!this.checkAndRecordIdempotency(idempotencyKey)) {
+      console.info(`[ApiSync] Idempotency lock: duplicate write throttled for ${collectionName}/${id}`);
+      return true;
+    }
+
+    // Automatic Metadata & Company Centralization
+    const sanitized = JSON.parse(JSON.stringify(data || {}));
+    const nowIso = new Date().toISOString();
+    const deviceId = MultiDeviceSyncService.getDeviceId();
+
+    if (!sanitized.companyId && collectionName !== 'settings') {
+      sanitized.companyId = 'LABMEDIX-MAIN-CLINIC';
+    }
+    if (!sanitized.createdAt) {
+      sanitized.createdAt = nowIso;
+    }
+    sanitized.updatedAt = nowIso;
+    sanitized.originDeviceId = deviceId;
+
     // 1. Stage in persistent Write-Ahead Log in IndexedDB first for Zero-Data-Loss guarantee
-    const walId = await FirestoreBackupService.enqueueWal(collectionName, id, 'set', data).catch(() => '');
+    const walId = await FirestoreBackupService.enqueueWal(collectionName, id, 'set', sanitized).catch(() => '');
 
     if (this.quotaExceeded) {
       return false;
@@ -207,13 +254,7 @@ export class ApiSyncService {
 
     try {
       const docRef = doc(db, collectionName, id);
-      const sanitized = JSON.parse(JSON.stringify(data));
-      const deviceId = MultiDeviceSyncService.getDeviceId();
-      await setDoc(docRef, {
-        ...sanitized,
-        originDeviceId: deviceId,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      await setDoc(docRef, sanitized, { merge: true });
 
       // Successfully synced to Firestore - commit & clear WAL record
       if (walId) {
@@ -222,7 +263,7 @@ export class ApiSyncService {
 
       MultiDeviceSyncService.recordSyncEvent(collectionName, id, 'upsert').catch(() => {});
 
-      this.lastSyncTimestamp = new Date().toISOString();
+      this.lastSyncTimestamp = nowIso;
       this.isConnected = true;
       this.addDiagnosticLog({
         type: 'WRITE',
@@ -371,7 +412,10 @@ export class ApiSyncService {
     'labmedix_portal_pharmacy_orders_v1': { type: 'collection', path: 'pharmacyOrders' },
     'labmedix_portal_card_applications_v1': { type: 'collection', path: 'cardApplications' },
     'LABMEDIX_CASH_DESK_VOUCHERS_V1': { type: 'collection', path: 'vouchers' },
+    'labmedix_voucher_user_settings_v1': { type: 'doc', path: 'settings/voucherSettings' },
     'labmedix_sample_dispatches_v1': { type: 'collection', path: 'sampleDispatches' },
+    'labmedix_card_dispatches_v1': { type: 'collection', path: 'cardDispatches' },
+    'labmedix_card_dispatch_batches_v1': { type: 'collection', path: 'cardDispatchBatches' },
     'labmedix_recovery_vault_v1': { type: 'collection', path: 'recoveryVault' },
     'labmedix_snapshots_v1': { type: 'collection', path: 'snapshots' },
     'labmedix_ngo_partners_v1': { type: 'collection', path: 'ngoPartners' },
@@ -519,20 +563,43 @@ export class ApiSyncService {
     }
   }
 
-  /** Upsert collection items into Firestore without deleting missing items */
+  /** Upsert collection items into Firestore without deleting missing items (with Zero-Data-Loss WAL Fallback) */
   public static async upsertCollectionInFirestore(collectionName: string, targetItems: any[]): Promise<void> {
-    if (this.quotaExceeded || !Array.isArray(targetItems) || targetItems.length === 0) return;
+    if (!Array.isArray(targetItems) || targetItems.length === 0) return;
+
+    if (this.quotaExceeded) {
+      // Stage into WAL while Firestore quota resets
+      for (const item of targetItems) {
+        if (item && item.id) {
+          FirestoreBackupService.enqueueWal(collectionName, String(item.id), 'set', item).catch(() => {});
+        }
+      }
+      return;
+    }
+
     try {
       const batchList: Array<() => Promise<void>> = [];
       let currentBatch = writeBatch(db);
       let opCount = 0;
+
+      const nowIso = new Date().toISOString();
+      const deviceId = MultiDeviceSyncService.getDeviceId();
 
       for (const item of targetItems) {
         if (item && item.id) {
           const itemId = String(item.id);
           const docRef = doc(db, collectionName, itemId);
           const sanitized = JSON.parse(JSON.stringify(item));
-          currentBatch.set(docRef, { ...sanitized, updatedAt: new Date().toISOString() }, { merge: true });
+          if (!sanitized.companyId && collectionName !== 'settings') {
+            sanitized.companyId = 'LABMEDIX-MAIN-CLINIC';
+          }
+          if (!sanitized.createdAt) {
+            sanitized.createdAt = nowIso;
+          }
+          sanitized.updatedAt = nowIso;
+          sanitized.originDeviceId = deviceId;
+
+          currentBatch.set(docRef, sanitized, { merge: true });
           opCount++;
           if (opCount >= 400) {
             const b = currentBatch;
@@ -557,7 +624,13 @@ export class ApiSyncService {
     } catch (error) {
       this.checkQuotaError(error);
       this.syncErrors++;
-      console.warn(`[ApiSync] Firestore collection upsert error on ${collectionName}:`, error);
+      console.warn(`[ApiSync] Firestore collection upsert error on ${collectionName} (Secured in WAL queue):`, error);
+      // Zero-Data-Loss guarantee: Stash all items in WAL for automated background replay
+      for (const item of targetItems) {
+        if (item && item.id) {
+          FirestoreBackupService.enqueueWal(collectionName, String(item.id), 'set', item).catch(() => {});
+        }
+      }
     }
   }
 
@@ -645,6 +718,8 @@ export class ApiSyncService {
       { path: 'cardApplications', items: d.portalCardApplications || [] },
       { path: 'vouchers', items: d.cashVouchers || [] },
       { path: 'sampleDispatches', items: d.sampleDispatches || [] },
+      { path: 'cardDispatches', items: d.cardDispatches || [] },
+      { path: 'cardDispatchBatches', items: d.cardDispatchBatches || [] },
       { path: 'recoveryVault', items: d.recoveryVault || [] },
       { path: 'ngoPartners', items: d.ngoPartners || [] },
       { path: 'healthCamps', items: d.healthCamps || [] },
@@ -668,6 +743,9 @@ export class ApiSyncService {
     }
     if (d.integrations) {
       await this.syncKeyToFirestore('labmedix_integrations_v4', d.integrations);
+    }
+    if (d.voucherSettings) {
+      await this.syncKeyToFirestore('labmedix_voucher_user_settings_v1', d.voucherSettings);
     }
   }
 
@@ -869,12 +947,44 @@ export class ApiSyncService {
     await this.syncKeyToFirestore('LABMEDIX_CASH_DESK_VOUCHERS_V1', vouchers);
   }
 
+  public static async syncCardDispatches(dispatches: any[]): Promise<void> {
+    await this.syncKeyToFirestore('labmedix_card_dispatches_v1', dispatches);
+  }
+
+  public static async syncCardDispatchBatches(batches: any[]): Promise<void> {
+    await this.syncKeyToFirestore('labmedix_card_dispatch_batches_v1', batches);
+  }
+
+  public static async syncVoucherSettings(settings: any): Promise<void> {
+    await this.syncKeyToFirestore('labmedix_voucher_user_settings_v1', settings);
+  }
+
   public static async syncLabBookings(bookings: BloodTestBooking[]): Promise<void> {
     await this.syncKeyToFirestore('labmedix_portal_lab_bookings_v1', bookings);
   }
 
   public static async syncPharmacyOrders(orders: MedicineOrder[]): Promise<void> {
     await this.syncKeyToFirestore('labmedix_portal_pharmacy_orders_v1', orders);
+  }
+
+  public static async syncEncounters(encounters: any[]): Promise<void> {
+    await this.syncKeyToFirestore('labmedix_clinical_encounters', encounters);
+  }
+
+  public static async syncDoctors(doctors: any[]): Promise<void> {
+    await this.syncKeyToFirestore('labmedix_doctor_master_records_v1', doctors);
+  }
+
+  public static async syncDoctorPayouts(payouts: any[]): Promise<void> {
+    await this.syncKeyToFirestore('labmedix_doctor_commission_payouts_v1', payouts);
+  }
+
+  public static async syncLabTests(tests: any[]): Promise<void> {
+    await this.syncKeyToFirestore('LABMEDIX_TEST_MASTER_LIST', tests);
+  }
+
+  public static async syncHealthPackages(packages: any[]): Promise<void> {
+    await this.syncKeyToFirestore('LABMEDIX_HEALTH_PACKAGES_LIST', packages);
   }
 
   public static async approveApplicationTransaction(
@@ -1071,8 +1181,22 @@ export class ApiSyncService {
   }
 
   public static getSyncHealthMetrics(): SyncHealthMetrics {
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    let liveState: LiveSyncState = 'SYNCED';
+
+    if (!isOnline) {
+      liveState = 'OFFLINE';
+    } else if (this.syncErrors > 5 && !this.isConnected) {
+      liveState = 'ERROR';
+    } else if (this.workerRunning || this.workerQueue.length > 0) {
+      liveState = 'SYNCING';
+    } else if (this.activeUnsubscribers.length > 0) {
+      liveState = 'LIVE';
+    }
+
     return {
-      status: this.isConnected ? 'connected' : 'offline',
+      status: !isOnline ? 'offline' : (this.isConnected ? 'connected' : 'connecting'),
+      liveState,
       projectId: firebaseConfig.projectId || 'gen-lang-client-0076489895',
       databaseId: '(default)',
       activeListenersCount: this.activeUnsubscribers.length || Object.keys(this.KEY_TO_FIRESTORE_MAP).length,

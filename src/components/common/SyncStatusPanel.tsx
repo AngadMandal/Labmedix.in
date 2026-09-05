@@ -34,7 +34,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth, db } from '../../services/firebaseService';
 import { ApiSyncService, DiagnosticLogEntry, SyncHealthMetrics } from '../../services/apiSyncService';
 import { useAuth } from '../../context/AuthContext';
-import { StorageService } from '../../services/storage';
+import { StorageService, STORAGE_KEYS } from '../../services/storage';
 import { ROLE_CONFIGS } from '../../constants/roles';
 import { FirestoreConnectionDiagnostic } from './FirestoreConnectionDiagnostic';
 
@@ -118,11 +118,13 @@ export const SyncStatusPanel: React.FC = () => {
       memberships: StorageService.getMemberships().length,
       families: StorageService.getFamilies().length,
       auditLogs: StorageService.getAuditLogs().length,
-      doctors: StorageService.getItem<any[]>('labmedix_doctor_master_records_v1', []).length,
-      labTests: StorageService.getItem<any[]>('labmedix_diagnostic_test_catalog_v1', []).length,
-      labBookings: StorageService.getItem<any[]>('labmedix_portal_lab_bookings_v1', []).length,
-      appointments: StorageService.getItem<any[]>('labmedix_patient_appointments_v1', []).length,
-      vouchers: StorageService.getItem<any[]>('LABMEDIX_CASH_DESK_VOUCHERS_V1', []).length
+      doctors: StorageService.getItem<any[]>(STORAGE_KEYS.DOCTORS, []).length,
+      labTests: StorageService.getItem<any[]>(STORAGE_KEYS.LAB_TESTS, []).length,
+      labBookings: StorageService.getItem<any[]>(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []).length,
+      appointments: StorageService.getAppointments().length,
+      vouchers: StorageService.getCashDeskVouchers().length,
+      cardDispatches: StorageService.getCardDispatches().length,
+      ngoPartners: StorageService.getNgoPartners().length
     };
     setCollectionStats(stats);
   };

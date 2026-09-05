@@ -1,4 +1,5 @@
 import { StorageService } from './storage';
+import { ApiSyncService } from './apiSyncService';
 
 export interface WebsiteCardTierConfig {
   id: string;
@@ -285,6 +286,7 @@ export class WebsiteService {
         lastUpdatedAt: new Date().toISOString()
       };
       StorageService.setItem(WEBSITE_CMS_STORAGE_KEY, updatedConfig);
+      ApiSyncService.syncKeyToFirestore(WEBSITE_CMS_STORAGE_KEY, updatedConfig).catch(() => {});
       return {
         success: true,
         message: 'Website configuration updated and published live successfully.'
@@ -310,6 +312,7 @@ export class WebsiteService {
 
     try {
       StorageService.setItem(WEBSITE_CMS_STORAGE_KEY, DEFAULT_WEBSITE_CMS_CONFIG);
+      ApiSyncService.syncKeyToFirestore(WEBSITE_CMS_STORAGE_KEY, DEFAULT_WEBSITE_CMS_CONFIG).catch(() => {});
       return {
         success: true,
         message: 'Website CMS reset to default factory graphics and content.'

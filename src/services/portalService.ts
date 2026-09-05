@@ -691,4 +691,28 @@ export class PortalService {
 
     return { success: true, application: app };
   }
+
+  public static deleteCardApplication(
+    applicationId: string,
+    actor: string = 'Super Administrator'
+  ): { success: boolean; error?: string } {
+    const all = this.getCardApplications();
+    const idx = all.findIndex(a => a.id === applicationId || a.trackingId === applicationId);
+    if (idx === -1) return { success: false, error: 'Application not found.' };
+
+    const removed = all.splice(idx, 1)[0];
+    StorageService.setItem(this.CARD_APPLICATIONS_KEY, all);
+
+    // Hard delete in Firestore and record in WAL
+    ApiSyncService.deleteDocument('cardApplications', removed.id).catch(() => {});
+
+    AuditService.log(
+      'CARD_APPLICATION_DELETED',
+      'card',
+      `Card application ${removed.trackingId || removed.applicationNo} for ${removed.fullName} was purged by ${actor}.`,
+      removed.id
+    );
+
+    return { success: true };
+  }
 }

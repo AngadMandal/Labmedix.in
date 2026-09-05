@@ -1,5 +1,7 @@
 
 import { StorageService } from './storage';
+import { ApiSyncService } from './apiSyncService';
+import { AuditService } from './auditService';
 
 export type IntegrationCategory =
   | 'all'
@@ -40,9 +42,8 @@ export interface IntegrationItem {
   packetTrace?: string[];
 }
 
-import { AuditService } from './auditService';
-
-export const STORAGE_KEY_INTEGRATIONS = 'labmedix_integrations_config';
+export const STORAGE_KEY_INTEGRATIONS = 'labmedix_integrations_v4';
+export const LEGACY_STORAGE_KEY_INTEGRATIONS = 'labmedix_integrations_config';
 
 export const CORE_RECOMMENDED_INTEGRATIONS: IntegrationItem[] = [
   // =========================================================================
@@ -295,10 +296,17 @@ export class IntegrationService {
   public static getAllIntegrations(): IntegrationItem[] {
     try {
       const initial = CORE_RECOMMENDED_INTEGRATIONS;
-      const data = StorageService.getItem<IntegrationItem[]>(STORAGE_KEY_INTEGRATIONS, initial);
+      let data = StorageService.getItem<IntegrationItem[]>(STORAGE_KEY_INTEGRATIONS, []);
       if (!Array.isArray(data) || data.length === 0) {
-        StorageService.setItem(STORAGE_KEY_INTEGRATIONS, initial);
-        return initial;
+        // Fallback to legacy key if present
+        const legacy = StorageService.getItem<IntegrationItem[]>(LEGACY_STORAGE_KEY_INTEGRATIONS, []);
+        if (Array.isArray(legacy) && legacy.length > 0) {
+          data = legacy;
+          this.saveIntegrations(data);
+        } else {
+          this.saveIntegrations(initial);
+          return initial;
+        }
       }
       
       const validIds = new Set(CORE_RECOMMENDED_INTEGRATIONS.map(i => i.id));
@@ -318,6 +326,7 @@ export class IntegrationService {
   public static saveIntegrations(integrations: IntegrationItem[]): void {
     try {
       StorageService.setItem(STORAGE_KEY_INTEGRATIONS, integrations);
+      ApiSyncService.syncKeyToFirestore(STORAGE_KEY_INTEGRATIONS, integrations).catch(() => {});
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('integrations-updated', { detail: integrations }));
       }

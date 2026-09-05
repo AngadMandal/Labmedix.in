@@ -58,6 +58,7 @@ export const StaffIDCard: React.FC<StaffIDCardProps> = ({
 
   const roleConfig = ROLE_CONFIGS[user.role] || ROLE_CONFIGS.reception;
   const staffId = user.staffId || `LMDX-STF-${user.id.slice(-3).toUpperCase()}`;
+  const employeeNo = user.employeeNo || `LMDX-EMP-${staffId.replace(/\D/g, '').padStart(3, '0')}`;
   const serialNumber = `SN: ${company.estdYear || '2025'}-${company.name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'LMDX'}-${staffId.replace(/[^0-9]/g, '').padStart(4, '0') || '0101'}`;
 
   const issueDateStr = user.joiningDate || (user.createdAt ? user.createdAt.slice(0, 10) : `${company.estdYear || '2025'}-01-01`);
@@ -67,9 +68,13 @@ export const StaffIDCard: React.FC<StaffIDCardProps> = ({
   const fullAddress = [company.address, company.district, company.state, company.pinCode].filter(Boolean).join(', ');
 
   useEffect(() => {
-    const verifyUrl = buildVerificationUrl(staffId);
-    generateQrDataUrl(verifyUrl, 260).then(setQrUrl);
-  }, [staffId]);
+    if (user.qrCodeDataUrl) {
+      setQrUrl(user.qrCodeDataUrl);
+    } else {
+      const verifyUrl = buildVerificationUrl(staffId);
+      generateQrDataUrl(verifyUrl, 260).then(setQrUrl);
+    }
+  }, [staffId, user.qrCodeDataUrl]);
 
   // 3 Distinct Visual Themes
   const themeStyles = {
@@ -391,7 +396,12 @@ export const StaffIDCard: React.FC<StaffIDCardProps> = ({
             <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between text-[10px] relative z-10">
               {/* Role Clearance Badge & Station info */}
               <div className="space-y-1">
-                <RoleBadge role={user.role} variant="clearance" />
+                <div className="flex items-center justify-between gap-1">
+                  <RoleBadge role={user.role} variant="clearance" />
+                  <span className="text-[8px] font-mono font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-300 dark:border-teal-800">
+                    {employeeNo}
+                  </span>
+                </div>
                 {user.accessZone && (
                   <p className="text-[8px] font-mono text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 truncate">
                     🔒 {user.accessZone}

@@ -3,6 +3,9 @@ import { StorageService } from './storage';
 import { AuditService } from './auditService';
 import { generateUuid } from '../utils/idGenerator';
 import { firestoreService } from './firestoreService';
+import { ApiSyncService } from './apiSyncService';
+import { generateBarcodeDataUrl } from '../utils/barcode';
+import { generateQrDataUrl, buildVerificationUrl } from '../utils/qr';
 
 export class UserService {
   public static getAll(): User[] {
@@ -30,6 +33,15 @@ export class UserService {
     return `LMDX-STF-${String(maxId + 1).padStart(3, '0')}`;
   }
 
+  public static generateEmployeeNo(staffId?: string): string {
+    const baseNum = staffId ? staffId.replace(/\D/g, '').padStart(3, '0') : '';
+    if (baseNum) {
+      return `LMDX-EMP-${baseNum}`;
+    }
+    const users = StorageService.getUsers();
+    return `LMDX-EMP-${String(users.length + 1).padStart(3, '0')}`;
+  }
+
   public static generateSecurePassword(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
     let pass = 'Lmdx@';
@@ -55,6 +67,7 @@ export class UserService {
     accessZone?: string;
     nationalId?: string;
     licenseNo?: string;
+    employeeNo?: string;
     joiningDate?: string;
     expiryDate?: string;
     emergencyContact?: string;
@@ -65,12 +78,23 @@ export class UserService {
     const cleanUsername = (userData.username || '').trim().toLowerCase().replace(/\s+/g, '');
     const cleanEmail = (userData.email || '').trim().toLowerCase().replace(/\s+/g, '');
 
-    // Note: Need to implement a check to ensure email is unique in Firestore.
-    // For now, I will proceed with the Firestore write.
-    
+    const staffId = this.generateStaffId();
+    const employeeNo = userData.employeeNo?.trim() || this.generateEmployeeNo(staffId);
+
+    // Auto-generate scannable Code128 Barcode and Level 'H' QR Code
+    let barcodeDataUrl = '';
+    let qrCodeDataUrl = '';
+    try {
+      barcodeDataUrl = generateBarcodeDataUrl(staffId);
+      qrCodeDataUrl = await generateQrDataUrl(buildVerificationUrl(staffId), 260);
+    } catch (codeErr) {
+      console.warn('Barcode/QR auto generation notice:', codeErr);
+    }
+
     const newUser: User = {
       id: `usr_${generateUuid().slice(0, 8)}`,
-      staffId: this.generateStaffId(), // This might need a central counter
+      staffId,
+      employeeNo,
       username: cleanUsername,
       fullName: userData.fullName.trim(),
       email: cleanEmail,
@@ -93,6 +117,8 @@ export class UserService {
       emergencyContactName: userData.emergencyContactName?.trim() || 'Immediate Family',
       cardThemeWish: userData.cardThemeWish || 'premium_medical',
       cardMaterialWish: userData.cardMaterialWish || 'gloss',
+      barcodeDataUrl: barcodeDataUrl || undefined,
+      qrCodeDataUrl: qrCodeDataUrl || undefined,
       emailSent: false,
       createdAt: new Date().toISOString()
     };
@@ -116,6 +142,11 @@ export class UserService {
       // 2. Sync to Central Cloud Firestore so user can login from mobile, desktop, laptop
       await firestoreService.setDocument('users', newUser.id, newUser);
       AuditService.log('USER_CREATED', 'users', `Created new staff user: ${newUser.fullName} (${newUser.role}) [ID: ${newUser.staffId}]`, newUser.id);
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+      }
+
       return { user: newUser };
     } catch (error) {
       console.error('Failed to create user in Firestore', error);
@@ -126,6 +157,14 @@ export class UserService {
 
   public static async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
     try {
+      // If staffId changed, re-generate barcode & QR
+      if (updates.staffId) {
+        try {
+          updates.barcodeDataUrl = generateBarcodeDataUrl(updates.staffId);
+          updates.qrCodeDataUrl = await generateQrDataUrl(buildVerificationUrl(updates.staffId), 260);
+        } catch {}
+      }
+
       const users = StorageService.getUsers();
       const userIndex = users.findIndex(u => u.id === id);
       if (userIndex !== -1) {
@@ -135,6 +174,11 @@ export class UserService {
 
       await firestoreService.updateDocument('users', id, updates);
       AuditService.log('USER_UPDATED', 'users', `Updated staff account`, id);
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+      }
+
       return users[userIndex] || ({ id, ...updates } as User);
     } catch (error) {
       console.error('Failed to update user in Firestore', error);
@@ -159,6 +203,10 @@ export class UserService {
     }).catch(err => console.warn('Firestore password reset sync error:', err));
 
     AuditService.log('USER_PASSWORD_RESET', 'users', `Super Admin reset credentials for ${user.fullName}`, id);
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+    }
     return true;
   }
 
@@ -192,7 +240,14 @@ export class UserService {
       StorageService.setCurrentUser(updatedCurrent);
     }
 
+    // Sync across all terminals via Firestore
+    firestoreService.updateDocument('users', superAdmin.id, { password: trimmed }).catch(err => console.warn('Firestore superAdmin password sync error:', err));
+
     AuditService.log('SUPER_ADMIN_PASSWORD_UPDATED', 'auth', `Super Admin (${superAdmin.fullName}) updated their sovereign portal password successfully.`, superAdmin.id);
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+    }
     return { success: true };
   }
 
@@ -207,6 +262,10 @@ export class UserService {
     firestoreService.updateDocument('users', id, { pinCode: newPin }).catch(err => console.warn('Firestore PIN sync error:', err));
 
     AuditService.log('USER_PIN_RESET', 'users', `Reset security PIN for ${user.fullName}`, id);
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+    }
     return true;
   }
 
@@ -221,6 +280,10 @@ export class UserService {
     firestoreService.updateDocument('users', id, { status: user.status }).catch(err => console.warn('Firestore toggleStatus sync error:', err));
 
     AuditService.log('USER_STATUS_CHANGED', 'users', `Toggled account status of ${user.fullName} to ${user.status}`, id);
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+    }
     return user;
   }
 
@@ -232,9 +295,13 @@ export class UserService {
     const deleted = users.splice(index, 1)[0];
     StorageService.saveUsers(users);
 
-    firestoreService.deleteDocument('users', id).catch(err => console.warn('Firestore deleteUser sync error:', err));
+    ApiSyncService.deleteDocument('users', id).catch(err => console.warn('Firestore deleteUser sync error:', err));
 
     AuditService.log('USER_DELETED', 'users', `Deleted staff account ${deleted.fullName} (${deleted.staffId || deleted.id})`, id);
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labmedix_data_synced', { detail: { key: 'labmedix_users_v1' } }));
+    }
     return true;
   }
 }

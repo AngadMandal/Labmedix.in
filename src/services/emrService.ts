@@ -73,7 +73,7 @@ export class EMRService {
           updatedAt: now
         };
         encounters[idx] = updated;
-        StorageService.setItem(EMR_STORAGE_KEY, encounters);
+        StorageService.saveEncounters(encounters);
         AuditService.log('EMR_ENCOUNTER_UPDATED', 'clinical', `Updated live clinical encounter & digital Rx ${updated.encounterNo} for Card: ${updated.cardNo || 'N/A'} (Patient: ${updated.patientName})`);
         return updated;
       }
@@ -92,7 +92,7 @@ export class EMRService {
     };
 
     encounters.unshift(newEncounter);
-    StorageService.setItem(EMR_STORAGE_KEY, encounters);
+    StorageService.saveEncounters(encounters);
     AuditService.log('EMR_ENCOUNTER_CREATED', 'clinical', `Created live authentic doctor prescription & EMR encounter ${newEncounter.encounterNo} [Seal: ${securitySeal}] for Card: ${newEncounter.cardNo || 'N/A'} (Patient: ${newEncounter.patientName})`);
     return newEncounter;
   }
@@ -101,7 +101,7 @@ export class EMRService {
     const encounters = this.getAllEncounters();
     const filtered = encounters.filter(e => e.id !== id);
     if (filtered.length === encounters.length) return false;
-    StorageService.setItem(EMR_STORAGE_KEY, filtered);
+    StorageService.saveEncounters(filtered);
     ApiSyncService.deleteDocument('emrEncounters', id).catch(() => {});
     AuditService.log('EMR_ENCOUNTER_DELETED', 'patient', `Deleted EMR record ${id}`);
     return true;
@@ -239,7 +239,7 @@ export class EMRService {
           updatedAt: now
         };
         appointments[idx] = updated;
-        StorageService.setItem(this.APPOINTMENTS_STORAGE_KEY, appointments);
+        StorageService.saveAppointments(appointments);
         AuditService.log('APPOINTMENT_UPDATED', 'clinical', `Updated live appointment ${updated.appointmentNo} for Card: ${updated.cardNo || 'N/A'} (${updated.patientName})`);
         return updated;
       }
@@ -279,7 +279,7 @@ export class EMRService {
     };
 
     appointments.unshift(newApt);
-    StorageService.setItem(this.APPOINTMENTS_STORAGE_KEY, appointments);
+    StorageService.saveAppointments(appointments);
     AuditService.log('APPOINTMENT_CREATED', 'clinical', `Scheduled live doctor consultation ${newApt.appointmentNo} [Seal: ${securitySeal}] for Card: ${newApt.cardNo || 'N/A'} (${newApt.patientName})`);
     return newApt;
   }
@@ -296,7 +296,7 @@ export class EMRService {
     apt.doctorNotes = notes || 'Doctor Slot Confirmed & Approved.';
     apt.updatedAt = new Date().toISOString();
 
-    StorageService.setItem(this.APPOINTMENTS_STORAGE_KEY, appointments);
+    StorageService.saveAppointments(appointments);
     AuditService.log('APPOINTMENT_CONFIRMED', 'patient', `Doctor confirmed appointment ${apt.appointmentNo} for ${apt.patientName}`);
     return apt;
   }
@@ -309,8 +309,21 @@ export class EMRService {
     apt.status = status;
     apt.updatedAt = new Date().toISOString();
 
-    StorageService.setItem(this.APPOINTMENTS_STORAGE_KEY, appointments);
+    StorageService.saveAppointments(appointments);
     AuditService.log('APPOINTMENT_UPDATED', 'patient', `Updated appointment ${apt.appointmentNo} status to ${status}`);
     return apt;
+  }
+
+  public static deleteAppointment(id: string): boolean {
+    const appointments = this.getAllAppointments();
+    const idx = appointments.findIndex(a => a.id === id || a.appointmentNo === id);
+    if (idx === -1) return false;
+
+    const removed = appointments.splice(idx, 1)[0];
+    StorageService.saveAppointments(appointments);
+    ApiSyncService.deleteDocument('appointments', removed.id).catch(() => {});
+
+    AuditService.log('APPOINTMENT_DELETED', 'clinical', `Cancelled and deleted appointment ${removed.appointmentNo} for ${removed.patientName}`);
+    return true;
   }
 }

@@ -1,6 +1,7 @@
 import { Patient, HealthCard, Wallet, FamilyGroup } from '../types';
 import { StorageService } from './storage';
 import { AuditService } from './auditService';
+import { ApiSyncService } from './apiSyncService';
 import { generatePatientId, generateCardNumber, generateVerificationCode, generateCardCvv, generateUuid, generateFamilyId } from '../utils/idGenerator';
 import { DEFAULT_CARD_DESIGN } from '../constants/defaults';
 
@@ -119,6 +120,19 @@ export class PatientService {
     }
 
     const patients = StorageService.getPatients() || [];
+
+    // Duplicate check: Prevent double-click registration within 10 seconds
+    const tenSecondsAgo = Date.now() - 10000;
+    const cleanMobileDigits = input.mobile.replace(/\D/g, '');
+    const existingDuplicate = patients.find(p => 
+      p.fullName.trim().toLowerCase() === input.fullName.trim().toLowerCase() && 
+      p.mobile.replace(/\D/g, '') === cleanMobileDigits &&
+      new Date(p.createdAt).getTime() > tenSecondsAgo
+    );
+    if (existingDuplicate) {
+      throw new Error(`Duplicate Registration Blocked: Patient '${input.fullName}' was already registered just now with ID ${existingDuplicate.id}.`);
+    }
+
     const cards = StorageService.getCards() || [];
     const wallets = StorageService.getWallets() || [];
     const memberships = StorageService.getMemberships() || [];
@@ -140,6 +154,7 @@ export class PatientService {
       totalCredits: depositAmount,
       totalDebits: 0,
       status: 'active',
+      companyId: 'LABMEDIX-MAIN-CLINIC',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -487,6 +502,21 @@ export class PatientService {
     StorageService.savePatients(patients);
 
     AuditService.log('PATIENT_RESTORED', 'patient', `Restored soft-deleted patient ${patients[index].fullName}`, id);
+    return true;
+  }
+
+  public static permanentDelete(id: string): boolean {
+    const patients = StorageService.getPatients();
+    const index = patients.findIndex(p => p.id === id);
+    if (index === -1) return false;
+
+    const patient = patients.splice(index, 1)[0];
+    StorageService.savePatients(patients);
+
+    // Hard delete in Firestore and record in WAL
+    ApiSyncService.deleteDocument('patients', id).catch(() => {});
+
+    AuditService.log('PATIENT_PERMANENTLY_PURGED', 'patient', `Permanently purged patient ${patient.fullName} (ID: ${id}) from all records`, id);
     return true;
   }
 }

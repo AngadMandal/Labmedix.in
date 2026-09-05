@@ -91,6 +91,23 @@ export const DoctorMasterPage: React.FC = () => {
     refreshList();
   };
 
+  const handleDeleteDoctor = (doc: DoctorMasterItem) => {
+    if (!isSuperAdmin) {
+      showToast('error', 'Access Restricted', 'Only Super Administrator can delete doctor master records.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to permanently delete Dr. ${doc.name} (${doc.doctorCode}) from Firestore and all devices?`)) {
+      return;
+    }
+    const res = DoctorMasterService.deleteDoctor(doc.id, 'super_admin');
+    if (res.success) {
+      showToast('success', 'Doctor Expunged', `${doc.name} permanently removed across all devices.`);
+      refreshList();
+    } else {
+      showToast('error', 'Delete Failed', res.error || 'Failed to delete doctor.');
+    }
+  };
+
   // Filtered Doctors
   const filteredDoctors = useMemo(() => {
     return doctors.filter(doc => {
@@ -384,6 +401,19 @@ export const DoctorMasterPage: React.FC = () => {
                       onClick={() => handleToggleStatus(doc)}
                     >
                       <Lock className="w-4 h-4 text-slate-400 hover:text-amber-400" />
+                    </Button>
+                  )}
+
+                  {/* Delete Doctor */}
+                  {isSuperAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Permanently Delete Doctor (Expunge from Firestore & WAL)"
+                      className="hover:bg-rose-500/10 text-rose-500 hover:text-rose-600"
+                      onClick={() => handleDeleteDoctor(doc)}
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   )}
                 </div>

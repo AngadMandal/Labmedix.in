@@ -2,6 +2,7 @@ import { User, Role } from '../types';
 import { StorageService } from './storage';
 import { AuditService } from './auditService';
 import { firestoreService } from './firestoreService';
+import { ApiSyncService } from './apiSyncService';
 
 interface FailedLoginRecord {
   count: number;
@@ -147,14 +148,23 @@ export class AuthService {
     } else if (cleanUname === 'admin' || cleanUname === 'ops@labmedix.org') {
       user = users.find(u => (u.role === 'admin' || (u.username && u.username.trim().toLowerCase().replace(/\s+/g, '') === 'admin')) && u.username !== 'superadmin') || users.find(u => u.role === 'admin');
     } else {
-      // 1. Match on normalized username, email, staffId, id, or role
+      // 1. Match on normalized username, email, staffId, employeeNo, id, phone, or role
       user = users.find(u => {
         const uName = (u.username || '').trim().toLowerCase().replace(/\s+/g, '');
         const uEmail = (u.email || '').trim().toLowerCase().replace(/\s+/g, '');
         const uStaff = (u.staffId || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uEmp = (u.employeeNo || '').trim().toLowerCase().replace(/\s+/g, '');
         const uId = (u.id || '').trim().toLowerCase().replace(/\s+/g, '');
+        const uPhone = (u.phone || '').trim().replace(/\D/g, '');
         const uRole = (u.role || '').trim().toLowerCase().replace(/\s+/g, '');
-        return uName === cleanUname || uEmail === cleanUname || uStaff === cleanUname || uId === cleanUname || uRole === cleanUname;
+        const cleanDigits = cleanUname.replace(/\D/g, '');
+        return uName === cleanUname || 
+               uEmail === cleanUname || 
+               uStaff === cleanUname || 
+               uEmp === cleanUname || 
+               uId === cleanUname || 
+               (cleanDigits.length >= 7 && uPhone.includes(cleanDigits)) ||
+               uRole === cleanUname;
       });
     }
 
@@ -163,6 +173,8 @@ export class AuthService {
       const inferredRole: Role = 
         cleanUname.includes('doc') ? 'doctor' :
         cleanUname.includes('rec') ? 'reception' :
+        cleanUname.includes('cash') || cleanUname.includes('bill') ? 'cashier' :
+        cleanUname.includes('phleb') || cleanUname.includes('sample') || cleanUname.includes('blood') ? 'phlebotomist' :
         cleanUname.includes('lab') ? 'lab_staff' :
         cleanUname.includes('mgr') || cleanUname.includes('man') ? 'manager' :
         cleanUname.includes('card') ? 'card_operator' :
@@ -257,13 +269,22 @@ export class AuthService {
         localUsers.forEach(u => mergedMap.set(u.id, u));
         remoteUsers.forEach(u => mergedMap.set(u.id, { ...mergedMap.get(u.id), ...u }));
         const mergedList = Array.from(mergedMap.values());
-        StorageService.saveUsers(mergedList);
+        StorageService.setItem('labmedix_users_v1', mergedList);
       }
+
+      // 2. Fetch Central Company Profile for instant organization context
+      const remoteCompany = await ApiSyncService.fetchCompanyProfile().catch(() => null);
+      if (remoteCompany) {
+        StorageService.setItem('labmedix_company_profile_v1', remoteCompany);
+      }
+
+      // 3. Guarantee real-time listeners are active across all modules
+      ApiSyncService.initLiveCloudListeners();
     } catch (e) {
       console.warn('Central Firestore fetch on login warning (falling back to local cache):', e);
     }
 
-    // 2. Perform strict credential validation
+    // 4. Perform strict credential validation
     return this.validateCredentials(username, passwordOrPin);
   }
 

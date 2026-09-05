@@ -10,7 +10,9 @@ import {
   Megaphone,
   CreditCard,
   Eye,
-  Lock
+  Lock,
+  Receipt,
+  Droplets
 } from 'lucide-react';
 
 interface RoleBadgeProps {
@@ -43,8 +45,12 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
         return <Briefcase className={iconClass} />;
       case 'reception':
         return <UserCheck className={iconClass} />;
+      case 'cashier':
+        return <Receipt className={iconClass} />;
       case 'lab_staff':
         return <Stethoscope className={iconClass} />;
+      case 'phlebotomist':
+        return <Droplets className={iconClass} />;
       case 'marketing':
         return <Megaphone className={iconClass} />;
       case 'card_operator':
@@ -67,8 +73,12 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
         return 'LEVEL 4 BRANCH OPS';
       case 'reception':
         return 'LEVEL 3 FRONT DESK';
+      case 'cashier':
+        return 'LEVEL 3 CASH DESK & BILLING';
       case 'lab_staff':
         return 'LEVEL 3 DIAGNOSTIC LAB';
+      case 'phlebotomist':
+        return 'LEVEL 3 PHLEBOTOMY & SAMPLING';
       case 'card_operator':
         return 'LEVEL 3 CR80 STUDIO';
       case 'marketing':
@@ -132,6 +142,14 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
       ribbonGradient: 'linear-gradient(90deg, #064E3B 0%, #059669 50%, #064E3B 100%)',
       clearanceBg: 'bg-emerald-900/90 text-emerald-200 border-emerald-400/50'
     },
+    cashier: {
+      bg: 'bg-amber-50 dark:bg-amber-950/60',
+      text: 'text-amber-800 dark:text-amber-200',
+      border: 'border-amber-300 dark:border-amber-700',
+      glow: 'shadow-amber-500/20',
+      ribbonGradient: 'linear-gradient(90deg, #78350F 0%, #B45309 50%, #78350F 100%)',
+      clearanceBg: 'bg-amber-900/90 text-amber-200 border-amber-400/50'
+    },
     lab_staff: {
       bg: 'bg-teal-50 dark:bg-teal-950/60',
       text: 'text-teal-800 dark:text-teal-200',
@@ -139,6 +157,14 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
       glow: 'shadow-teal-500/20',
       ribbonGradient: 'linear-gradient(90deg, #134E4A 0%, #0D9488 50%, #134E4A 100%)',
       clearanceBg: 'bg-teal-900/90 text-teal-200 border-teal-400/50'
+    },
+    phlebotomist: {
+      bg: 'bg-rose-50 dark:bg-rose-950/60',
+      text: 'text-rose-800 dark:text-rose-200',
+      border: 'border-rose-300 dark:border-rose-700',
+      glow: 'shadow-rose-500/20',
+      ribbonGradient: 'linear-gradient(90deg, #881337 0%, #BE123C 50%, #881337 100%)',
+      clearanceBg: 'bg-rose-900/90 text-rose-200 border-rose-400/50'
     },
     marketing: {
       bg: 'bg-amber-50 dark:bg-amber-950/60',

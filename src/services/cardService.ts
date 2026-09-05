@@ -3,6 +3,7 @@ import { StorageService } from './storage';
 import { AuditService } from './auditService';
 import { generateCardNumber, generateVerificationCode, generateCardCvv, generateUuid } from '../utils/idGenerator';
 import { maskCardNumber, maskPatientId } from '../utils/formatters';
+import { ApiSyncService } from './apiSyncService';
 
 export class CardService {
 
@@ -153,6 +154,9 @@ export class CardService {
       // 1. Hard Permanent Delete: Remove completely across all storage records
       cards.splice(cardIndex, 1);
       StorageService.saveCards(cards);
+
+      // Cloud Firestore Permanent Deletion with Zero-Data-Loss WAL Protection
+      ApiSyncService.deleteDocument('cards', card.id).catch(() => {});
 
       // Unlink active healthCardId from Patient Master Record
       const patients = StorageService.getPatients();

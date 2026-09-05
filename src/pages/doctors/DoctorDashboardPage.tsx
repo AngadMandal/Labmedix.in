@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { StorageService } from '../../services/storage';
 import { DoctorMasterService, DoctorMasterItem } from '../../services/doctorMasterService';
+import { EMRService } from '../../services/emrService';
 import { Button } from '../../components/common/Button';
 import {
   Stethoscope,
@@ -73,6 +74,24 @@ export const DoctorDashboardPage: React.FC = () => {
     }
   ]);
 
+  const loadQueue = useCallback(() => {
+    const docName = doctorProfile?.name || currentUser?.fullName || '';
+    const liveQueue = EMRService.getWaitingQueue(docName);
+    if (liveQueue.length > 0) {
+      setPatientQueue(liveQueue.map(item => ({
+        id: item.patientId,
+        tokenNo: `DR-${String(item.tokenNo).slice(-2)}`,
+        appointmentTime: item.arrivalTime,
+        patientName: item.patientName,
+        ageGender: `${item.age} Y / ${item.gender}`,
+        type: item.chiefComplaint || 'Clinical Consultation',
+        mode: item.chiefComplaint?.includes('Tele') ? 'Telemedicine' : 'OPD',
+        waitingTime: item.status === 'in_consultation' ? 'Now' : 'Waiting',
+        status: item.status === 'in_consultation' ? 'IN_CONSULTATION' : item.status === 'completed' ? 'COMPLETED' : 'WAITING'
+      })));
+    }
+  }, [doctorProfile?.name, currentUser?.fullName]);
+
   useEffect(() => {
     if (currentUser) {
       const allDocs = DoctorMasterService.getAllDoctors();
@@ -117,10 +136,19 @@ export const DoctorDashboardPage: React.FC = () => {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    loadQueue();
+    const handleSync = () => {
+      loadQueue();
+    };
+    window.addEventListener('labmedix_data_synced', handleSync);
+    return () => window.removeEventListener('labmedix_data_synced', handleSync);
+  }, [loadQueue]);
+
   const handleStartConsultation = (patientId: string) => {
     setPatientQueue(prev => prev.map(p => p.id === patientId ? { ...p, status: 'IN_CONSULTATION' } : p));
     showToast('success', 'Consultation Started', 'Opening digital EMR & Prescription workspace.');
-    navigate('/emr');
+    navigate(`/emr?patientId=${patientId}`);
   };
 
   const handleCompleteConsultation = (patientId: string) => {

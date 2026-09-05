@@ -4,7 +4,9 @@ export type Role =
   | 'doctor'
   | 'manager'
   | 'reception'
+  | 'cashier'
   | 'lab_staff'
+  | 'phlebotomist'
   | 'marketing'
   | 'card_operator'
   | 'read_only';
@@ -50,6 +52,7 @@ export type Permission =
 export interface User {
   id: string;
   staffId?: string;
+  employeeNo?: string;
   username: string;
   fullName: string;
   email: string;
@@ -75,6 +78,8 @@ export interface User {
   emergencyContactName?: string;
   cardThemeWish?: string;
   cardMaterialWish?: string;
+  barcodeDataUrl?: string;
+  qrCodeDataUrl?: string;
   customPermissions?: Permission[];
   allowedModules?: string[];
   emailSent?: boolean;
@@ -353,6 +358,7 @@ export interface Wallet {
   totalDebits: number;
   totalDue?: number;
   status: 'active' | 'frozen';
+  companyId?: string;
   createdAt: string;
   updatedAt: string;
 }

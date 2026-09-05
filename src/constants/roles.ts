@@ -22,12 +22,12 @@ export const ROLE_CONFIGS: Record<Role, RoleConfig> = {
     badgeColor: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800',
     description: 'Full operational control over patients, cards, memberships, wallets, reports, EMR scheduling, and staff users.',
     permissions: [
-      'patient_create', 'patient_read', 'patient_delete',
+      'patient_create', 'patient_read', 'patient_update', 'patient_delete',
       'card_create', 'card_read', 'card_print', 'card_export', 'card_status_change', 'card_renew', 'card_replace',
       'wallet_read', 'wallet_credit', 'wallet_debit', 'wallet_adjust',
       'membership_manage', 'family_manage', 'backup_manage', 'settings_manage', 'audit_view',
       'reports_view', 'catalog_manage', 'package_manage',
-      'ngo_manage', 'ngo_view', 'camp_manage', 'grant_manage'
+      'ngo_manage', 'ngo_view', 'camp_manage', 'grant_manage', 'users_manage'
     ]
   },
   doctor: {
@@ -64,6 +64,15 @@ export const ROLE_CONFIGS: Record<Role, RoleConfig> = {
       'family_manage'
     ]
   },
+  cashier: {
+    role: 'cashier',
+    name: 'Cashier / Billing Specialist',
+    badgeColor: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800',
+    description: 'Manages OPD billing, cash desk POS deductions, wallet top-ups, cash desk vouchers, and daily revenue reconciliation.',
+    permissions: [
+      'patient_read', 'card_read', 'wallet_read', 'wallet_credit', 'wallet_debit', 'voucher_redeem', 'reports_view'
+    ]
+  },
   lab_staff: {
     role: 'lab_staff',
     name: 'Laboratory Technician',
@@ -71,6 +80,15 @@ export const ROLE_CONFIGS: Record<Role, RoleConfig> = {
     description: 'Verifies patient card membership for laboratory diagnostic testing discounts.',
     permissions: [
       'patient_read', 'card_read', 'wallet_read', 'wallet_debit', 'catalog_manage'
+    ]
+  },
+  phlebotomist: {
+    role: 'phlebotomist',
+    name: 'Phlebotomist / Specimen Collector',
+    badgeColor: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800',
+    description: 'Specialist in blood and clinical specimen collection, barcode labeling, sample accessioning, and test routing.',
+    permissions: [
+      'patient_read', 'card_read', 'catalog_manage'
     ]
   },
   marketing: {
@@ -325,13 +343,15 @@ export const ROLE_DEFAULT_MODULES: Record<Role, SystemModuleKey[]> = {
   ],
   admin: [
     'dashboard', 'patients', 'doctor_master', 'test_master', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch',
-    'memberships', 'families', 'wallet', 'reports', 'integrations',
+    'memberships', 'families', 'wallet', 'reports', 'users', 'integrations',
     'activity', 'backup', 'settings'
   ],
   doctor: ['emr', 'dashboard', 'patients', 'ngo_welfare', 'cards', 'wallet'],
   reception: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch', 'wallet', 'families'],
+  cashier: ['dashboard', 'patients', 'wallet', 'cash_desk_vouchers', 'cards', 'reports'],
   manager: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_studio', 'print_sheet', 'card_dispatch', 'memberships', 'families', 'wallet', 'reports', 'activity'],
   lab_staff: ['dashboard', 'patients', 'cards', 'wallet', 'test_master', 'ngo_welfare'],
+  phlebotomist: ['dashboard', 'patients', 'cards', 'test_master'],
   marketing: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_dispatch'],
   card_operator: ['dashboard', 'patients', 'cards', 'card_studio', 'print_sheet', 'card_dispatch', 'ngo_welfare'],
   read_only: ['dashboard', 'patients', 'ngo_welfare', 'cards', 'card_dispatch', 'wallet', 'activity']

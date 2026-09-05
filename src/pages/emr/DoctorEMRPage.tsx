@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { StorageService } from '../../services/storage';
 import { EMRService, WaitingQueueItem } from '../../services/emrService';
 import { ClinicalAIService, AIMedicineSuggestion, AILabTestSuggestion, AIDiagnosisProtocol } from '../../services/clinicalAIService';
@@ -127,17 +128,29 @@ export const DoctorEMRPage: React.FC = () => {
     return users.filter(u => u.role === 'doctor');
   }, [users]);
 
+  const [searchParams] = useSearchParams();
+  const queryPatientId = searchParams.get('patientId');
+
   const [selectedPatientId, setSelectedPatientId] = useState<string>(() => {
+    if (queryPatientId && patients.some(p => p.id === queryPatientId)) {
+      return queryPatientId;
+    }
     const initialQueue = EMRService.getWaitingQueue(activeDoctorName);
     return initialQueue[0]?.patientId || patients[0]?.id || '';
   });
   const [patientSearchTerm, setPatientSearchTerm] = useState<string>('');
 
+  useEffect(() => {
+    if (queryPatientId && queryPatientId !== selectedPatientId) {
+      setSelectedPatientId(queryPatientId);
+    }
+  }, [queryPatientId]);
+
   // Auto-sync Doctor-Specific Queue and Appointments whenever Active Doctor switches
   useEffect(() => {
     const queue = EMRService.getWaitingQueue(activeDoctorName);
     setWaitingQueue(queue);
-    if (queue.length > 0 && !queue.some(q => q.patientId === selectedPatientId)) {
+    if (!queryPatientId && queue.length > 0 && !queue.some(q => q.patientId === selectedPatientId)) {
       setSelectedPatientId(queue[0].patientId);
     }
 

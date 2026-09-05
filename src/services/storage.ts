@@ -18,7 +18,9 @@ import {
   CharityGrant,
   NgoFundTransaction,
   CardDispatchRecord,
-  CardDispatchBatch
+  CardDispatchBatch,
+  PatientAppointment,
+  ClinicalEncounter
 } from '../types';
 import { DEFAULT_COMPANY_PROFILE, DEFAULT_CARD_DESIGN } from '../constants/defaults';
 import { DEFAULT_MEMBERSHIPS } from '../constants/memberships';
@@ -34,6 +36,7 @@ import { GoogleDriveService } from './googleDriveService';
 import { getGoogleAccessToken } from './googleAuth';
 import { ApiSyncService } from './apiSyncService';
 import { FirestoreBackupService } from './firestoreBackupService';
+import { generateBarcodeDataUrl } from '../utils/barcode';
 
 export const STORAGE_KEYS = {
   USERS: 'labmedix_users_v1',
@@ -80,6 +83,7 @@ const INITIAL_USERS: User[] = [
   {
     id: 'usr_super_admin',
     staffId: 'LMDX-STF-001',
+    employeeNo: 'LMDX-EMP-001',
     username: 'superadmin',
     fullName: 'Dr. Labmedix Super Admin',
     email: 'admin@labmedix.org',
@@ -99,9 +103,199 @@ const INITIAL_USERS: User[] = [
     cardMaterialWish: 'gold_foil',
     status: 'active',
     pinCode: 'LabMedix@2026Root#',
+    password: 'LabMedix@2026Root#',
     joiningDate: '2025-01-01',
     expiryDate: '2028-12-31',
     createdAt: '2025-01-01T00:00:00.000Z'
+  },
+  {
+    id: 'usr_admin_ops',
+    staffId: 'LMDX-STF-002',
+    employeeNo: 'LMDX-EMP-002',
+    username: 'admin',
+    fullName: 'Ananya Roy',
+    email: 'ops@labmedix.org',
+    role: 'admin',
+    designation: 'Senior Clinical Operations Admin',
+    photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'A+',
+    phone: '+91 98300 00002',
+    workPhone: 'EXT-102 (Operations)',
+    department: 'Clinical Operations Administration',
+    accessZone: 'Zone A: All Operational Modules & Staff Directory',
+    nationalId: 'UID-3421-8890-4411',
+    emergencyContact: '9830099998',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'premium_medical',
+    cardMaterialWish: 'gloss',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-01-15',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-01-15T00:00:00.000Z'
+  },
+  {
+    id: 'usr_reception_desk',
+    staffId: 'LMDX-STF-003',
+    employeeNo: 'LMDX-EMP-003',
+    username: 'reception',
+    fullName: 'Priya Sharma',
+    email: 'reception@labmedix.org',
+    role: 'reception',
+    designation: 'Senior Patient Desk Executive',
+    photoUrl: 'https://images.unsplash.com/photo-1594824813586-53d7117df568?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'B+',
+    phone: '+91 98300 00003',
+    workPhone: 'EXT-103 (Front Desk)',
+    department: 'Front Desk & Patient Intake',
+    accessZone: 'Zone C: Reception, Patients & Card Issue Desk',
+    nationalId: 'UID-5541-1120-7788',
+    emergencyContact: '9830099997',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'premium_medical',
+    cardMaterialWish: 'gloss',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-02-01',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-02-01T00:00:00.000Z'
+  },
+  {
+    id: 'usr_cashier_desk',
+    staffId: 'LMDX-STF-004',
+    employeeNo: 'LMDX-EMP-004',
+    username: 'cashier',
+    fullName: 'Rahul Verma',
+    email: 'cashier@labmedix.org',
+    role: 'cashier',
+    designation: 'Senior Cash Desk & Billing Specialist',
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'O+',
+    phone: '+91 98300 00004',
+    workPhone: 'EXT-104 (Cash Desk)',
+    department: 'Cash Desk & Revenue Services',
+    accessZone: 'Zone B: Billing, Wallet & Cash POS Desk',
+    nationalId: 'UID-7761-4433-2211',
+    emergencyContact: '9830099996',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'premium_medical',
+    cardMaterialWish: 'gloss',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-02-10',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-02-10T00:00:00.000Z'
+  },
+  {
+    id: 'usr_lab_technician',
+    staffId: 'LMDX-STF-005',
+    employeeNo: 'LMDX-EMP-005',
+    username: 'lab_staff',
+    fullName: 'Aniket Roy',
+    email: 'lab@labmedix.org',
+    role: 'lab_staff',
+    designation: 'Chief Diagnostic Lab Technician',
+    photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'AB+',
+    phone: '+91 98300 00005',
+    workPhone: 'EXT-105 (Diagnostic Lab)',
+    department: 'Diagnostic Pathology & Testing',
+    accessZone: 'Zone D: Diagnostic Lab & Equipment Suite',
+    nationalId: 'UID-9988-1234-5678',
+    emergencyContact: '9830099995',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'premium_medical',
+    cardMaterialWish: 'gloss',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-02-15',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-02-15T00:00:00.000Z'
+  },
+  {
+    id: 'usr_phlebotomist_specimen',
+    staffId: 'LMDX-STF-006',
+    employeeNo: 'LMDX-EMP-006',
+    username: 'phlebotomist',
+    fullName: 'Sunita Das',
+    email: 'phlebotomy@labmedix.org',
+    role: 'phlebotomist',
+    designation: 'Senior Phlebotomist & Specimen Specialist',
+    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'B+',
+    phone: '+91 98300 00006',
+    workPhone: 'EXT-106 (Blood Collection)',
+    department: 'Phlebotomy & Sample Accessioning',
+    accessZone: 'Zone D: Sample Collection & Storage',
+    nationalId: 'UID-4433-8822-9911',
+    emergencyContact: '9830099994',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'premium_medical',
+    cardMaterialWish: 'gloss',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-02-20',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-02-20T00:00:00.000Z'
+  },
+  {
+    id: 'usr_manager_ops',
+    staffId: 'LMDX-STF-007',
+    employeeNo: 'LMDX-EMP-007',
+    username: 'manager',
+    fullName: 'Vikram Mehta',
+    email: 'manager@labmedix.org',
+    role: 'manager',
+    designation: 'Branch General Operations Manager',
+    photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'O-',
+    phone: '+91 98300 00007',
+    workPhone: 'EXT-107 (Manager)',
+    department: 'Branch General Management',
+    accessZone: 'Zone A: Full Branch Clearance',
+    nationalId: 'UID-2233-4455-6677',
+    emergencyContact: '9830099993',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'executive_secure',
+    cardMaterialWish: 'matte',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-01-10',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-01-10T00:00:00.000Z'
+  },
+  {
+    id: 'usr_card_operator_studio',
+    staffId: 'LMDX-STF-008',
+    employeeNo: 'LMDX-EMP-008',
+    username: 'card_operator',
+    fullName: 'Sanjay Ghosh',
+    email: 'cards@labmedix.org',
+    role: 'card_operator',
+    designation: 'CR80 PVC Card Specialist & Dispatch Lead',
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+    bloodGroup: 'A-',
+    phone: '+91 98300 00008',
+    workPhone: 'EXT-108 (Card Studio)',
+    department: 'PVC Card Production & Dispatch',
+    accessZone: 'Zone C: Card Studio, Lamination & Dispatch',
+    nationalId: 'UID-1122-3344-5566',
+    emergencyContact: '9830099992',
+    emergencyContactName: 'Family',
+    cardThemeWish: 'modern_healthcare',
+    cardMaterialWish: 'gloss',
+    status: 'active',
+    pinCode: '1234',
+    password: 'Lmdx@2026!',
+    joiningDate: '2025-02-05',
+    expiryDate: '2028-12-31',
+    createdAt: '2025-02-05T00:00:00.000Z'
   }
 ];
 
@@ -657,8 +851,11 @@ export class StorageService {
         cloudPharmacyOrders,
         cloudVouchers,
         cloudDispatches,
+        cloudCardDispatches,
+        cloudCardDispatchBatches,
         cloudSnapshots,
         cloudCompany,
+        cloudVoucherSettings,
         cloudNgoPartners,
         cloudHealthCamps,
         cloudCampAttendees,
@@ -683,8 +880,11 @@ export class StorageService {
         ApiSyncService.fetchCollection<any>('pharmacyOrders').catch(() => []),
         ApiSyncService.fetchCollection<any>('vouchers').catch(() => []),
         ApiSyncService.fetchCollection<SampleDispatchRecord>('sampleDispatches').catch(() => []),
+        ApiSyncService.fetchCollection<CardDispatchRecord>('cardDispatches').catch(() => []),
+        ApiSyncService.fetchCollection<CardDispatchBatch>('cardDispatchBatches').catch(() => []),
         ApiSyncService.fetchCollection<SnapshotRecord>('snapshots').catch(() => []),
         ApiSyncService.fetchDocument<CompanyProfile>('settings/companyProfile').catch(() => null),
+        ApiSyncService.fetchDocument<any>('settings/voucherSettings').catch(() => null),
         ApiSyncService.fetchCollection<NgoPartner>('ngoPartners').catch(() => []),
         ApiSyncService.fetchCollection<HealthCamp>('healthCamps').catch(() => []),
         ApiSyncService.fetchCollection<CampAttendee>('campAttendees').catch(() => []),
@@ -718,6 +918,8 @@ export class StorageService {
       syncEntity(cloudPharmacyOrders, STORAGE_KEYS.PORTAL_PHARMACY_ORDERS);
       syncEntity(cloudVouchers, STORAGE_KEYS.CASH_DESK_VOUCHERS);
       syncEntity(cloudDispatches, STORAGE_KEYS.SAMPLE_DISPATCHES);
+      syncEntity(cloudCardDispatches, STORAGE_KEYS.CARD_DISPATCHES);
+      syncEntity(cloudCardDispatchBatches, STORAGE_KEYS.CARD_DISPATCH_BATCHES);
       syncEntity(cloudSnapshots, STORAGE_KEYS.SNAPSHOTS);
       syncEntity(cloudNgoPartners, STORAGE_KEYS.NGO_PARTNERS);
       syncEntity(cloudHealthCamps, STORAGE_KEYS.HEALTH_CAMPS);
@@ -725,15 +927,21 @@ export class StorageService {
       syncEntity(cloudCharityGrants, STORAGE_KEYS.CHARITY_GRANTS);
       syncEntity(cloudNgoTxns, STORAGE_KEYS.NGO_FUND_TRANSACTIONS);
 
+      if (cloudVoucherSettings) {
+        StorageService.updateCacheAndNotify(STORAGE_KEYS.VOUCHER_SETTINGS, cloudVoucherSettings);
+      }
+
       // Seed initial records to Firestore if remote cloud collections are currently empty
       if (cloudPatients.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PATIENTS, StorageService.getPatients()).catch(() => {});
       if (cloudCards.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARDS, StorageService.getCards()).catch(() => {});
       if (cloudMemberships.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.MEMBERSHIPS, StorageService.getMemberships()).catch(() => {});
-      if (cloudDoctors.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTORS, StorageService.getItem(STORAGE_KEYS.DOCTORS, [])).catch(() => {});
-      if (cloudLabTests.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.LAB_TESTS, StorageService.getItem(STORAGE_KEYS.LAB_TESTS, [])).catch(() => {});
-      if (cloudHealthPackages.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_PACKAGES, StorageService.getItem(STORAGE_KEYS.HEALTH_PACKAGES, [])).catch(() => {});
+      if (cloudDoctors.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.DOCTORS, StorageService.getDoctors()).catch(() => {});
+      if (cloudLabTests.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.LAB_TESTS, StorageService.getLabTests()).catch(() => {});
+      if (cloudHealthPackages.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_PACKAGES, StorageService.getHealthPackages()).catch(() => {});
       if (cloudWallets.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.WALLETS, StorageService.getWallets()).catch(() => {});
       if (cloudTxns.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.TRANSACTIONS, StorageService.getTransactions()).catch(() => {});
+      if (cloudCardDispatches.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARD_DISPATCHES, StorageService.getCardDispatches()).catch(() => {});
+      if (cloudCardDispatchBatches.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARD_DISPATCH_BATCHES, StorageService.getCardDispatchBatches()).catch(() => {});
       if (cloudNgoPartners.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.NGO_PARTNERS, StorageService.getNgoPartners()).catch(() => {});
       if (cloudHealthCamps.length === 0) ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.HEALTH_CAMPS, StorageService.getHealthCamps()).catch(() => {});
 
@@ -771,7 +979,23 @@ export class StorageService {
     const list = this.getItem<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
     const demoIdsToExclude = ['usr_admin', 'usr_doctor', 'usr_reception', 'usr_lab_staff', 'usr_manager', 'usr_card_operator', 'usr_marketing', 'usr_read_only'];
     const filtered = list.filter(u => !demoIdsToExclude.includes(u.id));
-    if (filtered.length !== list.length) {
+    
+    // Auto-heal / Populate employeeNo and barcodeDataUrl for any staff record missing them
+    let hasUpdates = false;
+    filtered.forEach(u => {
+      if (!u.employeeNo && u.staffId) {
+        u.employeeNo = `LMDX-EMP-${u.staffId.replace(/\D/g, '').padStart(3, '0')}`;
+        hasUpdates = true;
+      }
+      if (!u.barcodeDataUrl && u.staffId) {
+        try {
+          u.barcodeDataUrl = generateBarcodeDataUrl(u.staffId);
+          hasUpdates = true;
+        } catch {}
+      }
+    });
+
+    if (hasUpdates || filtered.length !== list.length) {
       this.setItem(STORAGE_KEYS.USERS, filtered);
     }
     return filtered.length > 0 ? filtered : INITIAL_USERS;
@@ -996,6 +1220,91 @@ export class StorageService {
   public static saveCardDispatchBatches(batches: CardDispatchBatch[]): void {
     this.setItem(STORAGE_KEYS.CARD_DISPATCH_BATCHES, batches);
     ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.CARD_DISPATCH_BATCHES, batches).catch(() => { });
+  }
+
+  // ── Appointments & OPD Scheduling ──
+  public static getAppointments(): PatientAppointment[] {
+    return this.getItem<PatientAppointment[]>(STORAGE_KEYS.APPOINTMENTS, []);
+  }
+
+  public static saveAppointments(appointments: PatientAppointment[]): void {
+    this.setItem(STORAGE_KEYS.APPOINTMENTS, appointments);
+    ApiSyncService.syncAppointments(appointments).catch(() => { });
+  }
+
+  // ── Clinical EMR Encounters & Prescriptions ──
+  public static getEncounters(): ClinicalEncounter[] {
+    return this.getItem<ClinicalEncounter[]>(STORAGE_KEYS.EMR_ENCOUNTERS, []);
+  }
+
+  public static saveEncounters(encounters: ClinicalEncounter[]): void {
+    this.setItem(STORAGE_KEYS.EMR_ENCOUNTERS, encounters);
+    ApiSyncService.syncEncounters(encounters).catch(() => { });
+  }
+
+  // ── Doctor Master Directory & Schedule ──
+  public static getDoctors(): any[] {
+    return this.getItem<any[]>(STORAGE_KEYS.DOCTORS, []);
+  }
+
+  public static saveDoctors(doctors: any[]): void {
+    this.setItem(STORAGE_KEYS.DOCTORS, doctors);
+    ApiSyncService.syncDoctors(doctors).catch(() => { });
+  }
+
+  // ── Doctor Referral Commission Payouts ──
+  public static getDoctorPayouts(): any[] {
+    return this.getItem<any[]>(STORAGE_KEYS.DOCTOR_PAYOUTS, []);
+  }
+
+  public static saveDoctorPayouts(payouts: any[]): void {
+    this.setItem(STORAGE_KEYS.DOCTOR_PAYOUTS, payouts);
+    ApiSyncService.syncDoctorPayouts(payouts).catch(() => { });
+  }
+
+  // ── Diagnostic Pathology Lab Tests Master ──
+  public static getLabTests(): any[] {
+    return this.getItem<any[]>(STORAGE_KEYS.LAB_TESTS, []);
+  }
+
+  public static saveLabTests(tests: any[]): void {
+    this.setItem(STORAGE_KEYS.LAB_TESTS, tests);
+    ApiSyncService.syncLabTests(tests).catch(() => { });
+  }
+
+  // ── Health Packages Master ──
+  public static getHealthPackages(): any[] {
+    return this.getItem<any[]>(STORAGE_KEYS.HEALTH_PACKAGES, []);
+  }
+
+  public static saveHealthPackages(packages: any[]): void {
+    this.setItem(STORAGE_KEYS.HEALTH_PACKAGES, packages);
+    ApiSyncService.syncHealthPackages(packages).catch(() => { });
+  }
+
+  /**
+   * Universal Synchronized Deletion:
+   * Removes an entity from local memory cache & localStorage,
+   * securely expunges it from Google Cloud Firestore,
+   * commits the change to Zero-Data-Loss WAL,
+   * and dispatches a live synchronization event.
+   */
+  public static deleteEntity(storageKey: string, id: string): boolean {
+    const list = this.getItem<any[]>(storageKey, []);
+    if (!Array.isArray(list)) return false;
+    const idx = list.findIndex(item => item && (item.id === id || item._id === id));
+    if (idx === -1) return false;
+
+    list.splice(idx, 1);
+    this.setItem(storageKey, list);
+
+    const conf = ApiSyncService.KEY_TO_FIRESTORE_MAP[storageKey];
+    if (conf && conf.type === 'collection') {
+      ApiSyncService.deleteDocument(conf.path, id).catch(() => {});
+    }
+
+    this.triggerServerBackupSync();
+    return true;
   }
 
   // ── NGO & CSR Social Welfare Services ──

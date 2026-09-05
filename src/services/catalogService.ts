@@ -257,11 +257,16 @@ export class CatalogService {
    * Diagnostic Pathology Blood Tests Catalog (Loads from Storage or initializes with master catalog)
    */
   public static getLabTests(): LabTestItem[] {
-    return StorageService.getItem<LabTestItem[]>(LAB_TESTS_STORAGE_KEY, MASTER_TEST_CATALOG_DATA);
+    const existing = StorageService.getItem<LabTestItem[]>(LAB_TESTS_STORAGE_KEY, []);
+    if (!existing || existing.length === 0) {
+      StorageService.saveLabTests(MASTER_TEST_CATALOG_DATA);
+      return MASTER_TEST_CATALOG_DATA;
+    }
+    return existing;
   }
 
   public static saveLabTests(tests: LabTestItem[]): void {
-    StorageService.setItem(LAB_TESTS_STORAGE_KEY, tests);
+    StorageService.saveLabTests(tests);
   }
 
   public static addLabTest(test: Omit<LabTestItem, 'id'>): LabTestItem {
@@ -451,11 +456,16 @@ export class CatalogService {
       }
     ];
 
-    return StorageService.getItem<HealthPackageItem[]>(HEALTH_PACKAGES_STORAGE_KEY, defaultPackages);
+    const existing = StorageService.getItem<HealthPackageItem[]>(HEALTH_PACKAGES_STORAGE_KEY, []);
+    if (!existing || existing.length === 0) {
+      StorageService.saveHealthPackages(defaultPackages);
+      return defaultPackages;
+    }
+    return existing;
   }
 
   public static saveHealthPackages(packages: HealthPackageItem[]): void {
-    StorageService.setItem(HEALTH_PACKAGES_STORAGE_KEY, packages);
+    StorageService.saveHealthPackages(packages);
   }
 
   public static addHealthPackage(pkg: Omit<HealthPackageItem, 'id'>): HealthPackageItem {

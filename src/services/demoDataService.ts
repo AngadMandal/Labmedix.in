@@ -146,75 +146,111 @@ export class DemoDataService {
     onProgress?: (progress: DemoPurgeProgress) => void
   ): Promise<{ success: boolean; totalRemoved: number; message: string }> {
     try {
+      // 0. Super Admin Clearance Verification
+      const currentUser = StorageService.getCurrentUser();
+      if (currentUser && currentUser.role !== 'super_admin') {
+        throw new Error('Unauthorized Access: 1-Click Demo Data Purge is strictly restricted to Super Admin accounts.');
+      }
+
       let totalRemoved = 0;
 
-      onProgress?.({ stage: 'Scanning demo items across database collections...', percent: 15, itemsRemoved: 0, completed: false });
+      onProgress?.({ stage: 'Scanning demo items across database collections...', percent: 10, itemsRemoved: 0, completed: false });
 
       const allPatients = StorageService.getPatients();
       const demoPatients = allPatients.filter(p => this.isDemoPatient(p));
       const demoPatientIds = new Set(demoPatients.map(p => p.id.toLowerCase()));
       const livePatients = allPatients.filter(p => !this.isDemoPatient(p));
-      totalRemoved += (allPatients.length - livePatients.length);
+      totalRemoved += demoPatients.length;
 
-      onProgress?.({ stage: 'Purging demo patient profiles and syncing to cloud...', percent: 35, itemsRemoved: totalRemoved, completed: false });
+      onProgress?.({ stage: 'Purging demo patient profiles and permanently deleting from Firestore cloud...', percent: 25, itemsRemoved: totalRemoved, completed: false });
       StorageService.savePatients(livePatients);
+      for (const p of demoPatients) {
+        if (p.id) await ApiSyncService.deleteDocument('patients', p.id).catch(() => {});
+      }
 
       // Cards
       const allCards = StorageService.getCards();
+      const demoCards = allCards.filter(c => this.isDemoCard(c) || demoPatientIds.has((c.patientId || '').toLowerCase()));
       const liveCards = allCards.filter(c => !this.isDemoCard(c) && !demoPatientIds.has((c.patientId || '').toLowerCase()));
-      totalRemoved += (allCards.length - liveCards.length);
+      totalRemoved += demoCards.length;
       StorageService.saveCards(liveCards);
+      for (const c of demoCards) {
+        if (c.id) await ApiSyncService.deleteDocument('cards', c.id).catch(() => {});
+      }
 
       // Wallets
       const allWallets = StorageService.getWallets();
+      const demoWallets = allWallets.filter(w => demoPatientIds.has((w.patientId || '').toLowerCase()));
       const liveWallets = allWallets.filter(w => !demoPatientIds.has((w.patientId || '').toLowerCase()));
-      totalRemoved += (allWallets.length - liveWallets.length);
+      totalRemoved += demoWallets.length;
       StorageService.saveWallets(liveWallets);
+      for (const w of demoWallets) {
+        if (w.id) await ApiSyncService.deleteDocument('wallets', w.id).catch(() => {});
+      }
 
       // Transactions
       const allTxns = StorageService.getTransactions();
+      const demoTxns = allTxns.filter(t => demoPatientIds.has((t.patientId || '').toLowerCase()));
       const liveTxns = allTxns.filter(t => !demoPatientIds.has((t.patientId || '').toLowerCase()));
-      totalRemoved += (allTxns.length - liveTxns.length);
+      totalRemoved += demoTxns.length;
       StorageService.saveTransactions(liveTxns);
+      for (const t of demoTxns) {
+        if (t.id) await ApiSyncService.deleteDocument('transactions', t.id).catch(() => {});
+      }
 
-      onProgress?.({ stage: 'Purging demo appointments, EMR records & lab bookings...', percent: 65, itemsRemoved: totalRemoved, completed: false });
+      onProgress?.({ stage: 'Purging demo appointments, EMR records & lab bookings from cloud...', percent: 60, itemsRemoved: totalRemoved, completed: false });
 
       // Appointments
       const allApps = StorageService.getItem<any[]>(STORAGE_KEYS.APPOINTMENTS, []);
+      const demoApps = allApps.filter(a => demoPatientIds.has((a.patientId || '').toLowerCase()));
       const liveApps = allApps.filter(a => !demoPatientIds.has((a.patientId || '').toLowerCase()));
-      totalRemoved += (allApps.length - liveApps.length);
+      totalRemoved += demoApps.length;
       StorageService.setItem(STORAGE_KEYS.APPOINTMENTS, liveApps);
-      ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.APPOINTMENTS, liveApps).catch(() => {});
+      for (const a of demoApps) {
+        if (a.id) await ApiSyncService.deleteDocument('appointments', a.id).catch(() => {});
+      }
 
       // EMR Encounters
       const allEncs = StorageService.getItem<any[]>(STORAGE_KEYS.EMR_ENCOUNTERS, []);
+      const demoEncs = allEncs.filter(e => demoPatientIds.has((e.patientId || '').toLowerCase()));
       const liveEncs = allEncs.filter(e => !demoPatientIds.has((e.patientId || '').toLowerCase()));
-      totalRemoved += (allEncs.length - liveEncs.length);
+      totalRemoved += demoEncs.length;
       StorageService.setItem(STORAGE_KEYS.EMR_ENCOUNTERS, liveEncs);
-      ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.EMR_ENCOUNTERS, liveEncs).catch(() => {});
+      for (const e of demoEncs) {
+        if (e.id) await ApiSyncService.deleteDocument('emrEncounters', e.id).catch(() => {});
+      }
 
       // Portal Lab Bookings
       const allBookings = StorageService.getItem<any[]>(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, []);
+      const demoBookings = allBookings.filter(b => demoPatientIds.has((b.patientId || '').toLowerCase()) || (b.patientName && DemoDataService.DEMO_NAMES.some(dn => b.patientName.toLowerCase().includes(dn))));
       const liveBookings = allBookings.filter(b => !demoPatientIds.has((b.patientId || '').toLowerCase()) && (!b.patientName || !DemoDataService.DEMO_NAMES.some(dn => b.patientName.toLowerCase().includes(dn))));
-      totalRemoved += (allBookings.length - liveBookings.length);
+      totalRemoved += demoBookings.length;
       StorageService.setItem(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, liveBookings);
-      ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_LAB_BOOKINGS, liveBookings).catch(() => {});
+      for (const b of demoBookings) {
+        if (b.id) await ApiSyncService.deleteDocument('labBookings', b.id).catch(() => {});
+      }
 
       // Portal Pharmacy Orders
       const allOrders = StorageService.getItem<any[]>(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, []);
+      const demoOrders = allOrders.filter(o => demoPatientIds.has((o.patientId || '').toLowerCase()));
       const liveOrders = allOrders.filter(o => !demoPatientIds.has((o.patientId || '').toLowerCase()));
-      totalRemoved += (allOrders.length - liveOrders.length);
+      totalRemoved += demoOrders.length;
       StorageService.setItem(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, liveOrders);
-      ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_PHARMACY_ORDERS, liveOrders).catch(() => {});
+      for (const o of demoOrders) {
+        if (o.id) await ApiSyncService.deleteDocument('pharmacyOrders', o.id).catch(() => {});
+      }
 
       // Portal Card Applications
       const allCardApps = StorageService.getItem<any[]>(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, []);
+      const demoCardApps = allCardApps.filter(ca => demoPatientIds.has((ca.patientId || '').toLowerCase()) && (!ca.fullName || !DemoDataService.DEMO_NAMES.some(dn => ca.fullName.toLowerCase().includes(dn))));
       const liveCardApps = allCardApps.filter(ca => !demoPatientIds.has((ca.patientId || '').toLowerCase()) && (!ca.fullName || !DemoDataService.DEMO_NAMES.some(dn => ca.fullName.toLowerCase().includes(dn))));
-      totalRemoved += (allCardApps.length - liveCardApps.length);
+      totalRemoved += demoCardApps.length;
       StorageService.setItem(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, liveCardApps);
-      ApiSyncService.syncKeyToFirestore(STORAGE_KEYS.PORTAL_CARD_APPLICATIONS, liveCardApps).catch(() => {});
+      for (const ca of demoCardApps) {
+        if (ca.id) await ApiSyncService.deleteDocument('cardApplications', ca.id).catch(() => {});
+      }
 
-      onProgress?.({ stage: 'Synchronizing clean database state across all devices...', percent: 85, itemsRemoved: totalRemoved, completed: false });
+      onProgress?.({ stage: 'Broadcasting real-time purge event to all connected terminals...', percent: 85, itemsRemoved: totalRemoved, completed: false });
 
       // Force write to IndexedDB & emit sync event
       await StorageService.forceSyncToIndexedDB();
@@ -224,15 +260,15 @@ export class DemoDataService {
       AuditService.log(
         'DEMO_DATA_PURGED',
         'security',
-        `Super Admin executed 1-Click Demo Data Purge. Permanently removed ${totalRemoved} demo records across all modules.`
+        `Super Admin (${currentUser?.fullName || 'Root'}) executed 1-Click Demo Data Purge. Permanently deleted ${totalRemoved} demo records from Firestore and client terminals.`
       );
 
-      onProgress?.({ stage: 'Demo data successfully removed!', percent: 100, itemsRemoved: totalRemoved, completed: true });
+      onProgress?.({ stage: 'Demo data successfully purged from Firestore cloud and client caches!', percent: 100, itemsRemoved: totalRemoved, completed: true });
 
       return {
         success: true,
         totalRemoved,
-        message: `Successfully purged ${totalRemoved} demo records across all portals and synchronized in real time.`
+        message: `Successfully purged ${totalRemoved} demo records from Firestore cloud and synchronized in real time across all terminals.`
       };
     } catch (err: any) {
       console.error('[DemoDataService] Purge failed:', err);

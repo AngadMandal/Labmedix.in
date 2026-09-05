@@ -276,7 +276,7 @@ export const App: React.FC = () => {
                   <Route path="/reports" element={<ModuleGuard moduleKey="reports"><ReportsPage /></ModuleGuard>} />
 
                   {/* Staff User Management */}
-                  <Route path="/users" element={<SuperAdminGuard><ModuleGuard moduleKey="users"><UserListPage /></ModuleGuard></SuperAdminGuard>} />
+                  <Route path="/users" element={<ModuleGuard moduleKey="users"><UserListPage /></ModuleGuard>} />
 
                   {/* Super Admin Sovereign Cash Desk Voucher Engine */}
                   <Route path="/cash-desk-vouchers" element={<ModuleGuard moduleKey="cash_desk_vouchers"><CashDeskBillVouchersPage /></ModuleGuard>} />

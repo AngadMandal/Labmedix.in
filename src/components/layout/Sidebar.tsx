@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     { name: 'Memberships', href: '/memberships', icon: Award, moduleKey: 'memberships', permission: 'membership_manage' },
     { name: 'Family Groups', href: '/families', icon: Users2, moduleKey: 'families', permission: 'family_manage' },
     { name: 'Health Wallet', href: '/wallet', icon: Wallet, moduleKey: 'wallet', permission: 'wallet_read' },
-    { name: 'Cash Desk Vouchers', href: '/cash-desk-vouchers', icon: Receipt, moduleKey: 'cash_desk_vouchers', permission: 'all' },
+    { name: 'Cash Desk Vouchers', href: '/cash-desk-vouchers', icon: Receipt, moduleKey: 'cash_desk_vouchers', permission: 'voucher_redeem' },
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart3, moduleKey: 'reports', permission: 'reports_view' },
     { name: 'Staff Management', href: '/users', icon: UserCheck, moduleKey: 'users', permission: 'users_manage' },
     { name: '3D Website & CMS Studio', href: '/website-cms', icon: Sparkles, moduleKey: 'website_cms', permission: 'all' },

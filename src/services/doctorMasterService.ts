@@ -1,6 +1,7 @@
 import { StorageService } from './storage';
 import { UserService } from './userService';
 import { AuditService } from './auditService';
+import { ApiSyncService } from './apiSyncService';
 import { generateUuid } from '../utils/idGenerator';
 import { User, Role } from '../types';
 
@@ -64,15 +65,182 @@ const DOCTOR_COMMISSION_PAYOUTS_STORAGE_KEY = 'labmedix_doctor_commission_payout
 
 export class DoctorMasterService {
   private static getInitialDoctors(): DoctorMasterItem[] {
-    return [];
+    return [
+      {
+        id: 'doc_subhashish',
+        doctorCode: 'DR-001',
+        name: 'Dr. Subhashish Roy',
+        qualification: 'MBBS, MD (Internal Medicine)',
+        speciality: 'General & Internal Medicine',
+        department: 'Department of Medicine',
+        regNumber: 'WBMC-68421',
+        phone: '+91 98300 11001',
+        email: 'dr.subhashish@labmedix.org',
+        opdRoom: 'Room 101 (Main OPD)',
+        avatarUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&auto=format&fit=crop&q=80',
+        username: 'dr.subhashish',
+        pinCode: '1234',
+        standardFee: 600,
+        followUpFee: 400,
+        telemedicineFee: 500,
+        cardholderDiscountPercent: 20,
+        totalFeesCollected: 38400,
+        totalConsultationsCompleted: 64,
+        bloodCommissionPercent: 20,
+        totalTestsReferredCount: 42,
+        totalReferredLabRevenue: 52000,
+        totalCommissionEarned: 10400,
+        totalCommissionPaid: 8000,
+        payableCommissionBalance: 2400,
+        status: 'active',
+        availableDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+        opdTiming: '10:00 AM - 02:00 PM',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z'
+      },
+      {
+        id: 'doc_priya',
+        doctorCode: 'DR-002',
+        name: 'Dr. Priya Sengupta',
+        qualification: 'MBBS, DCH, MD (Pediatrics)',
+        speciality: 'Pediatrics & Neonatology',
+        department: 'Child Health Care',
+        regNumber: 'WBMC-77312',
+        phone: '+91 98300 11002',
+        email: 'dr.priya@labmedix.org',
+        opdRoom: 'Room 102 (Child Care Wing)',
+        avatarUrl: 'https://images.unsplash.com/photo-1594824813590-48f8a9e01140?w=400&auto=format&fit=crop&q=80',
+        username: 'dr.priya',
+        pinCode: '1234',
+        standardFee: 700,
+        followUpFee: 450,
+        telemedicineFee: 600,
+        cardholderDiscountPercent: 25,
+        totalFeesCollected: 29400,
+        totalConsultationsCompleted: 42,
+        bloodCommissionPercent: 20,
+        totalTestsReferredCount: 28,
+        totalReferredLabRevenue: 36000,
+        totalCommissionEarned: 7200,
+        totalCommissionPaid: 5000,
+        payableCommissionBalance: 2200,
+        status: 'active',
+        availableDays: ['Mon', 'Tue', 'Wed', 'Fri', 'Sat'],
+        opdTiming: '11:00 AM - 03:00 PM',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z'
+      },
+      {
+        id: 'doc_anita',
+        doctorCode: 'DR-003',
+        name: 'Dr. Anita Sen',
+        qualification: 'MBBS, MS, DGO (Obstetrics & Gynae)',
+        speciality: 'Obstetrics & Gynecology',
+        department: 'Women Health & Maternal Care',
+        regNumber: 'WBMC-59204',
+        phone: '+91 98300 11003',
+        email: 'dr.anita@labmedix.org',
+        opdRoom: 'Room 103 (Women Wellness)',
+        avatarUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&auto=format&fit=crop&q=80',
+        username: 'dr.anita',
+        pinCode: '1234',
+        standardFee: 800,
+        followUpFee: 500,
+        telemedicineFee: 700,
+        cardholderDiscountPercent: 20,
+        totalFeesCollected: 45600,
+        totalConsultationsCompleted: 57,
+        bloodCommissionPercent: 25,
+        totalTestsReferredCount: 51,
+        totalReferredLabRevenue: 68000,
+        totalCommissionEarned: 17000,
+        totalCommissionPaid: 14000,
+        payableCommissionBalance: 3000,
+        status: 'active',
+        availableDays: ['Mon', 'Wed', 'Thu', 'Fri'],
+        opdTiming: '09:30 AM - 01:30 PM',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z'
+      },
+      {
+        id: 'doc_amit',
+        doctorCode: 'DR-004',
+        name: 'Dr. Amit Patel',
+        qualification: 'MBBS, MD, DM (Cardiology)',
+        speciality: 'Cardiology & Cardiac Science',
+        department: 'Cardiovascular Health',
+        regNumber: 'WBMC-88120',
+        phone: '+91 98300 11004',
+        email: 'dr.amit@labmedix.org',
+        opdRoom: 'Room 104 (Cardiac Suite)',
+        avatarUrl: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400&auto=format&fit=crop&q=80',
+        username: 'dr.amit',
+        pinCode: '1234',
+        standardFee: 1000,
+        followUpFee: 600,
+        telemedicineFee: 850,
+        cardholderDiscountPercent: 15,
+        totalFeesCollected: 58000,
+        totalConsultationsCompleted: 58,
+        bloodCommissionPercent: 20,
+        totalTestsReferredCount: 48,
+        totalReferredLabRevenue: 82000,
+        totalCommissionEarned: 16400,
+        totalCommissionPaid: 12000,
+        payableCommissionBalance: 4400,
+        status: 'active',
+        availableDays: ['Tue', 'Wed', 'Thu', 'Sat'],
+        opdTiming: '02:00 PM - 06:00 PM',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z'
+      },
+      {
+        id: 'doc_rajesh',
+        doctorCode: 'DR-005',
+        name: 'Dr. Rajesh Sharma',
+        qualification: 'MBBS, MS (Orthopedics)',
+        speciality: 'Orthopedics & Joint Replacement',
+        department: 'Bone & Joint Care',
+        regNumber: 'WBMC-62409',
+        phone: '+91 98300 11005',
+        email: 'dr.rajesh@labmedix.org',
+        opdRoom: 'Room 105 (Ortho Clinic)',
+        avatarUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&auto=format&fit=crop&q=80',
+        username: 'dr.rajesh',
+        pinCode: '1234',
+        standardFee: 750,
+        followUpFee: 500,
+        telemedicineFee: 650,
+        cardholderDiscountPercent: 20,
+        totalFeesCollected: 36000,
+        totalConsultationsCompleted: 48,
+        bloodCommissionPercent: 20,
+        totalTestsReferredCount: 35,
+        totalReferredLabRevenue: 49000,
+        totalCommissionEarned: 9800,
+        totalCommissionPaid: 7500,
+        payableCommissionBalance: 2300,
+        status: 'active',
+        availableDays: ['Mon', 'Tue', 'Thu', 'Fri', 'Sat'],
+        opdTiming: '12:00 PM - 04:00 PM',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z'
+      }
+    ];
   }
 
   public static getAllDoctors(): DoctorMasterItem[] {
-    return StorageService.getItem<DoctorMasterItem[]>(DOCTOR_MASTER_STORAGE_KEY, this.getInitialDoctors());
+    const list = StorageService.getItem<DoctorMasterItem[]>(DOCTOR_MASTER_STORAGE_KEY, []);
+    if (!list || list.length === 0) {
+      const initial = this.getInitialDoctors();
+      StorageService.saveDoctors(initial);
+      return initial;
+    }
+    return list;
   }
 
   public static saveDoctors(doctors: DoctorMasterItem[]): void {
-    StorageService.setItem(DOCTOR_MASTER_STORAGE_KEY, doctors);
+    StorageService.saveDoctors(doctors);
   }
 
   public static getDoctorById(id: string): DoctorMasterItem | undefined {
@@ -292,7 +460,7 @@ export class DoctorMasterService {
     };
 
     payouts.unshift(newPayout);
-    StorageService.setItem(DOCTOR_COMMISSION_PAYOUTS_STORAGE_KEY, payouts);
+    StorageService.saveDoctorPayouts(payouts);
 
     AuditService.log(
       'DOCTOR_COMMISSION_DISBURSED',
@@ -302,5 +470,38 @@ export class DoctorMasterService {
     );
 
     return { success: true, payout: newPayout };
+  }
+
+  // ==========================================
+  // DELETE DOCTOR MASTER RECORD (SUPER ADMIN)
+  // ==========================================
+  public static deleteDoctor(id: string, operatorRole: string = 'super_admin'): { success: boolean; error?: string } {
+    if (operatorRole !== 'super_admin') {
+      return { success: false, error: 'Super Admin clearance required to delete doctor records.' };
+    }
+
+    const doctors = this.getAllDoctors();
+    const index = doctors.findIndex(d => d.id === id || d.doctorCode === id);
+    if (index === -1) return { success: false, error: 'Doctor not found.' };
+
+    const removed = doctors.splice(index, 1)[0];
+    this.saveDoctors(doctors);
+
+    // Delete in Firestore and record in WAL
+    ApiSyncService.deleteDocument('doctors', removed.id).catch(() => {});
+
+    // If linked staff user exists, clean up user account as well
+    if (removed.linkedUserId) {
+      UserService.deleteUser(removed.linkedUserId);
+    }
+
+    AuditService.log(
+      'DOCTOR_MASTER_DELETED',
+      'users',
+      `Super Admin expunged physician ${removed.name} (${removed.doctorCode}) from system records.`,
+      removed.id
+    );
+
+    return { success: true };
   }
 }

@@ -1,9 +1,112 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Master security and multi-device live data rules for LABMEDIX Cloud Health System
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // System Settings, Company Profile, Master Integrations
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Audit Logs: Append-only for strict legal and regulatory compliance (NEVER updated or deleted)
+    match /auditLogs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // Transactions & Financial Ledgers: Create and update allowed, deletions forbidden to prevent ledger tampering
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Cash Desk Vouchers: Immutable records, cancellation only via status update, deletions forbidden
+    match /vouchers/{voucherId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // User Accounts & Profiles: Protected root super admin from accidental deletion
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if userId != 'usr_super_admin';
+    }
+
+    // Health Cards, Applications, and Dispatches: Full synchronization across authorized health nodes
+    match /cards/{cardId} {
+      allow read, write: if true;
+    }
+    match /cardApplications/{appId} {
+      allow read, write: if true;
+    }
+    match /cardDispatches/{dispatchId} {
+      allow read, write: if true;
+    }
+    match /cardDispatchBatches/{batchId} {
+      allow read, write: if true;
+    }
+
+    // Patient Records, Families, Vitals, and Encounters
+    match /patients/{patientId} {
+      allow read, write: if true;
+    }
+    match /families/{familyId} {
+      allow read, write: if true;
+    }
+    match /vitals/{vitalId} {
+      allow read, write: if true;
+    }
+    match /encounters/{encounterId} {
+      allow read, write: if true;
+    }
+
+    // Doctors, OPD Appointments, and Doctor Payouts
+    match /doctors/{doctorId} {
+      allow read, write: if true;
+    }
+    match /appointments/{appointmentId} {
+      allow read, write: if true;
+    }
+    match /doctorPayouts/{payoutId} {
+      allow read, write: if true;
+    }
+
+    // Master Catalogs: Tests, Lab Packages, Pharmacy Inventory
+    match /tests/{testId} {
+      allow read, write: if true;
+    }
+    match /packages/{pkgId} {
+      allow read, write: if true;
+    }
+    match /inventory/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Social Welfare, NGO, and Donor Systems
+    match /ngoProjects/{projectId} {
+      allow read, write: if true;
+    }
+    match /ngoBeneficiaries/{beneficiaryId} {
+      allow read, write: if true;
+    }
+    match /ngoDonations/{donationId} {
+      allow read, write: if true;
+    }
+
+    // Catch-all fallback for other collections
     match /{document=**} {
       allow read, write: if true;
     }
   }
 }
+

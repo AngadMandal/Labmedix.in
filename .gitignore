@@ -26,3 +26,10 @@ dist-ssr
 # Environment variables
 .env
 .env.production
+
+# Archive
+archive/
+
+# Nested duplicate folder & local backups
+Labmedix.in/
+*.backup.json
