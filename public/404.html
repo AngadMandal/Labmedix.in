@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>LabMedix</title>
     <script>
-      // GitHub Pages SPA redirect for HashRouter
-      window.location.href = '/labmedix.in/' + window.location.hash;
+      // GitHub Pages SPA — redirect all 404s back to index with hash
+      var base = '/labmedix.in';
+      var path = window.location.pathname.replace(base, '').replace(/^\//, '');
+      var search = window.location.search;
+      var hash = window.location.hash;
+      var redirectUrl = window.location.origin + base + '/' + search + (path ? '#/' + path : '') + hash;
+      window.location.replace(redirectUrl);
     </script>
   </head>
   <body></body>

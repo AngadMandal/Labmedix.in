@@ -12,18 +12,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script type="text/javascript">
-      // SPA HashRouter path normalization & redirect
+      // SPA HashRouter path normalization & GitHub Pages redirect
       (function(l) {
+        var base = '/labmedix.in';
         if (l.search[1] === '/') {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
+          var decoded = l.search.slice(1).split('&').map(function(s) {
             return s.replace(/~and~/g, '&');
           }).join('?');
           window.history.replaceState(null, null,
-              l.pathname.slice(0, -1) + decoded + l.hash
+            l.pathname.slice(0, -1) + decoded + l.hash
           );
-        } else if (l.pathname && l.pathname !== '/' && l.pathname !== '/index.html' && !l.pathname.match(/\.[a-zA-Z0-9]+$/)) {
-          var routePath = l.pathname.replace(/^\//, '');
-          window.location.replace(l.origin + l.search + '#/' + routePath + l.hash);
+        } else if (
+          l.pathname &&
+          l.pathname !== base + '/' &&
+          l.pathname !== base + '/index.html' &&
+          !l.pathname.match(/\.[a-zA-Z0-9]+$/) &&
+          l.pathname.indexOf(base) === 0
+        ) {
+          var routePath = l.pathname.replace(base, '').replace(/^\//, '');
+          if (routePath) {
+            window.location.replace(l.origin + base + '/' + l.search + '#/' + routePath + l.hash);
+          }
         }
       }(window.location))
     </script>
