@@ -5,6 +5,7 @@ import {
   initializeFirestore, 
   persistentLocalCache, 
   persistentMultipleTabManager,
+  memoryLocalCache,
   doc, 
   getDocFromServer 
 } from 'firebase/firestore';
@@ -25,15 +26,45 @@ export const firebaseConfig = config;
 const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
 export const auth = getAuth(app);
 
-// Initialize Firestore with multi-tab support and instant real-time live synchronization
+/**
+ * Detect mobile or low-storage environment.
+ * Firestore's persistentLocalCache writes to localStorage —
+ * on mobile where localStorage is near-full this causes QuotaExceededError
+ * and a hard INTERNAL ASSERTION FAILED crash (ID: b815).
+ * Solution: use memoryLocalCache on mobile/low-storage devices.
+ */
+function shouldUseMemoryCache(): boolean {
+  try {
+    if (typeof navigator === 'undefined' || typeof localStorage === 'undefined') return true;
+    const ua = navigator.userAgent || '';
+    if (/Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(ua)) return true;
+    // Test if localStorage is already full
+    const testKey = '__lmdx_quota_check__';
+    localStorage.setItem(testKey, new Array(1024).join('x')); // 1KB test write
+    localStorage.removeItem(testKey);
+    return false;
+  } catch {
+    return true; // already full or blocked
+  }
+}
+
 let firestoreDb;
 try {
-  firestoreDb = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
+  if (shouldUseMemoryCache()) {
+    // Memory-only: no localStorage writes, safe on all devices and quota conditions
+    firestoreDb = initializeFirestore(app, {
+      localCache: memoryLocalCache()
+    });
+  } else {
+    // Full persistent cache for desktop/tablet with sufficient storage
+    firestoreDb = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  }
 } catch {
+  // Final fallback: plain Firestore without any explicit cache config
   firestoreDb = getFirestore(app);
 }
 

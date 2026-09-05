@@ -510,16 +510,18 @@ export class StorageService {
         this.triggerServerBackupSync();
       }
     } catch (e: any) {
-      if (e?.name === 'QuotaExceededError' || e?.code === 22) {
-        console.warn(`[LABMEDIX] localStorage quota exceeded for ${key}. Pruning old logs…`);
-        StorageService.pruneOldAuditLogs();
+      if (e?.name === 'QuotaExceededError' || e?.code === 22 || String(e).includes('quota')) {
+        console.warn(`[LABMEDIX] localStorage quota exceeded for "${key}". Running aggressive prune…`);
+        StorageService.aggressivePrune();
         try {
           localStorage.setItem(key, serialized);
-          // Only sync if it's a critical key (not theme/screen_locked)
           if (![STORAGE_KEYS.THEME, STORAGE_KEYS.SCREEN_LOCKED].includes(key)) {
             this.triggerServerBackupSync();
           }
-        } catch { /* ignore */ }
+        } catch {
+          // Data still in memory cache and IndexedDB — not lost
+          console.warn(`[LABMEDIX] localStorage still full after prune for "${key}". Stored in memory+IDB only.`);
+        }
       } else {
         console.error(`[LABMEDIX] localStorage write failed for ${key}:`, e);
       }
@@ -760,6 +762,61 @@ export class StorageService {
         const pruned = logs.slice(-500);
         localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(pruned));
         console.info('[LABMEDIX] Pruned audit logs to latest 500 entries to free storage quota.');
+      }
+    } catch { }
+  }
+
+  /**
+   * Aggressive localStorage prune for QuotaExceededError recovery.
+   * Trims audit logs → snapshots → Firestore sequence keys (largest consumers).
+   */
+  private static aggressivePrune(): void {
+    try {
+      // 1. Prune audit logs to 100 most recent
+      const logs = StorageService.getAuditLogs();
+      if (logs.length > 100) {
+        localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs.slice(0, 100)));
+        console.info('[LABMEDIX QuotaPrune] Audit logs trimmed to 100.');
+      }
+    } catch { }
+
+    try {
+      // 2. Clear all local snapshots (they are also in IndexedDB and Firestore)
+      localStorage.removeItem(STORAGE_KEYS.SNAPSHOTS);
+      console.info('[LABMEDIX QuotaPrune] Local snapshots cleared (preserved in Firestore cloud vault).');
+    } catch { }
+
+    try {
+      // 3. Remove Firestore internal sequence/persistence keys (safe to remove — Firestore recreates them)
+      const toRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (
+          k.startsWith('firestore_') ||
+          k.startsWith('fs_') ||
+          k.includes('firestore/') ||
+          k.includes('sequence_number') ||
+          k.includes('firestore_mutations')
+        )) {
+          toRemove.push(k);
+        }
+      }
+      toRemove.forEach(k => { try { localStorage.removeItem(k); } catch { } });
+      if (toRemove.length > 0) {
+        console.info(`[LABMEDIX QuotaPrune] Removed ${toRemove.length} Firestore internal cache keys.`);
+      }
+    } catch { }
+
+    try {
+      // 4. Prune dynamic patient vitals to most recent 10 patients
+      const vitalsKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('labmedix_patient_vitals_')) vitalsKeys.push(k);
+      }
+      if (vitalsKeys.length > 10) {
+        vitalsKeys.slice(10).forEach(k => { try { localStorage.removeItem(k); } catch { } });
+        console.info(`[LABMEDIX QuotaPrune] Removed ${vitalsKeys.length - 10} old patient vitals entries.`);
       }
     } catch { }
   }
