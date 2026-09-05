@@ -9,6 +9,24 @@ import { DEFAULT_MEMBERSHIPS } from '../constants/memberships';
 export class MembershipTierService {
   private static readonly COLLECTION_NAME = 'membershipTiers';
 
+  /** Remove all undefined fields recursively — Firestore rejects undefined values */
+  private static sanitize<T extends object>(obj: T): T {
+    const clean: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === undefined) continue;
+      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+        clean[k] = this.sanitize(v);
+      } else if (Array.isArray(v)) {
+        clean[k] = v.map(item =>
+          item !== null && typeof item === 'object' ? this.sanitize(item) : item
+        );
+      } else {
+        clean[k] = v;
+      }
+    }
+    return clean as T;
+  }
+
   /**
    * Real-time Multi-Channel Subscription:
    * Combines hot in-memory cache, window events, cross-tab BroadcastChannel, and Firestore snapshots.
@@ -124,7 +142,7 @@ export class MembershipTierService {
     StorageService.saveMemberships(local);
 
     try {
-      await setDoc(doc(db, this.COLLECTION_NAME, newId), newMembership);
+      await setDoc(doc(db, this.COLLECTION_NAME, newId), this.sanitize(newMembership));
       
       AuditService.log(
         'MEMBERSHIP_TIER_CREATED',
@@ -166,7 +184,7 @@ export class MembershipTierService {
 
     try {
       const docRef = doc(db, this.COLLECTION_NAME, id);
-      await setDoc(docRef, payload, { merge: true });
+      await setDoc(docRef, this.sanitize(payload), { merge: true });
       
       AuditService.log(
         'MEMBERSHIP_TIER_UPDATED',
