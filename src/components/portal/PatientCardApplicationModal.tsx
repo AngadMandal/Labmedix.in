@@ -49,7 +49,7 @@ export const PatientCardApplicationModal: React.FC<PatientCardApplicationModalPr
       setStep(1);
       const active = StorageService.getActiveMemberships();
       setMemberships(active);
-      const rec = active.find(m => m.name.toLowerCase().includes((defaultTierName || '').toLowerCase())) ||
+      const rec = active.find(m => m.name && (m.name.toLowerCase()).includes((defaultTierName || '').toLowerCase())) ||
                   StorageService.getRecommendedMembership() ||
                   active[0];
       if (rec) setSelectedMembershipId(rec.id);

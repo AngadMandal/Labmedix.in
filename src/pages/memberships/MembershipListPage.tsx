@@ -66,8 +66,9 @@ export const MembershipListPage: React.FC = () => {
   // Filtered list
   const filteredMemberships = useMemo(() => {
     return memberships.filter(m => {
+      if (!m || !m.name) return false; // skip corrupted entries
       const matchesSearch =
-        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         m.slug?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (m.description || '').toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -85,13 +86,14 @@ export const MembershipListPage: React.FC = () => {
 
   // Executive Statistics
   const stats = useMemo(() => {
-    const total = memberships.length;
-    const active = memberships.filter(m => m.status === 'active').length;
-    const familyPlans = memberships.filter(m => m.isFamilyPlan).length;
+    const valid = memberships.filter(m => m && m.name); // only count valid entries
+    const total = valid.length;
+    const active = valid.filter(m => m.status === 'active').length;
+    const familyPlans = valid.filter(m => m.isFamilyPlan).length;
     const avgLabDiscount = total > 0
-      ? Math.round(memberships.reduce((acc, m) => acc + (m.labDiscount || 0), 0) / total)
+      ? Math.round(valid.reduce((acc, m) => acc + (m.labDiscount || 0), 0) / total)
       : 0;
-    const totalBenefitValue = memberships.reduce((acc, m) => acc + MembershipTierService.calculateTotalBenefitPackageValue(m), 0);
+    const totalBenefitValue = valid.reduce((acc, m) => acc + MembershipTierService.calculateTotalBenefitPackageValue(m), 0);
 
     return {
       total,

@@ -49,7 +49,10 @@ export class MembershipTierService {
           if (!snapshot.empty) {
             const cloudTiers: Membership[] = [];
             snapshot.forEach((d) => {
-              cloudTiers.push({ ...d.data(), id: d.id } as Membership);
+              const data = d.data();
+              // Guard: skip any document missing required name field
+              if (!data || !data.name) return;
+              cloudTiers.push({ ...data, id: d.id } as Membership);
             });
             if (cloudTiers.length > 0) {
               // Reconcile and save

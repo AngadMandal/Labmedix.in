@@ -122,14 +122,27 @@ export const OfflineFormPage: React.FC = () => {
     };
   }, [showToast]);
 
-  // Available Active Memberships (Single Source of Truth)
+  // Available Active Memberships (Single Source of Truth — live subscription)
   const [memberships, setMemberships] = useState<Membership[]>(() => StorageService.getActiveMemberships());
   const camps = StorageService.getHealthCamps();
 
   useEffect(() => {
+    // Subscribe to live membership tier changes from Firestore + local storage
     const unsubscribe = MembershipTierService.subscribeToTiers((allTiers) => {
-      const active = allTiers.filter(t => t.status === 'active');
+      const active = allTiers.filter(t => t && t.name && t.status === 'active');
       setMemberships(active);
+      // Auto-fix selected tier if it was deactivated
+      setMembershipId(prev => {
+        const stillActive = active.some(m => m.id === prev);
+        if (!stillActive) {
+          const best = active.find(m => m.isRecommended) || active[0];
+          if (best) {
+            setFeeCollected(best.registrationFee);
+            return best.id;
+          }
+        }
+        return prev;
+      });
     });
     return () => unsubscribe();
   }, []);
@@ -161,9 +174,9 @@ export const OfflineFormPage: React.FC = () => {
   const [villageArea, setVillageArea] = useState('');
   const [postOffice, setPostOffice] = useState('');
   const [policeStation, setPoliceStation] = useState('');
-  const [district, setDistrict] = useState('Kolkata');
-  const [stateVal, setStateVal] = useState('West Bengal');
-  const [pinCode, setPinCode] = useState('700001');
+  const [district, setDistrict] = useState(() => StorageService.getCompanyProfile()?.city || 'Kolkata');
+  const [stateVal, setStateVal] = useState(() => StorageService.getCompanyProfile()?.state || 'West Bengal');
+  const [pinCode, setPinCode] = useState(() => StorageService.getCompanyProfile()?.pinCode || '700001');
   const [fullAddress, setFullAddress] = useState('');
 
   // Medical History
@@ -192,10 +205,18 @@ export const OfflineFormPage: React.FC = () => {
   const [emergencyContactMobile, setEmergencyContactMobile] = useState('');
 
   // Membership & Payment
-  const [membershipId, setMembershipId] = useState(() => StorageService.getRecommendedMembership()?.id || StorageService.getActiveMemberships()[0]?.id || 'mem_gold_03');
+  const [membershipId, setMembershipId] = useState(() => StorageService.getRecommendedMembership()?.id || StorageService.getActiveMemberships()[0]?.id || '');
   const [initialDeposit, setInitialDeposit] = useState<number>(0);
-  const [campName, setCampName] = useState('Sundarbans Health Outreach Camp #1');
-  const [campLocation, setCampLocation] = useState('Canning, South 24 Parganas');
+  const [campName, setCampName] = useState(() => {
+    const co = StorageService.getCompanyProfile();
+    return co?.name ? `${co.name} Health Camp` : 'Health Outreach Camp';
+  });
+  const [campLocation, setCampLocation] = useState(() => {
+    const co = StorageService.getCompanyProfile();
+    if (co?.address) return co.address;
+    if (co?.city && co?.state) return `${co.city}, ${co.state}`;
+    return '';
+  });
   const [volunteerName, setVolunteerName] = useState('');
   const [paymentMode, setPaymentMode] = useState<'cash' | 'upi' | 'ngo_free_grant' | 'card'>('cash');
   const [feeCollected, setFeeCollected] = useState<number>(() => {

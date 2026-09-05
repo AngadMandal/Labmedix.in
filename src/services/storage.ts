@@ -1124,7 +1124,7 @@ export class StorageService {
     return memberships;
   }
   public static getActiveMemberships(): Membership[] {
-    return this.getMemberships().filter(m => m.status === 'active');
+    return this.getMemberships().filter(m => m && m.name && m.status === 'active');
   }
   public static getRecommendedMembership(): Membership | undefined {
     const active = this.getActiveMemberships();
